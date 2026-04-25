@@ -11,7 +11,9 @@ This repository contains design docs, implementation guides, and working extensi
 | Extension | Purpose | File |
 |-----------|---------|------|
 | `hello-world-thinking` | Displays "Hello World" in a widget when the LLM emits a thinking block | [`ttmp/.../pi-ext-thinking-hello/design/implementation.md`](ttmp/2026/04/21/pi-ext-thinking-hello--pi-extension-hello-world-before-thinking-blocks/design/implementation.md) |
-| `session-summary` | Forces the model to output `<summary>...</summary>` blocks at the end of every turn; shows parsed summary in a bordered widget | [`ttmp/.../pi-ext-session-summary/design/implementation.md`](ttmp/2026/04/23/pi-ext-session-summary--pi-extension-session-summary-block-with-system-prompt-injection/design/implementation.md) |
+| `session-summary` | Forces the model to output `<summary>...</summary>` blocks at the end of every turn; shows parsed summary in a compact widget | [`extensions/session-summary/index.ts`](extensions/session-summary/index.ts) |
+
+The installed `session-summary` extension is a symlink to the source-controlled directory in `extensions/`.
 
 ## Analyzing your extension sessions with go-minitrace
 
