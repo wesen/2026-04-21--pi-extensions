@@ -78,6 +78,65 @@ function setFooter(ctx: ExtensionContext): void {
 	ctx.ui.setStatus("docmgr", updateSnapshotStatus(snapshot));
 }
 
+function buildDebugPreview(ctx: ExtensionCommandContext): string {
+	const ticketSummaries = snapshot.tickets.slice(0, 5).map((ticket) => `- ${ticket.ticket} · ${ticket.status} · ${ticket.title}`);
+	const lines = [
+		`cwd: ${ctx.cwd}`,
+		`root: ${snapshot.root ?? "(unknown)"}`,
+		`tickets: ${snapshot.tickets.length}`,
+		`open: ${snapshot.openTicketCount}`,
+		`refreshed: ${snapshot.refreshedAt}`,
+		`current ticket: ${snapshot.currentTicket ?? "(none)"}`,
+		snapshot.lastManipulatedTicket
+			? `last action: ${snapshot.lastManipulatedTicket.ticket} (${snapshot.lastManipulatedTicket.action})`
+			: "last action: (none)",
+		`warnings: ${snapshot.warnings.length}`,
+		"",
+		"Ticket sample:",
+		...(ticketSummaries.length > 0 ? ticketSummaries : ["- (no tickets loaded)"]),
+		snapshot.tickets.length > ticketSummaries.length ? `- ...and ${snapshot.tickets.length - ticketSummaries.length} more` : undefined,
+		...(snapshot.warnings.length > 0 ? ["", "Warnings:", ...snapshot.warnings.map((warning) => `- ${warning}`)] : []),
+	];
+	return lines.filter((line): line is string => typeof line === "string" && line.length > 0).join("\n");
+}
+
+async function showDebugOverlay(ctx: ExtensionCommandContext): Promise<void> {
+	await refreshSnapshot(ctx);
+	if (!ctx.hasUI) {
+		ctx.ui.notify(`docmgr debug: cwd=${ctx.cwd} tickets=${snapshot.tickets.length} open=${snapshot.openTicketCount}`, "info");
+		return;
+	}
+
+	const component = createBrowserComponent({
+		title: "docmgr debug",
+		emptyText: "No debug details available.",
+		helpText: "Esc exit",
+		items: [
+			{
+				id: "snapshot",
+				label: "Workspace snapshot",
+				description: `${snapshot.tickets.length} tickets · ${snapshot.openTicketCount} open`,
+				preview: buildDebugPreview(ctx),
+			},
+		],
+	});
+
+	await ctx.ui.custom(
+		(_tui, _theme, _kb, done) => ({
+			render: (width) => component.render(width),
+			handleInput: (data) => {
+				if (matchesKey(data, Key.escape)) {
+					done(undefined);
+					return;
+				}
+				component.handleInput(data);
+			},
+			invalidate: () => component.invalidate(),
+		}),
+		{ overlay: true },
+	);
+}
+
 function recordTicketState(
 	ctx: ExtensionContext,
 	ticket: Pick<TicketRecord, "ticket" | "title">,
@@ -360,6 +419,13 @@ export default function docmgrExtension(pi: ExtensionAPI): void {
 		description: "Refresh docmgr snapshot/status",
 		handler: async (_args, ctx) => {
 			await refreshAndNotify(ctx);
+		},
+	});
+
+	pi.registerCommand("docmgr-debug", {
+		description: "Show docmgr workspace diagnostics",
+		handler: async (_args, ctx) => {
+			await showDebugOverlay(ctx);
 		},
 	});
 

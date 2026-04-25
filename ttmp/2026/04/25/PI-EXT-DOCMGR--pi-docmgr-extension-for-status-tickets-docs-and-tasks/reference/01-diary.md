@@ -279,3 +279,52 @@ These tickets are not a new feature slice; they are just test fixtures that make
 ### Technical details
 - Smoke tickets: `PI-EXT-DOCMGR-TEST-BORDER`, `PI-EXT-DOCMGR-TEST-ESC`, `PI-EXT-DOCMGR-TEST-DOCS`
 - Each ticket has at least one reference/playbook doc and a focused task list.
+
+## Step 5: Add a debug overlay and footer counts for tmux testing
+
+The follow-up UI question was whether the browser was actually seeing the repo workspace or a fallback `ttmp/` root. To make that easier to verify in Pi and tmux, I added a dedicated debug command and made the footer show open-ticket counts as `open x/y` instead of just the open count.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Can you test in tmux? potentially adding debug commands"
+
+**Assistant interpretation:** Use tmux to validate the docmgr extension and, if needed, add a small debug command so the resolved cwd/root and ticket counts are visible inside Pi.
+
+**Inferred user intent:** Make it easy to reproduce the browser state in tmux and confirm whether docmgr is loading the expected ticket workspace.
+
+**Commit (code):** N/A at the time of writing; this is the note that should accompany the debug-command patch.
+
+### What I did
+- Added a `docmgr-debug` command that opens a diagnostics overlay.
+- Included the resolved `cwd`, workspace root, ticket counts, and a sample of loaded tickets in the debug overlay.
+- Changed the footer to show `open x/y` so zero-ticket vs. zero-open-ticket cases are immediately obvious.
+
+### Why
+- The browser can look empty even when the root is wrong or the loader has not refreshed yet, so a compact diagnostic view reduces guesswork.
+- The footer now communicates total loaded tickets instead of only open tickets.
+
+### What worked
+- The new diagnostics overlay is intentionally small and should be easy to open during tmux smoke tests.
+
+### What didn't work
+- The earlier footer only showed open counts, which made empty-workspace vs. empty-open-set cases harder to distinguish.
+
+### What I learned
+- A one-screen debug modal is often more useful than a notification when the goal is to inspect the current workspace state.
+
+### What was tricky to build
+- The debug overlay needs to stay short enough to fit comfortably inside Pi's modal chrome.
+
+### What warrants a second pair of eyes
+- Whether the debug overlay should also include raw `docmgr status` warnings if they appear.
+
+### What should be done in the future
+- Use the new debug command in tmux to verify the workspace root before changing any ticket-loading behavior.
+
+### Code review instructions
+- Open `/docmgr-debug` in Pi and confirm the overlay shows the expected `cwd`, root, and ticket count.
+- Compare the footer `open x/y` count with `docmgr ticket tickets --with-glaze-output --output json` in the shell.
+
+### Technical details
+- Command: `/docmgr-debug`
+- Footer format: `docmgr · root … · open x/y`

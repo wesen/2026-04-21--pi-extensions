@@ -2,6 +2,16 @@
 
 ## 2026-04-25
 
+Added a `docmgr-debug` command and changed the footer to show open-ticket counts as `open x/y` so tmux smoke tests can verify the resolved workspace root and loaded ticket total more easily.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/index.ts — Added the debug overlay command
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/state.ts — Footer now shows open/total ticket counts
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/25/PI-EXT-DOCMGR--pi-docmgr-extension-for-status-tickets-docs-and-tasks/playbook/01-pi-docmgr-extension-implementation-guide.md — Updated smoke-test commands and debug workflow
+
+## 2026-04-25
+
 - Created the PI-EXT-DOCMGR ticket workspace and set the v1 scope to status, tickets, docs, and tasks.
 - Drafted the design doc, implementation guide, and diary with ASCII mockups for the planned Pi UI.
 - Seeded the first implementation tasks for the shared docmgr adapter, status bar, ticket browser, docs browser, and task browser.

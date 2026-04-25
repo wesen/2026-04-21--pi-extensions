@@ -70,7 +70,7 @@ export function mergeSnapshotWithSession(snapshot: DocmgrSnapshot, state: Docmgr
 
 export function updateSnapshotStatus(snapshot: DocmgrSnapshot): string {
 	const rootLabel = snapshot.root ? snapshot.root.split("/").filter(Boolean).pop() ?? snapshot.root : "ttmp";
-	const parts = [`root ${rootLabel}`, `open ${snapshot.openTicketCount}`];
+	const parts = [`root ${rootLabel}`, `open ${snapshot.openTicketCount}/${snapshot.tickets.length}`];
 	if (snapshot.lastManipulatedTicket) {
 		parts.push(`last ${snapshot.lastManipulatedTicket.ticket}`);
 	}

@@ -190,6 +190,7 @@ PI_OFFLINE=1 pi -e /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/
 Then open Pi interactively and verify the extension-specific commands:
 
 - `/docmgr-refresh` updates the footer to show the configured root and ticket count.
+- `/docmgr-debug` opens a diagnostics overlay with the resolved cwd/root and ticket counts.
 - `/docmgr-tickets` opens the ticket browser.
 - `/docmgr-docs` opens the docs browser for the active ticket.
 - `/docmgr-tasks` opens the task browser.
