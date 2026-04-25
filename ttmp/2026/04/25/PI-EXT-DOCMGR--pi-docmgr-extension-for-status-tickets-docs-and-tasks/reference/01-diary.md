@@ -227,3 +227,55 @@ This step is the handoff point: the implementation is done, the validation notes
 - Ticket status: `complete`
 - Task count: `22/22`
 - Validation: `docmgr doctor --ticket PI-EXT-DOCMGR --stale-after 30`
+
+## Step 4: Add debugging tickets for the follow-up UI fixes
+
+After the first fix pass, I created a few dedicated smoke-test tickets so the border and Escape-key behavior are easier to isolate in Pi. The goal is to keep the debug surface small and explicit: one ticket focuses on the border rendering, one on Escape handling, and one on docs-preview behavior.
+
+These tickets are not a new feature slice; they are just test fixtures that make it easier to reproduce the modal issues and confirm the browser flows behave correctly once the UI patch lands.
+
+### Prompt Context
+
+**User prompt (verbatim):** "also create a few test tickets so we can more easily debug."
+
+**Assistant interpretation:** Create a small set of docmgr test tickets that can be used to verify and reproduce the browser UI issues more easily.
+
+**Inferred user intent:** Make debugging faster by having a handful of known tickets with lightweight content that can be opened, previewed, and closed repeatedly.
+
+**Commit (code):** N/A — ticket/document scaffolding only.
+
+### What I did
+- Created three smoke-test tickets: border, Escape, and docs-preview focused.
+- Added small reference/playbook content and task lists to each ticket.
+- Kept the generated task-list template in mind while adding the real smoke-test tasks.
+
+### Why
+- Having dedicated tickets makes it much easier to verify the modal UI without relying on the production ticket workspace.
+- The test tickets create repeatable content for the ticket browser, docs preview, and task toggling flows.
+
+### What worked
+- The smoke-test tickets were created successfully.
+- Each ticket now has at least one document and a focused task list for UI verification.
+
+### What didn't work
+- The default task template still seeds an `Add tasks here` item, so the tickets are a little less minimal than I wanted.
+
+### What I learned
+- Test fixtures are most useful when they are specific to the UI failure you are debugging, rather than generic filler tickets.
+
+### What was tricky to build
+- The task template behavior is a little surprising because the generated workspace seeds an `Add tasks here` task before you add your own.
+
+### What warrants a second pair of eyes
+- Whether these smoke-test tickets should eventually be kept around permanently or folded into a separate debugging workspace later.
+
+### What should be done in the future
+- Use the new smoke-test tickets to validate the border and Escape fixes in Pi.
+
+### Code review instructions
+- Open the smoke-test tickets in the browser and confirm the border, docs preview, and Escape behavior are all correct.
+- If needed, remove or regenerate the smoke tickets after the UI fix is confirmed.
+
+### Technical details
+- Smoke tickets: `PI-EXT-DOCMGR-TEST-BORDER`, `PI-EXT-DOCMGR-TEST-ESC`, `PI-EXT-DOCMGR-TEST-DOCS`
+- Each ticket has at least one reference/playbook doc and a focused task list.

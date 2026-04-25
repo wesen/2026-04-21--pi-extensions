@@ -38,7 +38,13 @@ Expanded the implementation backlog into detailed Pi-extension tasks covering th
 
 ## 2026-04-25
 
-test
+Added three docmgr smoke-test tickets so the browser UI can be debugged more easily: one for border rendering, one for Escape handling, and one for docs-preview behavior.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/25/PI-EXT-DOCMGR-TEST-BORDER--docmgr-extension-border-smoke-test/index.md — Border smoke-test ticket
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/25/PI-EXT-DOCMGR-TEST-ESC--docmgr-extension-escape-smoke-test/index.md — Escape smoke-test ticket
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/25/PI-EXT-DOCMGR-TEST-DOCS--docmgr-extension-docs-smoke-test/index.md — Docs-preview smoke-test ticket
 
 
 ## 2026-04-25

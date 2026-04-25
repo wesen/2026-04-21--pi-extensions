@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { Key } from "@mariozechner/pi-tui";
+import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { createBrowserComponent, type BrowserItem } from "./ui/browser";
 import {
 	closeTicket,
@@ -182,8 +182,12 @@ async function showTicketBrowser(ctx: ExtensionCommandContext): Promise<void> {
 		(_tui, _theme, _kb, done) => ({
 			render: (width) => component.render(width),
 			handleInput: (data) => {
+				if (matchesKey(data, Key.escape)) {
+					done(undefined);
+					return;
+				}
 				component.handleInput(data);
-				if (data === "\u001b" || data === "d" || data === "t" || data === "c") {
+				if (data === "d" || data === "t" || data === "c") {
 					done(undefined);
 				}
 			},
@@ -226,8 +230,11 @@ async function showDocsBrowser(ctx: ExtensionCommandContext, ticketId?: string):
 		(_tui, _theme, _kb, done) => ({
 			render: (width) => component.render(width),
 			handleInput: (data) => {
+				if (matchesKey(data, Key.escape)) {
+					done(undefined);
+					return;
+				}
 				component.handleInput(data);
-				if (data === "\u001b") done(undefined);
 			},
 			invalidate: () => component.invalidate(),
 		}),
@@ -300,8 +307,11 @@ async function showTasksBrowser(ctx: ExtensionCommandContext, ticketId?: string)
 		(_tui, _theme, _kb, done) => ({
 			render: (width) => component.render(width),
 			handleInput: (data) => {
+				if (matchesKey(data, Key.escape)) {
+					done(undefined);
+					return;
+				}
 				component.handleInput(data);
-				if (data === "\u001b") done(undefined);
 			},
 			invalidate: () => component.invalidate(),
 		}),

@@ -1,6 +1,6 @@
 import { Markdown, type MarkdownTheme } from "@mariozechner/pi-tui";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
-import { matchesKey, Key, truncateToWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { matchesKey, Key, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 
 export interface BrowserItem {
 	id: string;
@@ -56,14 +56,29 @@ export function createBrowserComponent(options: BrowserOptions) {
 	function render(width: number): string[] {
 		if (width === cachedWidth) return cachedLines;
 		cachedWidth = width;
+
+		const innerWidth = Math.max(0, width - 2);
+		const pad = (line: string) => {
+			const content = truncateToWidth(line, innerWidth);
+			const padCount = Math.max(0, innerWidth - visibleWidth(content));
+			return `${content}${" ".repeat(padCount)}`;
+		};
+		const row = (line: string) => `│${pad(line)}│`;
 		const lines: string[] = [];
-		lines.push(truncateToWidth(options.title, width));
-		lines.push(truncateToWidth("─".repeat(Math.max(0, width)), width));
+		const top = width >= 2 ? `╭${"─".repeat(innerWidth)}╮` : "";
+		const bottom = width >= 2 ? `╰${"─".repeat(innerWidth)}╯` : "";
+
+		if (top) lines.push(top);
+		lines.push(row(options.title));
+		lines.push(row(""));
 
 		if (items.length === 0) {
-			lines.push(truncateToWidth(options.emptyText, width));
-			lines.push(truncateToWidth("─".repeat(Math.max(0, width)), width));
-			lines.push(...wrapTextWithAnsi(options.helpText, width));
+			lines.push(row(options.emptyText));
+			lines.push(row(""));
+			for (const helpLine of wrapTextWithAnsi(options.helpText, innerWidth)) {
+				lines.push(row(helpLine));
+			}
+			if (bottom) lines.push(bottom);
 			cachedLines = lines;
 			return lines;
 		}
@@ -74,14 +89,19 @@ export function createBrowserComponent(options: BrowserOptions) {
 			const line = item.description
 				? `${prefix}${item.label}  ${item.description}`
 				: `${prefix}${item.label}`;
-			lines.push(truncateToWidth(line, width));
+			lines.push(row(line));
 		}
 
-		lines.push(truncateToWidth("", width));
-		lines.push(truncateToWidth("Preview", width));
-		lines.push(...renderPreview(currentItem(), width));
-		lines.push(truncateToWidth("", width));
-		lines.push(...wrapTextWithAnsi(options.helpText, width));
+		lines.push(row(""));
+		lines.push(row("Preview"));
+		for (const previewLine of renderPreview(currentItem(), innerWidth)) {
+			lines.push(row(previewLine));
+		}
+		lines.push(row(""));
+		for (const helpLine of wrapTextWithAnsi(options.helpText, innerWidth)) {
+			lines.push(row(helpLine));
+		}
+		if (bottom) lines.push(bottom);
 		cachedLines = lines;
 		return lines;
 	}
