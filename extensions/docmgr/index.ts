@@ -78,9 +78,10 @@ function setFooter(ctx: ExtensionContext): void {
 	ctx.ui.setStatus("docmgr", updateSnapshotStatus(snapshot));
 }
 
-function buildDebugPreview(ctx: ExtensionCommandContext): string {
-	const ticketSummaries = snapshot.tickets.slice(0, 5).map((ticket) => `- ${ticket.ticket} · ${ticket.status} · ${ticket.title}`);
-	const lines = [
+function buildDebugLines(ctx: ExtensionCommandContext): string[] {
+	const ticketSummaries = snapshot.tickets.slice(0, 5).map((ticket) => `• ${ticket.ticket} · ${ticket.status} · ${ticket.title}`);
+	return [
+		`docmgr debug`,
 		`cwd: ${ctx.cwd}`,
 		`root: ${snapshot.root ?? "(unknown)"}`,
 		`tickets: ${snapshot.tickets.length}`,
@@ -93,48 +94,24 @@ function buildDebugPreview(ctx: ExtensionCommandContext): string {
 		`warnings: ${snapshot.warnings.length}`,
 		"",
 		"Ticket sample:",
-		...(ticketSummaries.length > 0 ? ticketSummaries : ["- (no tickets loaded)"]),
-		snapshot.tickets.length > ticketSummaries.length ? `- ...and ${snapshot.tickets.length - ticketSummaries.length} more` : undefined,
-		...(snapshot.warnings.length > 0 ? ["", "Warnings:", ...snapshot.warnings.map((warning) => `- ${warning}`)] : []),
-	];
-	return lines.filter((line): line is string => typeof line === "string" && line.length > 0).join("\n");
+		...(ticketSummaries.length > 0 ? ticketSummaries : ["• (no tickets loaded)"]),
+		snapshot.tickets.length > ticketSummaries.length ? `• ...and ${snapshot.tickets.length - ticketSummaries.length} more` : undefined,
+		...(snapshot.warnings.length > 0 ? ["", "Warnings:", ...snapshot.warnings.map((warning) => `• ${warning}`)] : []),
+	].filter((line): line is string => typeof line === "string" && line.length > 0);
 }
 
-async function showDebugOverlay(ctx: ExtensionCommandContext): Promise<void> {
+let debugWidgetVisible = false;
+
+async function showDebugWidget(ctx: ExtensionCommandContext): Promise<void> {
 	await refreshSnapshot(ctx);
 	if (!ctx.hasUI) {
 		ctx.ui.notify(`docmgr debug: cwd=${ctx.cwd} tickets=${snapshot.tickets.length} open=${snapshot.openTicketCount}`, "info");
 		return;
 	}
 
-	const component = createBrowserComponent({
-		title: "docmgr debug",
-		emptyText: "No debug details available.",
-		helpText: "Esc exit",
-		items: [
-			{
-				id: "snapshot",
-				label: "Workspace snapshot",
-				description: `${snapshot.tickets.length} tickets · ${snapshot.openTicketCount} open`,
-				preview: buildDebugPreview(ctx),
-			},
-		],
-	});
-
-	await ctx.ui.custom(
-		(_tui, _theme, _kb, done) => ({
-			render: (width) => component.render(width),
-			handleInput: (data) => {
-				if (matchesKey(data, Key.escape)) {
-					done(undefined);
-					return;
-				}
-				component.handleInput(data);
-			},
-			invalidate: () => component.invalidate(),
-		}),
-		{ overlay: true },
-	);
+	ctx.ui.setWidget("docmgr-debug", buildDebugLines(ctx), { placement: "belowEditor" });
+	debugWidgetVisible = true;
+	ctx.ui.notify("docmgr debug widget shown below the editor.", "info");
 }
 
 function recordTicketState(
@@ -408,6 +385,12 @@ export default function docmgrExtension(pi: ExtensionAPI): void {
 		await refreshSnapshot(ctx);
 	});
 
+	pi.on("turn_start", async (_event, ctx) => {
+		if (!ctx.hasUI || !debugWidgetVisible) return;
+		ctx.ui.setWidget("docmgr-debug", undefined);
+		debugWidgetVisible = false;
+	});
+
 	pi.registerCommand("docmgr", {
 		description: "Open the docmgr ticket browser",
 		handler: async (_args, ctx) => {
@@ -425,7 +408,7 @@ export default function docmgrExtension(pi: ExtensionAPI): void {
 	pi.registerCommand("docmgr-debug", {
 		description: "Show docmgr workspace diagnostics",
 		handler: async (_args, ctx) => {
-			await showDebugOverlay(ctx);
+			await showDebugWidget(ctx);
 		},
 	});
 
