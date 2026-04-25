@@ -27,6 +27,21 @@ interface ExecResult {
 	stderr: string;
 }
 
+export interface DocmgrCommandProbe {
+	command: string;
+	exitCode: number;
+	stdout: string;
+	stderr: string;
+}
+
+export interface DocmgrWorkspaceProbe {
+	runtimeCwd: string;
+	requestedCwd: string;
+	docmgrPath: string;
+	status: DocmgrCommandProbe;
+	tickets: DocmgrCommandProbe;
+}
+
 function stringifyArgs(args: string[]): string {
 	return ["docmgr", ...args].join(" ");
 }
@@ -46,6 +61,44 @@ async function runDocmgr(args: string[], opts: DocmgrRunOptions): Promise<ExecRe
 			stringifyArgs(args),
 			String(err.stderr ?? err.stdout ?? err.message ?? error),
 		);
+	}
+}
+
+async function probeDocmgr(args: string[], opts: DocmgrRunOptions): Promise<DocmgrCommandProbe> {
+	try {
+		const { stdout, stderr } = await execFileAsync("docmgr", args, {
+			cwd: opts.cwd,
+			maxBuffer: 10 * 1024 * 1024,
+			env: process.env,
+		});
+		return {
+			command: stringifyArgs(args),
+			exitCode: 0,
+			stdout: String(stdout ?? ""),
+			stderr: String(stderr ?? ""),
+		};
+	} catch (error) {
+		const err = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: number };
+		return {
+			command: stringifyArgs(args),
+			exitCode: typeof err.code === "number" ? err.code : 1,
+			stdout: String(err.stdout ?? ""),
+			stderr: String(err.stderr ?? err.message ?? error),
+		};
+	}
+}
+
+async function resolveDocmgrPath(cwd: string): Promise<string> {
+	try {
+		const { stdout } = await execFileAsync("bash", ["-lc", "command -v docmgr"], {
+			cwd,
+			maxBuffer: 1024 * 1024,
+			env: process.env,
+		});
+		return String(stdout ?? "").trim() || "(not found)";
+	} catch (error) {
+		const err = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+		return String(err.stdout ?? err.stderr ?? err.message ?? error).trim() || "(not found)";
 	}
 }
 
@@ -237,19 +290,10 @@ function parseTaskArray(payload: unknown): TaskRecord[] {
 	});
 }
 
-async function tryStructured<T>(args: string[], cwd: string, parse: (stdout: string) => T): Promise<T> {
-	const structuredArgs = [...args, "--with-glaze-output", "--output", "json"];
-	const { stdout } = await runDocmgr(structuredArgs, { cwd });
-	try {
-		return parse(stdout);
-	} catch (error) {
-		throw new Error(`Failed to parse structured output for ${stringifyArgs(args)}: ${error instanceof Error ? error.message : String(error)}`);
-	}
-}
-
 export async function loadWorkspaceStatus(cwd: string): Promise<DocmgrStatusInfo> {
+	const probe = await probeDocmgr(["status", "--summary-only", "--with-glaze-output", "--output", "json"], { cwd });
 	try {
-		return await tryStructured(["status", "--summary-only"], cwd, parseStatusArray);
+		return parseStatusArray(parseJsonOutput(probe.stdout));
 	} catch {
 		const { stdout } = await runDocmgr(["status", "--summary-only"], { cwd });
 		return parseHumanStatus(stdout);
@@ -257,8 +301,9 @@ export async function loadWorkspaceStatus(cwd: string): Promise<DocmgrStatusInfo
 }
 
 export async function listTickets(cwd: string): Promise<TicketRecord[]> {
+	const probe = await probeDocmgr(["list", "tickets", "--with-glaze-output", "--output", "json"], { cwd });
 	try {
-		return await tryStructured(["list", "tickets"], cwd, parseTicketArray);
+		return parseTicketArray(parseJsonOutput(probe.stdout));
 	} catch {
 		const { stdout } = await runDocmgr(["list", "tickets"], { cwd });
 		return parseHumanTickets(stdout);
@@ -268,8 +313,9 @@ export async function listTickets(cwd: string): Promise<TicketRecord[]> {
 export async function listDocs(cwd: string, ticket?: string): Promise<DocRecord[]> {
 	const args = ["doc", "list"];
 	if (ticket) args.push("--ticket", ticket);
+	const probe = await probeDocmgr([...args, "--with-glaze-output", "--output", "json"], { cwd });
 	try {
-		return await tryStructured(args, cwd, parseDocArray);
+		return parseDocArray(parseJsonOutput(probe.stdout));
 	} catch {
 		const { stdout } = await runDocmgr(args, { cwd });
 		return parseHumanDocs(stdout);
@@ -279,8 +325,9 @@ export async function listDocs(cwd: string, ticket?: string): Promise<DocRecord[
 export async function listTasks(cwd: string, ticket?: string): Promise<TaskRecord[]> {
 	const args = ["task", "list"];
 	if (ticket) args.push("--ticket", ticket);
+	const probe = await probeDocmgr([...args, "--with-glaze-output", "--output", "json"], { cwd });
 	try {
-		return await tryStructured(args, cwd, parseTaskArray);
+		return parseTaskArray(parseJsonOutput(probe.stdout));
 	} catch {
 		const { stdout } = await runDocmgr(args, { cwd });
 		return parseHumanTasks(stdout);
@@ -315,4 +362,19 @@ export function resolveDocPath(root: string | undefined, docPath: string): strin
 		return docPath;
 	}
 	return join(root, docPath);
+}
+
+export async function inspectWorkspace(cwd: string): Promise<DocmgrWorkspaceProbe> {
+	const [status, tickets, docmgrPath] = await Promise.all([
+		probeDocmgr(["status", "--summary-only", "--with-glaze-output", "--output", "json"], { cwd }),
+		probeDocmgr(["list", "tickets", "--with-glaze-output", "--output", "json"], { cwd }),
+		resolveDocmgrPath(cwd),
+	]);
+	return {
+		runtimeCwd: process.cwd(),
+		requestedCwd: cwd,
+		docmgrPath,
+		status,
+		tickets,
+	};
 }

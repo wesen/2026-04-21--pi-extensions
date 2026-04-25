@@ -1,8 +1,10 @@
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { writeFileSync } from "node:fs";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { createBrowserComponent, type BrowserItem } from "./ui/browser";
 import {
 	closeTicket,
+	inspectWorkspace,
 	listDocs,
 	listTasks,
 	listTickets,
@@ -78,25 +80,29 @@ function setFooter(ctx: ExtensionContext): void {
 	ctx.ui.setStatus("docmgr", updateSnapshotStatus(snapshot));
 }
 
-function buildDebugLines(ctx: ExtensionCommandContext): string[] {
-	const ticketSummaries = snapshot.tickets.slice(0, 5).map((ticket) => `• ${ticket.ticket} · ${ticket.status} · ${ticket.title}`);
+function buildDebugLines(ctx: ExtensionCommandContext, probe: Awaited<ReturnType<typeof inspectWorkspace>>): string[] {
+	const ticketSummaries = snapshot.tickets.slice(0, 3).map((ticket) => `• ${ticket.ticket} · ${ticket.status} · ${ticket.title}`);
 	return [
 		`docmgr debug`,
-		`cwd: ${ctx.cwd}`,
+		`ctx.cwd: ${ctx.cwd}`,
+		`docmgr path: ${probe.docmgrPath}`,
 		`root: ${snapshot.root ?? "(unknown)"}`,
 		`tickets: ${snapshot.tickets.length}`,
 		`open: ${snapshot.openTicketCount}`,
-		`refreshed: ${snapshot.refreshedAt}`,
-		`current ticket: ${snapshot.currentTicket ?? "(none)"}`,
+		`warnings: ${snapshot.warnings.length}`,
 		snapshot.lastManipulatedTicket
 			? `last action: ${snapshot.lastManipulatedTicket.ticket} (${snapshot.lastManipulatedTicket.action})`
 			: "last action: (none)",
-		`warnings: ${snapshot.warnings.length}`,
 		"",
 		"Ticket sample:",
 		...(ticketSummaries.length > 0 ? ticketSummaries : ["• (no tickets loaded)"]),
 		snapshot.tickets.length > ticketSummaries.length ? `• ...and ${snapshot.tickets.length - ticketSummaries.length} more` : undefined,
-		...(snapshot.warnings.length > 0 ? ["", "Warnings:", ...snapshot.warnings.map((warning) => `• ${warning}`)] : []),
+		"",
+		"Raw probe files:",
+		"• /tmp/docmgr-debug-status.txt",
+		"• /tmp/docmgr-debug-tickets.txt",
+		"• /tmp/docmgr-debug-parsed.txt",
+		"• /tmp/docmgr-debug-direct.txt",
 	].filter((line): line is string => typeof line === "string" && line.length > 0);
 }
 
@@ -104,14 +110,60 @@ let debugWidgetVisible = false;
 
 async function showDebugWidget(ctx: ExtensionCommandContext): Promise<void> {
 	await refreshSnapshot(ctx);
+	const probe = await inspectWorkspace(ctx.cwd);
+	const parsedStatus = await loadWorkspaceStatus(ctx.cwd);
+	const parsedTickets = await listTickets(ctx.cwd);
+
+	try {
+		writeFileSync("/tmp/docmgr-debug-status.txt", [
+			`# docmgr status probe`,
+			`ctx.cwd: ${ctx.cwd}`,
+			`docmgr path: ${probe.docmgrPath}`,
+			`status exit: ${probe.status.exitCode}`,
+			"",
+			probe.status.stdout,
+			"",
+			"--- stderr ---",
+			probe.status.stderr,
+		].join("\n"));
+		writeFileSync("/tmp/docmgr-debug-tickets.txt", [
+			`# docmgr tickets probe`,
+			`ctx.cwd: ${ctx.cwd}`,
+			`docmgr path: ${probe.docmgrPath}`,
+			`ticket exit: ${probe.tickets.exitCode}`,
+			"",
+			probe.tickets.stdout,
+			"",
+			"--- stderr ---",
+			probe.tickets.stderr,
+		].join("\n"));
+		writeFileSync("/tmp/docmgr-debug-parsed.txt", JSON.stringify({
+			parsedStatus,
+			parsedTicketsCount: parsedTickets.length,
+			parsedTicketsSample: parsedTickets.slice(0, 3),
+			activeSnapshot: {
+				root: snapshot.root,
+				tickets: snapshot.tickets.length,
+				open: snapshot.openTicketCount,
+				warnings: snapshot.warnings,
+			},
+		}, null, 2));
+		writeFileSync("/tmp/docmgr-debug-direct.txt", JSON.stringify({
+			status: JSON.parse(probe.status.stdout.trim()),
+			tickets: JSON.parse(probe.tickets.stdout.trim()),
+		}, null, 2));
+	} catch (error) {
+		ctx.ui.notify(`Failed to write debug probe files: ${error instanceof Error ? error.message : String(error)}`, "warning");
+	}
+
 	if (!ctx.hasUI) {
 		ctx.ui.notify(`docmgr debug: cwd=${ctx.cwd} tickets=${snapshot.tickets.length} open=${snapshot.openTicketCount}`, "info");
 		return;
 	}
 
-	ctx.ui.setWidget("docmgr-debug", buildDebugLines(ctx), { placement: "belowEditor" });
+	ctx.ui.setWidget("docmgr-debug", buildDebugLines(ctx, probe), { placement: "belowEditor" });
 	debugWidgetVisible = true;
-	ctx.ui.notify("docmgr debug widget shown below the editor.", "info");
+	ctx.ui.notify("docmgr debug widget shown below the editor. Raw probes saved to /tmp/docmgr-debug-*.txt", "info");
 }
 
 function recordTicketState(

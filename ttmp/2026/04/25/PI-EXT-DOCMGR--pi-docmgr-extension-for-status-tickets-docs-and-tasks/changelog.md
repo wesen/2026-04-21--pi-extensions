@@ -2,11 +2,12 @@
 
 ## 2026-04-25
 
-Added a `docmgr-debug` command and changed the footer to show open-ticket counts as `open x/y` so tmux smoke tests can verify the resolved workspace root and loaded ticket total more easily.
+Added a `docmgr-debug` command and changed the footer to show open-ticket counts as `open x/y` so tmux smoke tests can verify the resolved workspace root and loaded ticket total more easily. The debug flow now also writes raw probe captures to `/tmp/docmgr-debug-*.txt` while the parse path is being verified.
 
 ### Related Files
 
-- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/index.ts — Added the debug widget command
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/index.ts — Added the debug widget command and raw probe capture files
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/docmgr-cli.ts — Switched workspace loading to probe-based JSON parsing
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/state.ts — Footer now shows open/total ticket counts
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/25/PI-EXT-DOCMGR--pi-docmgr-extension-for-status-tickets-docs-and-tasks/playbook/01-pi-docmgr-extension-implementation-guide.md — Updated smoke-test commands and debug workflow
 

@@ -282,7 +282,7 @@ These tickets are not a new feature slice; they are just test fixtures that make
 
 ## Step 5: Add a debug widget and footer counts for tmux testing
 
-The follow-up UI question was whether the browser was actually seeing the repo workspace or a fallback `ttmp/` root. To make that easier to verify in Pi and tmux, I added a dedicated debug command that shows a widget below the editor and made the footer show open-ticket counts as `open x/y` instead of just the open count.
+The follow-up UI question was whether the browser was actually seeing the repo workspace or a fallback `ttmp/` root. To make that easier to verify in Pi and tmux, I added a dedicated debug command that shows a widget below the editor, wrote raw probe outputs to `/tmp/docmgr-debug-*.txt`, and made the footer show open-ticket counts as `open x/y` instead of just the open count.
 
 ### Prompt Context
 
@@ -296,7 +296,8 @@ The follow-up UI question was whether the browser was actually seeing the repo w
 
 ### What I did
 - Added a `docmgr-debug` command that shows a diagnostics widget below the editor.
-- Included the resolved `cwd`, workspace root, ticket counts, and a sample of loaded tickets in the debug widget.
+- Included the resolved `cwd`, workspace root, ticket counts, and raw probe capture paths in the debug flow.
+- Switched workspace loading to parse the same probe JSON directly, which fixed the empty ticket/root state.
 - Changed the footer to show `open x/y` so zero-ticket vs. zero-open-ticket cases are immediately obvious.
 
 ### Why
@@ -305,6 +306,7 @@ The follow-up UI question was whether the browser was actually seeing the repo w
 
 ### What worked
 - The new diagnostics widget is intentionally small and should be easy to inspect during tmux smoke tests.
+- The raw probe files in `/tmp` make it possible to compare the extension’s parse path against the shell directly.
 
 ### What didn't work
 - The earlier footer only showed open counts, which made empty-workspace vs. empty-open-set cases harder to distinguish.
@@ -317,6 +319,7 @@ The follow-up UI question was whether the browser was actually seeing the repo w
 
 ### What warrants a second pair of eyes
 - Whether the debug widget should also include raw `docmgr status` warnings if they appear.
+- Whether the raw `/tmp` probe files should eventually be removed now that the parse path is fixed.
 
 ### What should be done in the future
 - Use the new debug command in tmux to verify the workspace root before changing any ticket-loading behavior.
@@ -324,6 +327,7 @@ The follow-up UI question was whether the browser was actually seeing the repo w
 ### Code review instructions
 - Open `/docmgr-debug` in Pi and confirm the widget shows the expected `cwd`, root, and ticket count.
 - Compare the footer `open x/y` count with `docmgr ticket tickets --with-glaze-output --output json` in the shell.
+- If the widget still looks empty, inspect `/tmp/docmgr-debug-parsed.txt` and `/tmp/docmgr-debug-direct.txt`.
 
 ### Technical details
 - Command: `/docmgr-debug`
