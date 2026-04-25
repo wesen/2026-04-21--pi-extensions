@@ -13,12 +13,17 @@ RelatedFiles:
       Note: Workflow commands and ticket/document/task operations referenced by the implementation guide
     - Path: ../../../../../../../../../.pi/agent/skills/remarkable-upload/SKILL.md
       Note: Upload workflow for the final doc bundle to reMarkable
+    - Path: extensions/docmgr/docmgr-cli.ts
+      Note: CLI adapter validation commands and smoke tests
+    - Path: extensions/docmgr/index.ts
+      Note: Command handlers and refresh/status flow validated by the playbook
 ExternalSources: []
 Summary: Step-by-step implementation and validation guide for the docmgr Pi extension v1.
 LastUpdated: 2026-04-25T10:29:57.01129208-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Pi docmgr extension implementation guide
