@@ -172,3 +172,58 @@ The most useful test was an interactive tmux run. It exposed a bad `getMarkdownT
 - Added commands: `/docmgr`, `/docmgr-refresh`, `/docmgr-tickets`, `/docmgr-docs`, `/docmgr-tasks`, `/docmgr-close`
 - Added shortcuts: `Ctrl+Alt+T`, `Ctrl+Alt+D`, `Ctrl+Alt+G`, `Ctrl+Alt+R`, `Ctrl+Alt+C`
 - Validation commands: `docmgr status --summary-only`, `docmgr ticket tickets --with-glaze-output --output json`, `docmgr doc list --ticket PI-EXT-DOCMGR --with-glaze-output --output json`, `docmgr task list --ticket PI-EXT-DOCMGR --with-glaze-output --output json`, `PI_OFFLINE=1 pi -e .../extensions/docmgr/index.ts --list-models`
+
+## Step 3: Close the ticket and confirm the final state
+
+After the code and documentation landed, I closed the docmgr ticket and ran a final validation pass. The workspace now reports as complete, all 22 tasks are checked, and `docmgr doctor` passes cleanly for the ticket workspace.
+
+This step is the handoff point: the implementation is done, the validation notes are in the playbook, and the ticket metadata now reflects the finished state instead of the in-progress build state.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the implementation workflow, make sure the ticket bookkeeping reflects the completed v1, and leave behind a clear record of the final validation and closeout.
+
+**Inferred user intent:** Preserve the build history all the way through closure so future passes can see not just how the extension was implemented, but also how the work was validated and finalized.
+
+**Commit (code):** N/A — ticket close and bookkeeping only.
+
+### What I did
+- Closed `PI-EXT-DOCMGR` with `docmgr ticket close`.
+- Re-ran `docmgr doctor --ticket PI-EXT-DOCMGR --stale-after 30` and confirmed the ticket workspace is clean.
+- Confirmed that all 22 tasks are marked complete in `tasks.md`.
+
+### Why
+- The ticket had reached its exit criteria, so the final metadata should say complete rather than active.
+- A closeout step keeps the ticket history legible for the next person who reads the workspace.
+
+### What worked
+- `docmgr ticket close` updated the ticket status and changelog as expected.
+- `docmgr doctor` passed after the close.
+- The task list is now fully checked off.
+
+### What didn't work
+- Nothing blocked the final closeout.
+
+### What I learned
+- The docmgr workflow is happiest when the code, playbook, and ticket metadata stay in sync.
+- Closing the ticket after the documentation pass keeps the history cleaner than leaving a finished v1 marked active.
+
+### What was tricky to build
+- The only tricky part here was sequencing: the code had to be validated and the diary updated before the ticket was closed, so the narrative remained accurate.
+
+### What warrants a second pair of eyes
+- Whether the final ticket status should remain complete or be re-opened for v2 planning later.
+
+### What should be done in the future
+- If a v2 appears, start a fresh ticket instead of reusing the finished v1 record.
+
+### Code review instructions
+- Review the final `changelog.md` entry and the completed `tasks.md` checklist.
+- Check `docmgr doctor` output if the ticket ever needs to be audited again.
+
+### Technical details
+- Ticket status: `complete`
+- Task count: `22/22`
+- Validation: `docmgr doctor --ticket PI-EXT-DOCMGR --stale-after 30`

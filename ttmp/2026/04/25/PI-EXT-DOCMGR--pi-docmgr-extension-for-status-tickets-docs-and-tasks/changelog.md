@@ -51,3 +51,8 @@ Implemented the docmgr Pi extension v1 with a structured CLI adapter, status sna
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/docmgr/index.ts — Extension orchestration and UI entrypoint (commit 64459d1)
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/25/PI-EXT-DOCMGR--pi-docmgr-extension-for-status-tickets-docs-and-tasks/playbook/01-pi-docmgr-extension-implementation-guide.md — Smoke-test checklist and validation notes (commit 64459d1)
 
+
+## 2026-04-25
+
+Implemented the docmgr Pi extension v1, including the structured CLI adapter, status bar, ticket/docs/tasks browsers, close flow, and tmux smoke-test validation.
+

@@ -1,7 +1,7 @@
 ---
 Title: Pi docmgr extension for status, tickets, docs, and tasks
 Ticket: PI-EXT-DOCMGR
-Status: active
+Status: complete
 Topics:
     - tooling
     - documentation
@@ -15,10 +15,11 @@ RelatedFiles:
       Note: Pi extension entrypoint and command wiring for the docmgr dashboard
 ExternalSources: []
 Summary: Pi extension design for surfacing docmgr workspace status, ticket browsing/closing, doc browsing, and task toggling.
-LastUpdated: 2026-04-25T11:07:32.001319034-04:00
+LastUpdated: 2026-04-25T11:13:43.189509121-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
