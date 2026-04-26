@@ -89,3 +89,40 @@ Implemented agent-env v1 extension: safe env helper module, bash tool_call injec
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/agent-env/env.ts — Env helpers
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/agent-env/index.ts — Extension handlers
 
+
+## 2026-04-26
+
+Installed agent-env extension symlink under ~/.pi/agent/extensions/agent-env for auto-discovery.
+
+### Related Files
+
+- /home/manuel/.pi/agent/extensions/agent-env — Symlink to source-controlled agent-env extension
+
+
+## 2026-04-26
+
+Validated agent-env in tmux: /agent-env-self-test passed, LLM bash tool call printed PI_AGENT=1 TRIGGER=tool_call with non-empty tool call ID, and ! user_bash printed PI_AGENT=1 TRIGGER=user_bash.
+
+### Related Files
+
+- /tmp/agent-env-pi.log — tmux PI validation transcript
+
+
+## 2026-04-26
+
+Completed implementation tasks: v1 extension implemented, README and symlink added, tmux bash/user_bash validation passed, diary updated through Step 5.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/reference/01-diary.md — Implementation and validation diary
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/tasks.md — Task completion
+
+
+## 2026-04-26
+
+Checked placeholder task after detailed implementation tasks were added and completed.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/tasks.md — All tasks checked
+

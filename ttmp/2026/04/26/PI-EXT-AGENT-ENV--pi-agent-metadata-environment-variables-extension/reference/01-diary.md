@@ -403,3 +403,102 @@ npx tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext -
 node -e "try{require('typescript'); console.log('typescript require ok')}catch(e){console.error(e.message); process.exit(1)}"
 pi -e ./extensions/agent-env --no-session --no-tools -p "/agent-env-self-test"
 ```
+
+---
+
+## Step 5: Symlink Installation and tmux Validation
+
+After committing the initial implementation, I installed the source-controlled extension via symlink and validated it in an interactive PI session running inside tmux. The validation covered extension startup, the self-test command, LLM bash tool injection, and user `!` bash injection.
+
+The tmux test confirmed the important runtime behavior: a real LLM `bash` tool call received `PI_AGENT=1`, `PI_AGENT_TRIGGER=tool_call`, a non-empty `PI_AGENT_TOOL_CALL_ID`, and `PI_AGENT_TURN_NUMBER=1`; a user `!` command received `PI_AGENT_TRIGGER=user_bash`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 4)
+
+**Assistant interpretation:** Continue implementation work by installing the extension, validating in tmux, and recording evidence.
+
+**Inferred user intent:** The user wants proof that the extension works in PI's actual runtime, not just static code changes.
+
+**Commit (code):** ae21a57af1f5e5998f107829f533a59724565521 — "Implement agent-env extension"
+
+### What I did
+
+- Installed the extension symlink:
+  - `ln -sfn /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/agent-env ~/.pi/agent/extensions/agent-env`
+- Started PI in tmux:
+  - `tmux new-session -d -s agent-env-test 'pi --no-session --model claude-agent-sdk/claude-haiku-4-5 >/tmp/agent-env-pi.log 2>&1'`
+- Verified the startup extension list included `agent-env` and footer status showed `agent-env:on t=- n=0`.
+- Ran `/agent-env-self-test`.
+- Asked PI to use the bash tool exactly once to run:
+  - `printf "PI_AGENT=%s\nTRIGGER=%s\nTOOL_CALL_ID=%s\nTURN=%s\n" "$PI_AGENT" "$PI_AGENT_TRIGGER" "$PI_AGENT_TOOL_CALL_ID" "$PI_AGENT_TURN_NUMBER"`
+- Ran a user bash command:
+  - `!printf "USER_PI_AGENT=%s TRIGGER=%s\n" "$PI_AGENT" "$PI_AGENT_TRIGGER"`
+- Killed the tmux session after validation.
+
+### Why
+
+This extension depends on PI's event lifecycle, not just pure helper functions. The only meaningful validation is to load it in PI and observe a real `bash` tool call and a real `user_bash` command.
+
+### What worked
+
+- `/agent-env-self-test` reported `agent-env self-test: PASS`.
+- The self-test shell execution printed `quote=$(printf injected)` and `agent=1`, proving command substitution was not executed.
+- The LLM bash tool output included:
+  - `PI_AGENT=1`
+  - `TRIGGER=tool_call`
+  - `TOOL_CALL_ID=toolu_015s6vTrbuGNwPxzPsiYKrVy`
+  - `TURN=1`
+- The user bash output included:
+  - `USER_PI_AGENT=1 TRIGGER=user_bash`
+- Footer status updated from `n=0` to `n=1` after the tool call and `n=2` after the user bash command.
+
+### What didn't work
+
+- Starting PI with `--no-extensions -e ./extensions/agent-env --model claude-agent-sdk/claude-haiku-4-5` failed because `--no-extensions` also disabled the provider extension needed for `claude-agent-sdk`; PI reported `Model "claude-agent-sdk/claude-haiku-4-5" not found`.
+- Starting PI with explicit `-e ./extensions/agent-env` while auto-discovery was enabled loaded `agent-env` twice (once from the explicit path and once from the symlink). The idempotence marker would prevent double preambles, but the clean test used only the auto-discovered symlink.
+- The first attempted Google model test failed with `No API key found for google`; switching to `claude-agent-sdk/claude-haiku-4-5` worked.
+- Because stdout/stderr were redirected to `/tmp/agent-env-pi.log`, `tmux capture-pane` looked blank until I inspected the log file.
+
+### What I learned
+
+- The extension works when auto-discovered from `~/.pi/agent/extensions/agent-env`.
+- `--no-extensions` is not suitable for testing this repo's extension in isolation if the selected provider is itself an extension.
+- The idempotence marker is useful in practice because explicit `-e` plus symlink auto-discovery can load the same extension twice during development.
+
+### What was tricky to build
+
+The tricky part was getting a representative PI runtime test without accidentally loading two copies of the extension. The correct setup was to rely on the installed symlink and avoid `-e` once the symlink existed.
+
+### What warrants a second pair of eyes
+
+- Verify whether duplicate loading from explicit `-e` plus auto-discovery should be documented more prominently in the README.
+- Decide whether the self-test should be available in non-UI/print mode with stdout output rather than only `ctx.ui.notify`.
+
+### What should be done in the future
+
+- Consider adding a lightweight test script under the ticket's `scripts/` directory if repeat validation becomes common.
+- Consider adding a command to dump the exact export preamble for debugging.
+
+### Code review instructions
+
+- Confirm `/agent-env-self-test` output in `/tmp/agent-env-pi.log`.
+- Confirm the LLM bash tool output includes non-empty `TOOL_CALL_ID`.
+- Confirm user bash output includes `TRIGGER=user_bash`.
+
+### Technical details
+
+Important evidence from `/tmp/agent-env-pi.log`:
+
+```text
+agent-env self-test: PASS
+✓ shell execution: quote=$(printf injected)
+agent=1
+
+PI_AGENT=1
+TRIGGER=tool_call
+TOOL_CALL_ID=toolu_015s6vTrbuGNwPxzPsiYKrVy
+TURN=1
+
+USER_PI_AGENT=1 TRIGGER=user_bash
+```
