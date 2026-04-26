@@ -5,6 +5,18 @@ topics:
       description: Backend services
     - slug: websocket
       description: WebSocket lifecycle & events
+    - slug: tooling
+      description: Developer tooling and CLI integrations
+    - slug: documentation
+      description: Documentation authoring, review, and delivery
+    - slug: agent
+      description: PI coding agent architecture and runtime behavior
+    - slug: environment
+      description: Environment variables, process environments, and shell execution context
+    - slug: metadata
+      description: Session, turn, model, and execution metadata
+    - slug: pi-extensions
+      description: PI coding agent extension development
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

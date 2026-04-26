@@ -15,7 +15,6 @@ import { truncateToWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { SYSTEM_PROMPT_INSTRUCTION } from "./prompt";
 
 const WIDGET_KEY = "session-summary";
-const MAX_WIDGET_LINES = 12;
 const SUMMARY_COMMAND_PREVIEW_LINES = 30;
 const SUMMARY_COMMAND_PREVIEW_CHARS = 200;
 
@@ -147,11 +146,7 @@ function buildSummaryLines(summary: string, width: number, theme: { fg: (color: 
     lines.pop();
   }
 
-  const capped = lines.length > MAX_WIDGET_LINES
-    ? [...lines.slice(0, MAX_WIDGET_LINES - 1), theme.fg("dim", `… (${lines.length - (MAX_WIDGET_LINES - 1)} more lines)`)]
-    : lines;
-
-  return capped.map((line) => truncateToWidth(line, width));
+  return lines.map((line) => truncateToWidth(line, width));
 }
 
 function createSummaryWidget(
