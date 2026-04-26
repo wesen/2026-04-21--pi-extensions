@@ -23,6 +23,8 @@ LastUpdated: 2026-04-26
 
 # PI Agent Metadata Env Vars — Design
 
+> **Superseded safety note (2026-04-26):** This first-pass design contains an unsafe double-quote shell escaping sketch in the `Shell Escaping` section. Implementers must follow `../design-doc/01-plan-review-and-revised-design.md` instead: use single-quote shell quoting, idempotence markers, `isToolCallEventType("bash", event)`, and the revised `user_bash` strategy.
+
 ## Executive Summary
 
 Build a PI extension named `agent-env` that automatically injects agent
@@ -139,6 +141,9 @@ export PI_AGENT_CWD="/home/manuel/code/..."
 ### Shell Escaping
 
 ```typescript
+// Historical sketch only — do not implement.
+// Bash still expands $(...) inside double quotes.
+// See ../design-doc/01-plan-review-and-revised-design.md for the safe single-quote implementation.
 function shellEscape(value: string): string {
   return '"' + value.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }

@@ -67,3 +67,14 @@ Uploaded plan review bundle to reMarkable at /ai/2026/04/26/PI-EXT-AGENT-ENV and
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/reference/01-diary.md — Diary updated with upload evidence
 
+
+## 2026-04-26
+
+Implementation kickoff: added detailed tasks and superseded unsafe double-quote escaping guidance in original analysis/design docs.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/design/01-analysis.md — Superseded escaping note
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/design/02-design.md — Superseded escaping note
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/tasks.md — Detailed implementation tasks
+

@@ -27,6 +27,8 @@ LastUpdated: 2026-04-26
 
 # PI Agent Metadata Env Vars — Analysis
 
+> **Superseded safety note (2026-04-26):** This first-pass analysis correctly identifies the `tool_call` approach, but its double-quote shell escaping recommendation is unsafe. Follow `../design-doc/01-plan-review-and-revised-design.md` for the authoritative implementation design.
+
 ## Problem Statement
 
 When the PI coding agent executes a `bash` tool call, the spawned shell has no
@@ -218,15 +220,7 @@ are serialized with `String(value)`.
 
 ## Shell Escaping Strategy
 
-Values must be escaped for safe use in `export VAR="value"` syntax. The
-recommended approach is:
-
-1. Replace `\` with `\\`
-2. Replace `"` with `\"`
-3. Wrap the result in double quotes: `"escaped-value"`
-
-This handles newlines, spaces, and most special characters safely within a
-bash `export` statement.
+Values must be escaped for safe use in shell syntax. This section originally recommended double quotes, but that is unsafe because Bash expands `$(...)`, backticks, and `$VAR` inside double quotes. The implementation must instead use the single-quote strategy in `../design-doc/01-plan-review-and-revised-design.md`.
 
 ## Risks and Mitigations
 
