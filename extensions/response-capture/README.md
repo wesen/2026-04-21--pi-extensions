@@ -30,7 +30,7 @@ Reload Pi with `/reload` or start a new session.
 The extension imports with:
 
 ```bash
-docmgr import file --file <saved-response.md> --ticket <ticket> --name <saved-response.md>
+docmgr import file --file <saved-response.md> --ticket <ticket> --name <saved-response>
 ```
 
 ## Saved files

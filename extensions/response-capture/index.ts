@@ -1,6 +1,6 @@
 import type { AssistantMessage, ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { existsSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, extname } from "node:path";
 import { chooseTicket, importFile } from "./docmgr";
 import {
 	captureResponse,
@@ -48,6 +48,12 @@ function ensureSaved(ctx: ExtensionCommandContext, state: ResponseCaptureState, 
 	return saveLastResponse(ctx, state, name);
 }
 
+function importNameFromPath(path: string): string {
+	const base = basename(path);
+	const ext = extname(base);
+	return ext ? base.slice(0, -ext.length) : base;
+}
+
 async function importSavedResponse(ctx: ExtensionCommandContext, state: ResponseCaptureState, args: string, saveName?: string): Promise<void> {
 	const response = requireResponse(ctx, state);
 	if (!response) return;
@@ -67,7 +73,7 @@ async function importSavedResponse(ctx: ExtensionCommandContext, state: Response
 	if (!path) return;
 
 	try {
-		const output = await importFile(ctx.cwd, path, ticket, basename(path));
+		const output = await importFile(ctx.cwd, path, ticket, importNameFromPath(path));
 		ctx.ui.notify([`Imported response into ${ticket}`, `File: ${path}`, output].filter(Boolean).join("\n\n"), "info");
 	} catch (error) {
 		ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
@@ -132,7 +138,7 @@ export default function responseCapture(pi: ExtensionAPI): void {
 				return;
 			}
 			try {
-				const output = await importFile(ctx.cwd, state.lastSavedPath, ticket, basename(state.lastSavedPath));
+				const output = await importFile(ctx.cwd, state.lastSavedPath, ticket, importNameFromPath(state.lastSavedPath));
 				ctx.ui.notify([`Imported saved response into ${ticket}`, `File: ${state.lastSavedPath}`, output].filter(Boolean).join("\n\n"), "info");
 			} catch (error) {
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");

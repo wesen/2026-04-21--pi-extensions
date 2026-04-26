@@ -123,3 +123,91 @@ Smoke test command:
 ```bash
 pi -e ./extensions/response-capture --no-session --no-tools -p "/response-preview" >/tmp/response-capture-smoke.log 2>&1
 ```
+
+---
+
+## Step 2: Symlink Installation and tmux Import Validation
+
+I installed the extension through Pi's auto-discovery directory and validated the end-to-end workflow in tmux. The validation covered capturing a real assistant response, previewing it, saving it to `.pi/response-capture/`, and importing it into the current docmgr ticket with `docmgr import file`.
+
+The first import revealed a small naming bug: passing the full saved basename (`something.md`) as `--name` made docmgr create `something.md.md`. I fixed the extension to pass the import name without its extension, then repeated the tmux import. The second imported file had the expected `.md` suffix exactly once.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue implementation by installing and validating the extension in real Pi/tmux usage.
+
+**Inferred user intent:** The user wants a working extension, not only source files, and expects evidence that it can save/import a real response.
+
+**Commit (code):** 04384f0264dbf824fcced0b84fbc95d0cd02f62d — "Implement response capture extension"
+
+### What I did
+
+- Installed the extension symlink:
+  - `ln -sfn /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-capture ~/.pi/agent/extensions/response-capture`
+- Started Pi in tmux with `claude-agent-sdk/claude-haiku-4-5`.
+- Asked Pi for a short response.
+- Ran:
+  - `/response-preview`
+  - `/response-save captured-test`
+  - `/response-import PI-EXT-RESPONSE-CAPTURE`
+- Observed successful import, but destination ended in `.md.md`.
+- Fixed `extensions/response-capture/index.ts` to pass `importNameFromPath(path)` without the `.md` extension.
+- Updated `extensions/response-capture/README.md` to show `--name <saved-response>` rather than `--name <saved-response.md>`.
+- Re-ran tmux validation with `/response-save second-capture` and `/response-import PI-EXT-RESPONSE-CAPTURE`.
+- Added `.gitignore` entry for `.pi/response-capture/` so local capture cache files are not accidentally committed.
+- Removed the first `.md.md` validation import artifact from the ticket sources/index/metadata after confirming the fixed second import worked.
+
+### Why
+
+The extension's value depends on the whole path working inside Pi: final assistant message capture, command invocation, file writing, docmgr ticket resolution, and CLI import. The `.md.md` issue only showed up during real docmgr import validation.
+
+### What worked
+
+- Pi auto-discovered `response-capture` from the symlink.
+- `/response-preview` displayed the captured response with turn/capture/model metadata.
+- `/response-save captured-test` wrote a markdown file under `.pi/response-capture/`.
+- `/response-import PI-EXT-RESPONSE-CAPTURE` imported the saved file into the ticket's `sources/local/` directory.
+- After the import-name fix, the second validation imported to:
+  - `sources/local/2026-04-26T13-57-33-340Z-second-capture.md`
+
+### What didn't work
+
+- The first import passed a basename with `.md` as `--name`, and docmgr produced:
+  - `sources/local/2026-04-26T13-56-03-705Z-captured-test.md.md`
+- This was fixed by stripping the extension before passing `--name`.
+
+### What I learned
+
+- `docmgr import file --name foo.md` appears to treat the name as a logical name and append the extension. The extension should therefore pass `foo`, not `foo.md`.
+- The local `.pi/response-capture/` directory needs to be ignored by git because it is a cache, not source documentation.
+
+### What was tricky to build
+
+The tricky part was distinguishing the saved markdown source file from the imported docmgr source artifact. The extension stores a local file under `.pi/response-capture/`; docmgr then copies it into ticket `sources/local/` and tracks metadata in `.meta/sources.yaml`.
+
+### What warrants a second pair of eyes
+
+- Review whether `.pi/response-capture/` should be documented in a repo-level `.gitignore` comment.
+
+### What should be done in the future
+
+- Run `docmgr doctor` after committing validation artifacts.
+- Consider adding a cleanup task for duplicate validation imports if the ticket should stay tidy.
+
+### Code review instructions
+
+- Inspect `importNameFromPath()` in `extensions/response-capture/index.ts`.
+- Verify `.gitignore` ignores `.pi/response-capture/` but not project settings generally.
+- Verify `ttmp/.../sources/local/2026-04-26T13-57-33-340Z-second-capture.md` exists.
+
+### Technical details
+
+Validation evidence:
+
+```text
+Imported response into PI-EXT-RESPONSE-CAPTURE
+File: /home/manuel/code/wesen/2026-04-21--pi-extensions/.pi/response-capture/2026-04-26T13-57-33-340Z-second-capture.md
+Destination: .../sources/local/2026-04-26T13-57-33-340Z-second-capture.md
+```

@@ -22,13 +22,16 @@ RelatedFiles:
       Note: Detailed implementation guide
     - Path: ttmp/2026/04/26/PI-EXT-RESPONSE-CAPTURE--pi-extension-to-save-last-llm-response-and-import-into-docmgr/reference/01-implementation-diary.md
       Note: Implementation diary
-ExternalSources: []
+ExternalSources:
+    - local:2026-04-26T13-57-33-340Z-second-capture.md
 Summary: |
     Design and implementation plan for a Pi extension that captures the last assistant/LLM response, saves it as a markdown file, and optionally imports it into a selected docmgr ticket with `docmgr import file --file ... --ticket ...`.
-LastUpdated: 2026-04-26T09:49:35.939898629-04:00
+LastUpdated: 2026-04-26T09:57:35.478979066-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
 
 
 
