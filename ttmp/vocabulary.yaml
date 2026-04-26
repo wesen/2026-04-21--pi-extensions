@@ -17,6 +17,10 @@ topics:
       description: Session, turn, model, and execution metadata
     - slug: pi-extensions
       description: PI coding agent extension development
+    - slug: compaction
+      description: Context compaction, summarization thresholds, and related session management behavior
+    - slug: tokens
+      description: Token accounting, context usage, and token-budget display
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
