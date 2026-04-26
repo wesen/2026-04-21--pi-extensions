@@ -10,8 +10,18 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: extensions/response-capture/README.md
+      Note: Usage documentation
+    - Path: extensions/response-capture/docmgr.ts
+      Note: Docmgr ticket list/select/import helper
+    - Path: extensions/response-capture/index.ts
+      Note: Extension commands and turn_end capture hook
+    - Path: extensions/response-capture/response.ts
+      Note: Response capture
     - Path: ttmp/2026/04/26/PI-EXT-RESPONSE-CAPTURE--pi-extension-to-save-last-llm-response-and-import-into-docmgr/design-doc/01-implementation-guide.md
       Note: Detailed implementation guide
+    - Path: ttmp/2026/04/26/PI-EXT-RESPONSE-CAPTURE--pi-extension-to-save-last-llm-response-and-import-into-docmgr/reference/01-implementation-diary.md
+      Note: Implementation diary
 ExternalSources: []
 Summary: |
     Design and implementation plan for a Pi extension that captures the last assistant/LLM response, saves it as a markdown file, and optionally imports it into a selected docmgr ticket with `docmgr import file --file ... --ticket ...`.
@@ -19,6 +29,11 @@ LastUpdated: 2026-04-26T09:49:35.939898629-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
+
+
 
 
 # Pi extension to save last LLM response and import into docmgr
