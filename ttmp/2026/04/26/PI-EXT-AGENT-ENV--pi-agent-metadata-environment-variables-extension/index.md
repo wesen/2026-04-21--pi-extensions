@@ -11,6 +11,12 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: extensions/agent-env/README.md
+      Note: agent-env user documentation
+    - Path: extensions/agent-env/env.ts
+      Note: Safe env snapshot
+    - Path: extensions/agent-env/index.ts
+      Note: agent-env extension event handlers and commands
     - Path: ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/design-doc/01-plan-review-and-revised-design.md
       Note: Independent plan review and revised implementation design
     - Path: ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/design/01-analysis.md
@@ -26,6 +32,9 @@ LastUpdated: 2026-04-26T08:55:24.086684246-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
 
 
 

@@ -78,3 +78,14 @@ Implementation kickoff: added detailed tasks and superseded unsafe double-quote 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/design/02-design.md — Superseded escaping note
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/tasks.md — Detailed implementation tasks
 
+
+## 2026-04-26
+
+Implemented agent-env v1 extension: safe env helper module, bash tool_call injection, user_bash injection, status/preview/toggle/self-test commands, and README.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/agent-env/README.md — User docs
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/agent-env/env.ts — Env helpers
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/agent-env/index.ts — Extension handlers
+

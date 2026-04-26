@@ -312,3 +312,94 @@ The tricky part was balancing implementation simplicity against correctness. Too
 Review doc path: `ttmp/2026/04/26/PI-EXT-AGENT-ENV--pi-agent-metadata-environment-variables-extension/design-doc/01-plan-review-and-revised-design.md`
 
 reMarkable upload path: `/ai/2026/04/26/PI-EXT-AGENT-ENV/PI-EXT-AGENT-ENV Plan Review and Revised Design`
+
+---
+
+## Step 4: Implementation Kickoff and v1 Extension Code
+
+I converted the revised design into a source-controlled `extensions/agent-env` implementation. The first implementation keeps the conservative v1 strategy: it mutates bash command text through `tool_call` rather than overriding PI's built-in bash tool.
+
+The implementation includes the safety corrections from the review document: single-quote shell quoting, idempotent preamble markers, the PI `isToolCallEventType("bash", event)` helper, command-level metadata, and a self-test command.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add detailed tasks to the ticket, th en implement, commit at appropriate intervals, keep a diary as you work. You can test by running pi in a tmux."
+
+**Assistant interpretation:** Break implementation into detailed docmgr tasks, implement the extension, commit at sensible milestones, maintain the diary, and use tmux/PI for interactive validation.
+
+**Inferred user intent:** The user wants the reviewed plan turned into working code with disciplined task tracking, commits, and test evidence.
+
+**Commit (docs):** e8b4bfde29f552b6ff426d11220575ae759590ac — "Plan agent-env implementation tasks"
+
+### What I did
+
+- Added detailed implementation tasks to `tasks.md`.
+- Updated the original analysis/design docs to warn that the double-quote shell escaping snippet is superseded.
+- Created `extensions/agent-env/env.ts` with:
+  - `shellQuote()` using single-quote shell quoting
+  - `truncateValue()` using code points
+  - `buildAgentEnv()` for `PI_AGENT_*` variables
+  - `buildExportPreamble()` with markers
+  - `injectPreamble()` idempotence
+  - `runInternalSelfTests()`
+- Created `extensions/agent-env/index.ts` with:
+  - session/turn/model event handling
+  - `tool_call` injection for built-in bash
+  - `user_bash` injection via wrapped `createLocalBashOperations()`
+  - footer status
+  - `/agent-env`, `/ae`, `/agent-env-toggle`, `/ae-toggle`, `/agent-env-self-test`
+- Created `extensions/agent-env/README.md`.
+- Ran `pi -e ./extensions/agent-env --no-session --no-tools -p "/agent-env-self-test"` as a load/syntax smoke test.
+
+### Why
+
+The reviewed design needed to become executable while preserving PI's built-in bash behavior. The helper module isolates the security-sensitive shell quoting and preamble logic so it can be reviewed independently from PI event handling.
+
+### What worked
+
+- PI loaded the extension in print mode without reporting a TypeScript/runtime import error.
+- `docmgr doc relate` successfully linked the new implementation files into the ticket index.
+- The implementation follows the review doc's main requirements: single-quote quoting, markers, type guard, and self-test command.
+
+### What didn't work
+
+- `npx tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck extensions/agent-env/*.ts` failed because this repo does not have TypeScript installed. Exact output included: `This is not the tsc command you are looking for` and `Use npm install typescript to first add TypeScript to your project before using npx`.
+- `node -e "try{require('typescript')...` failed with `Cannot find module 'typescript'`.
+- The print-mode `/agent-env-self-test` smoke test produced no visible output because extension notifications are UI-oriented in print mode.
+
+### What I learned
+
+- For this repository, PI itself is the practical TypeScript loader smoke test because extensions are loaded through PI's runtime rather than a project-local TS build.
+- A tmux-based interactive PI test is still needed to see command notifications and verify actual bash tool injection.
+
+### What was tricky to build
+
+The main sharp edge was `user_bash`: returning a custom `BashOperations` wrapper is easy, but passing a partial env object would drop PI's normal shell environment. The implementation instead prepends the same preamble to the command and delegates all other execution behavior to `createLocalBashOperations()`.
+
+### What warrants a second pair of eyes
+
+- Review the exact `shellQuote()` replacement string in `env.ts`.
+- Review the duplicate command handlers for `/agent-env-toggle` and `/ae-toggle`; they are intentionally simple but could be deduplicated.
+- Confirm that exposing `PI_AGENT_QUOTE_TEST` in all injected preambles is desirable, or decide to keep it only for self-test mode.
+
+### What should be done in the future
+
+- Run interactive PI in tmux and verify an actual LLM bash tool call sees `PI_AGENT_*` variables.
+- Install/update the symlink in `~/.pi/agent/extensions/agent-env`.
+- Commit the implementation files after reviewing the diff.
+
+### Code review instructions
+
+- Start with `extensions/agent-env/env.ts`, especially `shellQuote`, `buildExportPreamble`, and `injectPreamble`.
+- Then review `extensions/agent-env/index.ts` event handlers.
+- Validate with `/agent-env-self-test` and a bash tool call printing `$PI_AGENT`, `$PI_AGENT_TOOL_CALL_ID`, and `$PI_AGENT_QUOTE_TEST`.
+
+### Technical details
+
+Smoke commands run:
+
+```bash
+npx tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck extensions/agent-env/*.ts
+node -e "try{require('typescript'); console.log('typescript require ok')}catch(e){console.error(e.message); process.exit(1)}"
+pi -e ./extensions/agent-env --no-session --no-tools -p "/agent-env-self-test"
+```
