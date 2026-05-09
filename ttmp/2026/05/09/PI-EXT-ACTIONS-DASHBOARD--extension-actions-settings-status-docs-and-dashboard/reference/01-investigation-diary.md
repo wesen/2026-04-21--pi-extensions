@@ -24,6 +24,8 @@ RelatedFiles:
       Note: Step 2 dashboard overlay
     - Path: extensions/_shared/ui/doc-viewer.ts
       Note: Step 2 docs viewer
+    - Path: extensions/_shared/ui/extension-launcher.ts
+      Note: Step 3 search mode grouped ordering compact spacing
     - Path: extensions/_shared/ui/settings-view.ts
       Note: Step 2 generic settings view
     - Path: extensions/agent-env/index.ts
@@ -34,6 +36,7 @@ RelatedFiles:
       Note: |-
         Current launcher callback invocation gap
         Step 2 launcher orchestration (commit 13bb60d)
+        Step 3 back navigation after nested overlays
     - Path: extensions/pinned-skills/index.ts
       Note: Step 2 pilot actions docs settings widget
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
@@ -44,6 +47,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 
@@ -361,4 +365,103 @@ Validation result:
 
 ```text
 timeout 20 pi --list-models: exit=0
+```
+
+## Step 3: Fix launcher search mode, compact grouping, and back navigation
+
+I applied follow-up UX feedback from manual `/px` testing. The launcher now uses `/` to enter search mode so normal-letter shortcuts such as `a`, `s`, and `d` do not conflict with typing search queries.
+
+I also made the extension list more compact and less confusing by preserving group-first ordering instead of globally sorting every match by fuzzy score. Within each group, matching extensions are still sorted by match score, but group order remains stable.
+
+### Prompt Context
+
+**User prompt (verbatim):** "- we now need to activate search with /, because the other keys now override the typing. and when search is active, disable the keyboard shortcuts on nrmal letters.
+
+- navigating the extension menu is veyr confusing with the ordering, there's something off there. Also I want to make the menu more compact, where there is no space in between elements (vertically), except between groups."
+
+**Assistant interpretation:** Adjust `/px` so search is an explicit mode entered with `/`, prevent normal-letter launcher shortcuts while search is active, make list ordering stable by group, and reduce vertical whitespace inside groups.
+
+**Inferred user intent:** The user wants the launcher to feel predictable and keyboard-driven now that letters have command meanings.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Added `searchActive` state to `ExtensionLauncher`.
+- Changed `/` to enter search mode.
+- Changed `Esc` to leave search mode first; outside search mode it closes the launcher.
+- Changed `Enter` in search mode to accept the filter and return to shortcut/navigation mode.
+- Disabled normal-letter shortcuts while search is active so letters append to the filter.
+- Preserved stable group ordering by grouping filtered extensions first, then sorting matches inside each group.
+- Removed blank rows between extension entries and kept spacing only between groups.
+- Updated the footer/help text to explain `/ search` and search-active behavior.
+- Fixed doc/action/settings overlays to return to the launcher after closing, so `Esc` from docs behaves like “back” instead of ending the whole launcher flow.
+- Validated extension loading with:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list.out 2>/tmp/pi-list.err
+```
+
+### Why
+
+Once `a`, `s`, `d`, and `?` became launcher shortcuts, immediate typing for search became ambiguous. Explicit search mode matches common terminal UI patterns and makes shortcuts reliable.
+
+The previous global fuzzy-score ordering also made navigation hard because items could jump across groups. Stable group-first ordering makes the menu easier to scan and navigate.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0` after the UX changes.
+- The list render code now carries less vertical noise because subtitle rows remain but blank separator rows are only inserted between groups.
+- The launcher can now reopen itself after docs/settings/actions overlays close, matching the “back” language shown in the doc viewer.
+
+### What didn't work
+
+- No full visual regression run was completed in this step; this still needs manual `/px` testing in a live terminal.
+
+### What I learned
+
+- Launcher shortcuts and type-to-search cannot share the same normal-letter key space without a mode switch.
+- Group stability is more important than pure fuzzy-score order for a categorized launcher.
+
+### What was tricky to build
+
+The tricky part was keeping filtering useful without reintroducing confusing global ordering. The solution is a two-stage view model: compute match scores, then group the matching extensions, then sort only within each group.
+
+The other tricky part was back navigation. Because `ctx.ui.custom()` resolves and closes the current overlay before opening docs/settings/actions, returning to the launcher requires explicitly calling `openLauncher(ctx)` after the nested overlay completes.
+
+### What warrants a second pair of eyes
+
+- Whether `Enter` in search mode should accept the filter or run the selected item.
+- Whether the selected item should remain stable when leaving search mode.
+- Whether action/settings overlays should always return to the launcher or only docs should do so.
+
+### What should be done in the future
+
+- Add a small footer state indicator such as `MODE: SEARCH` vs `MODE: COMMAND` if manual testing shows ambiguity remains.
+- Consider `/` toggling search mode off when search is already active.
+
+### Code review instructions
+
+- Review `extensions/_shared/ui/extension-launcher.ts`, especially `handleInput()`, `visibleExtensions()`, and `buildListRows()`.
+- Review `extensions/launcher/index.ts` for the post-doc/settings/action return-to-launcher behavior.
+- Validate with `timeout 20 pi --list-models`.
+- Manually test `/px`, `/` search, `a/s/d/?` shortcuts, and `Esc` from docs.
+
+### Technical details
+
+Search mode behavior:
+
+```text
+normal mode:
+  /       enter search mode
+  a       actions
+  s       settings
+  d       dashboard
+  ?       docs
+
+search mode:
+  letters  append to query
+  Enter    leave search mode
+  Esc      leave search mode
+  Ctrl+U   clear query
 ```

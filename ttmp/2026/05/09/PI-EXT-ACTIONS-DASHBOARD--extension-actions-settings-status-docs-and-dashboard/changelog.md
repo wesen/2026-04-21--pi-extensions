@@ -46,3 +46,13 @@ Re-uploaded updated PI-EXT-ACTIONS-DASHBOARD implementation bundle to reMarkable
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md — Updated implementation addendum uploaded
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/reference/01-investigation-diary.md — Updated diary uploaded
 
+
+## 2026-05-09
+
+Refined /px launcher search mode, grouped ordering, compact list spacing, and back navigation
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Search mode and compact grouped list
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Return to launcher after docs/settings/actions overlays
+
