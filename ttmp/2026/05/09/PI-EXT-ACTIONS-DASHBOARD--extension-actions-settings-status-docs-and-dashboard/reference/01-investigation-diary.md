@@ -38,7 +38,11 @@ RelatedFiles:
         Step 2 launcher orchestration (commit 13bb60d)
         Step 3 back navigation after nested overlays
     - Path: extensions/pinned-skills/index.ts
-      Note: Step 2 pilot actions docs settings widget
+      Note: |-
+        Step 2 pilot actions docs settings widget
+        Step 4 requestRender wiring for pinned skills settings
+    - Path: extensions/pinned-skills/ui.ts
+      Note: Step 4 restyled pinned skills settings modal
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
       Note: Primary design produced in Step 1
 ExternalSources: []
@@ -47,6 +51,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 
@@ -464,4 +469,94 @@ search mode:
   Enter    leave search mode
   Esc      leave search mode
   Ctrl+U   clear query
+```
+
+## Step 4: Restyle pinned-skills settings with the shared modal pattern
+
+I replaced the older plain pinned-skills checklist rendering with the same framed two-pane modal style used by the launcher. The settings view now has a bordered title, explicit `/` search mode, compact selectable rows, a details pane, and a footer that summarizes selected/matched counts.
+
+This keeps the pinned-skills settings UI visually consistent with the newer `/px` widgets and avoids the older unframed list style that felt out of place.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Use the new UI widget approach for the skills settings (the old list is ugly and doesn't match th style."
+
+**Assistant interpretation:** Restyle the pinned-skills custom settings checklist so it matches the newer framed launcher/dashboard UI style.
+
+**Inferred user intent:** The user wants the extension settings surfaces to feel like one cohesive UI system rather than a mix of old and new components.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Rewrote `extensions/pinned-skills/ui.ts` to render a framed `Pinned Skills` modal.
+- Added `/`-activated search mode matching the launcher behavior.
+- Added a two-pane layout:
+  - left: compact skill checklist rows,
+  - right: selected skill details and path.
+- Added footer rows for selected count, matched count, and metadata source.
+- Added ANSI-width-safe frame helpers using `visibleWidth()` and `truncateToWidth()`.
+- Added optional `requestRender` support to `PinnedSkillsChecklist` and wired it from both direct `/pinned-skills menu` usage and the custom settings contribution in `extensions/pinned-skills/index.ts`.
+- Validated extension loading with:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list.out 2>/tmp/pi-list.err
+```
+
+### Why
+
+The old pinned-skills list predated the launcher modal polish. It used a plain title, separator lines, and immediate type-to-filter behavior, which no longer matched the contribution-platform UI vocabulary. The new rendering shares the same frame/search/help/detail/footer pattern as `/px`.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0`.
+- The checklist still preserves the existing behavior: Space toggles skills, Enter saves, Esc cancels, and filtering narrows the visible rows.
+- The direct command path and custom settings path both now pass `requestRender`, so keyboard interaction should redraw reliably.
+
+### What didn't work
+
+- No full interactive visual test was completed in this step; the user should still verify the exact spacing and row emphasis in a live terminal.
+
+### What I learned
+
+- The launcher frame helpers are useful enough that they should probably be extracted to a shared `frame.ts` soon.
+- Explicit search mode is now becoming a cross-modal convention, not just a launcher-specific fix.
+
+### What was tricky to build
+
+The tricky part was preserving checklist semantics while changing the visual structure. The component still needs to differentiate cursor state (`●`) from checked state (`☑`), so the left row now renders both markers in a compact format.
+
+### What warrants a second pair of eyes
+
+- Whether the double marker `● ☑` is too visually busy.
+- Whether the right details pane should show full paths by default or hide them behind a docs/details key.
+
+### What should be done in the future
+
+- Extract shared frame/split/footer helpers from launcher and pinned-skills into `extensions/_shared/ui/frame.ts`.
+- Consider a reusable generic checklist modal for future settings screens.
+
+### Code review instructions
+
+- Start with `extensions/pinned-skills/ui.ts` and review `render()`, `handleInput()`, and `renderListRows()`.
+- Review `extensions/pinned-skills/index.ts` to confirm `requestRender` is wired in both checklist entrypoints.
+- Validate with `timeout 20 pi --list-models`.
+- Manually test `/px` → Pinned Skills → `s`, plus `/pinned-skills menu`.
+
+### Technical details
+
+New normal/search mode behavior:
+
+```text
+normal mode:
+  /       enter search mode
+  Space   toggle selected skill
+  Enter   save
+  Esc     cancel
+
+search mode:
+  letters append to query
+  Enter   leave search mode
+  Esc     leave search mode
+  Ctrl+U  clear query
 ```

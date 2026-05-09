@@ -56,3 +56,13 @@ Refined /px launcher search mode, grouped ordering, compact list spacing, and ba
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Search mode and compact grouped list
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Return to launcher after docs/settings/actions overlays
 
+
+## 2026-05-09
+
+Restyled pinned-skills settings checklist with the shared framed modal pattern
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — requestRender wiring for settings/menu checklist
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/ui.ts — Framed two-pane pinned skills checklist
+
