@@ -1,0 +1,12 @@
+{
+	"version": 1,
+	"enabled": true,
+	"skills": [
+		"diary",
+		"docmgr"
+	],
+	"maxSkillBytes": 50000,
+	"maxTotalBytes": 150000,
+	"includeDisabledModelInvocation": false,
+	"showStatus": true
+}
