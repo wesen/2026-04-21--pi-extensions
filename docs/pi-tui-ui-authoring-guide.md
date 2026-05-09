@@ -995,6 +995,58 @@ Suggested boundary:
 - `ui.ts`: component classes and UI state.
 - `_shared/ui/*.ts`: pure layout/rendering helpers and reusable components.
 
+## Implementation notes from the `/px` launcher
+
+The current `/px` launcher follows the render-helper hierarchy described above. Its YAML sketch maps to methods in `extensions/_shared/ui/extension-launcher.ts`:
+
+```text
+ExtensionLauncher
+  handleInput()
+  render()
+    renderSearchLine()
+    renderHelpLine()
+    renderSplitBody()
+      buildListRows()
+      renderDetails()
+    renderFooter()
+```
+
+It also uses a few low-level helpers that are worth extracting if more modals need the same layout:
+
+```text
+borderTop()
+borderBottom()
+splitBorder()
+frameRow()
+padToWidth()
+groupExtensions()
+primaryGroup()
+```
+
+Two practical details matter in interactive overlays:
+
+1. Pass `requestRender: () => tui.requestRender()` from the `ctx.ui.custom()` factory into the component.
+2. Centralize state changes through a small method such as `markDirty()` that calls both `invalidate()` and `requestRender()`.
+
+Example:
+
+```ts
+const selected = await ctx.ui.custom(
+  (tui, theme, _keybindings, done) => new ExtensionLauncher({
+    extensions,
+    theme,
+    done,
+    requestRender: () => tui.requestRender(),
+  }),
+  {
+    overlay: true,
+    overlayOptions: { width: "85%", maxHeight: "80%", minWidth: 70, margin: 1 },
+  },
+);
+```
+
+This keeps keyboard input responsive even if the hosting TUI does not automatically redraw after every key event.
+
 ## Checklist
 
 Before shipping a Pi TUI component:

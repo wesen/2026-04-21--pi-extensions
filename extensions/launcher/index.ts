@@ -22,7 +22,12 @@ export default function launcherExtension(pi: ExtensionAPI): void {
 				return;
 			}
 			const selected = await ctx.ui.custom(
-				(_tui, theme, _keybindings, done) => new ExtensionLauncher({ extensions, theme, done }),
+				(tui, theme, _keybindings, done) => new ExtensionLauncher({
+					extensions,
+					theme,
+					done,
+					requestRender: () => tui.requestRender(),
+				}),
 				{
 					overlay: true,
 					overlayOptions: { width: "85%", maxHeight: "80%", minWidth: 70, margin: 1 },
