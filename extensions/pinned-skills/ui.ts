@@ -136,7 +136,9 @@ export class PinnedSkillsChecklist implements Component {
 		lines.push(borderTop(modalWidth, "Pinned Skills", this.theme));
 		lines.push(frameRow(this.renderSearchLine(innerWidth), innerWidth, this.theme));
 		lines.push(frameRow("", innerWidth, this.theme));
-		lines.push(frameRow(this.renderHelpLine(filtered.length), innerWidth, this.theme));
+		for (const helpLine of this.renderHelpLines(filtered.length, innerWidth)) {
+			lines.push(frameRow(helpLine, innerWidth, this.theme));
+		}
 		lines.push(splitBorder("├", "┬", "┤", leftWidth, rightWidth, this.theme));
 		const leftRows = this.renderListRows(filtered, leftWidth, bodyRows);
 		const rightRows = this.renderDetailRows(selectedItem, rightWidth, bodyRows);
@@ -190,12 +192,15 @@ export class PinnedSkillsChecklist implements Component {
 		return truncateToWidth(`${prompt}${value}`, width, "…");
 	}
 
-	private renderHelpLine(matchCount: number): string {
-		const count = this.theme.fg("accent", this.theme.bold(` ${matchCount} skills`));
-		const help = this.searchActive
-			? this.theme.fg("dim", "  ·  search active  ·  Enter accept  ·  Esc leave search  ·  Ctrl+U clear")
-			: this.theme.fg("dim", "  ·  / search  ·  Space toggle  ·  Enter save  ·  Esc cancel");
-		return `${count}${help}`;
+	private renderHelpLines(matchCount: number, width: number): string[] {
+		const prefix = `${matchCount} skills`;
+		const shortcuts = this.searchActive
+			? ["search active", "Enter accept", "Esc leave search", "Ctrl+U clear"]
+			: ["/ search", "Space toggle", "Enter save", "Esc cancel"];
+		return wrapHelpLine(prefix, shortcuts, width).map((line, index) => {
+			if (index === 0) return ` ${this.theme.fg("accent", this.theme.bold(prefix))}${this.theme.fg("dim", line.slice(prefix.length))}`;
+			return this.theme.fg("dim", ` ${line}`);
+		});
 	}
 
 	private renderListRows(items: SkillListItem[], width: number, visibleRows: number): string[] {
@@ -258,4 +263,20 @@ function frameRow(content: string, width: number, theme: PinnedSkillsChecklistOp
 function padToWidth(value: string, width: number): string {
 	const truncated = truncateToWidth(value, width, "…");
 	return truncated + " ".repeat(Math.max(0, width - visibleWidth(truncated)));
+}
+
+function wrapHelpLine(prefix: string, shortcuts: string[], width: number): string[] {
+	const firstPrefix = `${prefix}`;
+	const continuationIndent = "  ";
+	const lines: string[] = [firstPrefix];
+	for (const shortcut of shortcuts) {
+		const token = ` · ${shortcut}`;
+		const current = lines[lines.length - 1] ?? "";
+		if (visibleWidth(current + token) <= Math.max(20, width - 1)) {
+			lines[lines.length - 1] = current + token;
+		} else {
+			lines.push(`${continuationIndent}${shortcut}`);
+		}
+	}
+	return lines;
 }
