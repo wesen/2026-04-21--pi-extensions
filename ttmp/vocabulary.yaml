@@ -31,6 +31,10 @@ topics:
       description: Pi extension APIs, lifecycle hooks, custom commands/tools, and UI integration.
     - slug: skills
       description: Pi/agent skills, Agent Skills standard packages, and skill discovery/loading behavior
+    - slug: dashboard
+      description: Dashboard widgets and configurable dashboard layouts
+    - slug: settings
+      description: Configuration schemas and settings UIs
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
