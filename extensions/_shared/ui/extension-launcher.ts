@@ -279,13 +279,11 @@ export class ExtensionLauncher implements Component {
 				const isSelected = extensionIndex === this.cursor;
 				const marker = isSelected ? this.theme.fg("accent", "●") : this.theme.fg("dim", "○");
 				const name = isSelected ? this.theme.bold(extension.name) : extension.name;
-				const subtitle = extension.tags?.length ? extension.tags.join(" · ") : extension.id;
 				const selectedBg = (text: string) => (isSelected ? this.theme.fg("accent", text) : text);
 				rows.push({
 					text: selectedBg(truncateToWidth(`   ${marker} ${name}`, width, "…")),
 					extensionIndex,
 				});
-				rows.push({ text: truncateToWidth(this.theme.fg("dim", `     ${subtitle}`), width, "…") });
 			}
 		}
 		return rows.map((row) => ({ ...row, text: truncateToWidth(row.text, width, "…") }));
