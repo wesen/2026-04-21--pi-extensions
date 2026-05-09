@@ -40,12 +40,12 @@
 - [x] 24. Add `/px dashboard` action or launcher key to open dashboard overlay.
 - [x] 25. Add dashboard layout settings view for visibility/order/variant.
 - [x] 26. Save dashboard layout changes to `.pi/dashboard.json`.
-- [ ] 27. Validate overlay and config persistence manually.
+- [x] 27. Validate overlay and config persistence manually.
 
 ## Phase 6: Documentation, cleanup, and delivery
 
 - [x] 28. Update the design guide with implementation notes and deviations.
 - [x] 29. Update the investigation diary after each phase.
-- [ ] 30. Run `docmgr doctor --ticket PI-EXT-ACTIONS-DASHBOARD --stale-after 30`.
-- [ ] 31. Commit final docs and implementation.
-- [ ] 32. Re-upload the ticket bundle to reMarkable.
+- [x] 30. Run `docmgr doctor --ticket PI-EXT-ACTIONS-DASHBOARD --stale-after 30`.
+- [x] 31. Commit final docs and implementation.
+- [x] 32. Re-upload the ticket bundle to reMarkable.
