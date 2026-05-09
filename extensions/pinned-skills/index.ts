@@ -28,6 +28,10 @@ interface PinnedSkillsState {
 	pendingConfigHash?: string;
 	lastAppliedAt?: string;
 	lastWarningAt?: string;
+	injectedThisSession?: boolean;
+	lastInjectedAt?: string;
+	lastInjectedSkills?: string[];
+	lastNotifiedPromptHash?: string;
 }
 
 function createEmptyRender(enabled = true): RenderPinnedSkillsResult {
@@ -69,6 +73,15 @@ function showWarnings(ctx: ExtensionContext, warnings: string[]): void {
 
 function cacheStabilityWarning(): string {
 	return "Pinned skills config changed. To preserve prompt-cache stability, this session will keep using the currently loaded pinned-skills prompt until /compact or a new session. The new selection is saved and pending.";
+}
+
+function pink(text: string): string {
+	return `\x1b[95m${text}\x1b[0m`;
+}
+
+function notifyPinnedSkillsLoaded(ctx: ExtensionContext, reason: string, skillNames: string[]): void {
+	if (!ctx.hasUI || skillNames.length === 0) return;
+	ctx.ui.notify(pink(`💗 pinned-skills ${reason}: ${skillNames.join(", ")}`), "info");
 }
 
 function renderForConfig(skills: Skill[], config: PinnedSkillsConfig): RenderPinnedSkillsResult {
@@ -144,6 +157,21 @@ function stateMatchesActivePrompt(state: PinnedSkillsState, configHash: string, 
 	return state.activeConfigHash === configHash && state.activePromptHash === promptHash && !state.pendingConfigHash;
 }
 
+function renderPinnedSkillsDashboard(state: PinnedSkillsState, lastRender: RenderPinnedSkillsResult, variant: string): string | string[] {
+	const injected = state.injectedThisSession ? "yes" : "no";
+	const activeSkills = state.lastInjectedSkills?.length ? state.lastInjectedSkills : lastRender.included;
+	if (variant === "short") {
+		return `pins:${lastRender.included.length} injected:${injected}`;
+	}
+	return [
+		"Pinned Skills",
+		`Injected this session: ${injected}`,
+		`Last injected: ${state.lastInjectedAt ?? "never"}`,
+		`Active skills: ${activeSkills.length ? activeSkills.join(", ") : "(none)"}`,
+		`Pending config: ${state.pendingConfigHash ? "yes" : "no"}`,
+	];
+}
+
 export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 	registerPiExtension({
 		id: "pinned-skills",
@@ -193,11 +221,20 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 			{
 				id: "status",
 				title: "Pinned Skills Status",
-				description: "Shows active pinned skills and pending config state.",
+				description: "Shows active pinned skills and whether they have been injected in this session.",
 				defaultZone: "statusBar",
 				defaultVariant: "short",
 				priority: 40,
-				render: () => formatStatus(lastRender, Boolean(state.pendingConfigHash)),
+				render: ({ variant }) => renderPinnedSkillsDashboard(state, lastRender, variant),
+			},
+			{
+				id: "summary",
+				title: "Pinned Skills",
+				description: "Shows configured/injected pinned skills and prompt injection state.",
+				defaultZone: "dashboardOverlay",
+				defaultVariant: "card",
+				priority: 35,
+				render: ({ variant }) => renderPinnedSkillsDashboard(state, lastRender, variant),
 			},
 		],
 	});
@@ -259,9 +296,12 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		state = restoreState(ctx);
+		state.injectedThisSession = false;
 		lastSkills = [];
 		lastRender = createEmptyRender(state.activeConfig?.enabled ?? true);
 		setStatus(ctx, lastRender, Boolean(state.pendingConfigHash));
+		const startupConfig = readConfig(ctx.cwd).config;
+		if (startupConfig.enabled) notifyPinnedSkillsLoaded(ctx, "loaded config on startup", startupConfig.skills);
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
@@ -307,6 +347,14 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 		}
 
 		if (!rendered.prompt) return;
+		state.injectedThisSession = true;
+		state.lastInjectedAt = new Date().toISOString();
+		state.lastInjectedSkills = rendered.included;
+		if (state.lastNotifiedPromptHash !== promptHash) {
+			notifyPinnedSkillsLoaded(ctx, "injected into system prompt", rendered.included);
+			state.lastNotifiedPromptHash = promptHash;
+		}
+		persistState(pi, state);
 		return { systemPrompt: `${event.systemPrompt}\n\n${rendered.prompt}` };
 	});
 
@@ -315,8 +363,14 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 		state.activeConfigHash = undefined;
 		state.activePromptHash = undefined;
 		state.pendingConfigHash = undefined;
+		state.injectedThisSession = false;
+		state.lastInjectedAt = undefined;
+		state.lastInjectedSkills = undefined;
+		state.lastNotifiedPromptHash = undefined;
 		persistState(pi, state);
 		setStatus(ctx, lastRender, false);
+		const compactConfig = readConfig(ctx.cwd).config;
+		if (compactConfig.enabled) notifyPinnedSkillsLoaded(ctx, "reset after compaction; will inject next prompt", compactConfig.skills);
 		if (ctx.hasUI) ctx.ui.notify("pinned-skills: compaction completed; pending config may apply on the next prompt", "info");
 	});
 
