@@ -150,10 +150,96 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 		description: "Pins selected full skill instructions into the system prompt with cache-safe deferred config changes.",
 		commands: ["pinned-skills"],
 		tags: ["skills", "prompt", "context"],
+		run: async (ctx) => openPinnedSkillsMenu(ctx),
+		actions: [
+			{ id: "menu", title: "Open checklist", description: "Select pinned skills in a TUI checklist.", default: true, run: async (ctx) => openPinnedSkillsMenu(ctx) },
+			{ id: "preview", title: "Preview prompt block", description: "Show the prompt block that will be injected.", run: async (ctx) => previewPinnedSkills(ctx) },
+			{ id: "list", title: "List available skills", description: "List all currently available skills.", run: async (ctx) => ctx.ui.notify(availableSkillsText(pi, lastSkills), "info") },
+		],
+		docs: [
+			{
+				id: "overview",
+				title: "Pinned Skills overview",
+				markdown: "# Pinned Skills\n\nPinned Skills keeps selected full skill instructions loaded in prompt context.\n\n- Use the checklist to choose skills.\n- Config changes are saved to `.pi/pinned-skills.json`.\n- If the active prompt epoch already has assistant messages, changes may be deferred until `/compact` or a new session to preserve prompt-cache stability.",
+			},
+		],
+		settings: {
+			kind: "custom",
+			title: "Pinned Skills settings",
+			description: "Open the pinned skills checklist.",
+			open: ({ ctx, theme, done }) => {
+				const read = readConfig(ctx.cwd);
+				const items = getAvailableSkillList(pi, lastSkills);
+				return new PinnedSkillsChecklist({
+					items,
+					selectedNames: read.config.skills,
+					theme,
+					done: async (selected) => {
+						if (selected !== undefined) {
+							const config = updateConfigSkills(read.config, "set", selected);
+							const path = writeProjectConfig(ctx.cwd, config);
+							lastRender = renderForConfig(lastSkills, config);
+							setStatus(ctx, lastRender, Boolean(state.pendingConfigHash));
+							ctx.ui.notify(`Updated pinned-skills project config: ${path}`, "info");
+						}
+						done();
+					},
+				});
+			},
+		},
+		widgets: [
+			{
+				id: "status",
+				title: "Pinned Skills Status",
+				description: "Shows active pinned skills and pending config state.",
+				defaultZone: "statusBar",
+				defaultVariant: "short",
+				priority: 40,
+				render: () => formatStatus(lastRender, Boolean(state.pendingConfigHash)),
+			},
+		],
 	});
 	let state: PinnedSkillsState = {};
 	let lastSkills: Skill[] = [];
 	let lastRender: RenderPinnedSkillsResult = createEmptyRender();
+
+	async function previewPinnedSkills(ctx: any): Promise<void> {
+		const config = readConfig(ctx.cwd).config;
+		const rendered = renderForConfig(lastSkills, config);
+		lastRender = rendered;
+		setStatus(ctx, rendered, Boolean(state.pendingConfigHash));
+		ctx.ui.notify(formatRenderDetails(rendered), rendered.warnings.length > 0 ? "warning" : "info");
+	}
+
+	async function openPinnedSkillsMenu(ctx: any): Promise<void> {
+		const read = readConfig(ctx.cwd);
+		let config = read.config;
+		const items = getAvailableSkillList(pi, lastSkills);
+		if (items.length === 0) {
+			ctx.ui.notify("No skills are currently available.", "warning");
+			return;
+		}
+		const selected = await ctx.ui.custom<string[] | undefined>(
+			(_tui: unknown, theme: any, _keybindings: unknown, done: (result: string[] | undefined) => void) => new PinnedSkillsChecklist({ items, selectedNames: config.skills, theme, done }),
+			{ overlay: true, overlayOptions: { width: "90%", maxHeight: "80%", minWidth: 70, margin: 1 } },
+		);
+		if (selected === undefined) return;
+		config = updateConfigSkills(config, "set", selected);
+		const path = writeProjectConfig(ctx.cwd, config);
+		const configHash = hashConfig(config);
+		if (branchHasAssistantMessage(ctx) && state.activeConfigHash && state.activeConfigHash !== configHash) {
+			state.pendingConfigHash = configHash;
+			persistState(pi, state);
+			setStatus(ctx, lastRender, true);
+			ctx.ui.notify(`${cacheStabilityWarning()}\n\nUpdated project config: ${path}`, "warning");
+			return;
+		}
+		state.pendingConfigHash = undefined;
+		const rendered = renderForConfig(lastSkills, config);
+		lastRender = rendered;
+		setStatus(ctx, rendered, false);
+		ctx.ui.notify(`Updated pinned-skills project config: ${path}`, "info");
+	}
 
 	pi.on("session_start", async (_event, ctx) => {
 		state = restoreState(ctx);

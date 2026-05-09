@@ -423,6 +423,39 @@ export default function kanbanDemo(pi: ExtensionAPI): void {
 		description: "Demo rich TUI kanban board extension with custom widgets, commands, and tool support.",
 		commands: ["kanban"],
 		tags: ["demo", "tui", "kanban"],
+		run: async (ctx) => {
+			const current = ensureBoard(ctx.cwd);
+			await ctx.ui.custom<string | null>(
+				(tui: TUI, theme: Theme, _kb: unknown, done: (result: string | null) => void) =>
+					new KanbanOverlay(tui, theme, ctx.cwd, current, done, (next) => updateUi(ctx, next)),
+				{ overlay: true, overlayOptions: { width: "94%", minWidth: 72, maxHeight: "90%", anchor: "center", margin: 1, visible: (w: number, h: number) => w >= 72 && h >= 20 } },
+			);
+		},
+		actions: [
+			{ id: "open", title: "Open board", description: "Open the Kanban board overlay.", default: true, run: async (ctx) => {
+				const current = ensureBoard(ctx.cwd);
+				await ctx.ui.custom<string | null>(
+					(tui: TUI, theme: Theme, _kb: unknown, done: (result: string | null) => void) =>
+						new KanbanOverlay(tui, theme, ctx.cwd, current, done, (next) => updateUi(ctx, next)),
+					{ overlay: true, overlayOptions: { width: "94%", minWidth: 72, maxHeight: "90%", anchor: "center", margin: 1, visible: (w: number, h: number) => w >= 72 && h >= 20 } },
+				);
+			} },
+			{ id: "reset", title: "Reset board", description: "Reset the demo board to seed data.", run: async (ctx) => { const next = seedBoard(); saveBoard(ctx.cwd, next); updateUi(ctx, next); ctx.ui.notify("Kanban demo board reset", "info"); } },
+		],
+		docs: [
+			{ id: "overview", title: "Kanban Demo overview", markdown: "# Kanban Demo\n\nA rich TUI demo extension with a board overlay, persistent widget, and `kanban_task` tool." },
+		],
+		widgets: [
+			{
+				id: "board",
+				title: "Kanban Board",
+				description: "Compact card counts by Kanban column.",
+				defaultZone: "dashboardOverlay",
+				defaultVariant: "card",
+				priority: 70,
+				render: ({ theme, ctx }) => new KanbanWidget(theme, () => board ?? ensureBoard(ctx.cwd)),
+			},
+		],
 	});
 	let board: Board | undefined;
 	let widgetTui: TUI | undefined;

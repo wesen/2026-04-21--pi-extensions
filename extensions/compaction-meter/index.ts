@@ -36,14 +36,32 @@ function maybeNotifyWarnings(ctx: ExtensionCommandContext, snapshot: CompactionM
 }
 
 export default function compactionMeter(pi: ExtensionAPI): void {
+	const state = createState();
 	registerPiExtension({
 		id: "compaction-meter",
 		name: "Compaction Meter",
 		description: "Shows remaining context tokens before automatic compaction and exposes compact-meter status commands.",
 		commands: ["compact-meter", "cm"],
 		tags: ["compaction", "status"],
+		run: async (ctx) => showCompactionMeter(ctx),
+		actions: [
+			{ id: "status", title: "Show status", description: "Show current context and compaction threshold details.", default: true, run: async (ctx) => showCompactionMeter(ctx) },
+		],
+		docs: [
+			{ id: "overview", title: "Compaction Meter overview", markdown: "# Compaction Meter\n\nShows remaining context tokens before automatic compaction. Use `/compact-meter` or `/cm` for details." },
+		],
+		widgets: [
+			{
+				id: "status",
+				title: "Compaction Meter",
+				description: "Remaining context before compaction.",
+				defaultZone: "statusBar",
+				defaultVariant: "short",
+				priority: 10,
+				render: ({ ctx }) => formatStatus(state.lastSnapshot ?? refreshSnapshot(ctx)),
+			},
+		],
 	});
-	const state = createState();
 
 	pi.on("session_start", async (_event, ctx) => {
 		updateStatus(ctx, state);
@@ -69,25 +87,21 @@ export default function compactionMeter(pi: ExtensionAPI): void {
 		updateStatus(ctx, state);
 	});
 
+	async function showCompactionMeter(ctx: ExtensionCommandContext): Promise<void> {
+		const snapshot = refreshSnapshot(ctx);
+		state.lastSnapshot = snapshot;
+		if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, formatStatus(snapshot));
+		maybeNotifyWarnings(ctx, snapshot, state);
+		ctx.ui.notify(formatDetails(snapshot), snapshot.remainingTokens !== null && snapshot.remainingTokens < 0 ? "warning" : "info");
+	}
+
 	pi.registerCommand("compact-meter", {
 		description: "Show tokens remaining before automatic compaction",
-		handler: async (_args, ctx) => {
-			const snapshot = refreshSnapshot(ctx);
-			state.lastSnapshot = snapshot;
-			if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, formatStatus(snapshot));
-			maybeNotifyWarnings(ctx, snapshot, state);
-			ctx.ui.notify(formatDetails(snapshot), snapshot.remainingTokens !== null && snapshot.remainingTokens < 0 ? "warning" : "info");
-		},
+		handler: async (_args, ctx) => showCompactionMeter(ctx),
 	});
 
 	pi.registerCommand("cm", {
 		description: "Alias for /compact-meter",
-		handler: async (_args, ctx) => {
-			const snapshot = refreshSnapshot(ctx);
-			state.lastSnapshot = snapshot;
-			if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, formatStatus(snapshot));
-			maybeNotifyWarnings(ctx, snapshot, state);
-			ctx.ui.notify(formatDetails(snapshot), snapshot.remainingTokens !== null && snapshot.remainingTokens < 0 ? "warning" : "info");
-		},
+		handler: async (_args, ctx) => showCompactionMeter(ctx),
 	});
 }

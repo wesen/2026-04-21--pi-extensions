@@ -113,14 +113,37 @@ async function runShellSelfTest(ctx: ExtensionContext, state: AgentEnvState): Pr
 }
 
 export default function agentEnvExtension(pi: ExtensionAPI): void {
+	const state = createState();
 	registerPiExtension({
 		id: "agent-env",
 		name: "Agent Env",
 		description: "Injects Pi session metadata environment variables into bash tool calls for scripts and debugging.",
 		commands: ["agent-env", "ae", "agent-env-toggle", "ae-toggle", "agent-env-self-test"],
 		tags: ["bash", "environment", "metadata"],
+		run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info"),
+		actions: [
+			{ id: "preview", title: "Preview environment", description: "Show PI_AGENT_* variables that will be injected.", default: true, run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info") },
+			{ id: "toggle", title: "Toggle injection", description: "Enable or disable agent-env injection.", run: async (ctx) => { state.enabled = !state.enabled; setStatus(ctx, state); ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info"); } },
+			{ id: "self-test", title: "Run self-test", description: "Run shell quoting and preamble self-tests.", run: async (ctx) => {
+				const internal = runInternalSelfTests();
+				const shell = await runShellSelfTest(ctx, state);
+				const ok = internal.every((test) => test.ok) && shell.ok;
+				ctx.ui.notify([`agent-env self-test: ${ok ? "PASS" : "FAIL"}`, "", ...internal.map((test) => `${test.ok ? "✓" : "✗"} ${test.name}: ${test.details}`), `${shell.ok ? "✓" : "✗"} shell execution: ${shell.output}`].join("\n"), ok ? "info" : "error");
+			} },
+		],
+		docs: [
+			{ id: "overview", title: "Agent Env overview", markdown: "# Agent Env\n\nInjects PI_AGENT_* environment variables into bash tool calls and user bash commands. Use settings to enable or disable injection." },
+		],
+		settings: {
+			kind: "schema",
+			schema: { version: 1, title: "Agent Env Settings", description: "Configure PI_AGENT_* environment injection.", sections: [{ id: "main", title: "Main", fields: [{ id: "enabled", label: "Enabled", type: "boolean", description: "Inject PI_AGENT_* variables into bash commands." }] }] },
+			load: () => ({ enabled: state.enabled }),
+			onApply: (values, ctx) => { state.enabled = values.enabled === true; setStatus(ctx, state); ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info"); },
+		},
+		widgets: [
+			{ id: "status", title: "Agent Env Status", description: "Shows whether environment injection is enabled.", defaultZone: "statusBar", defaultVariant: "short", priority: 60, render: () => `agent-env:${state.enabled ? "on" : "off"} n=${state.injectionCount}` },
+		],
 	});
-	const state = createState();
 
 	pi.on("session_start", async (_event, ctx) => {
 		refreshSessionState(state);

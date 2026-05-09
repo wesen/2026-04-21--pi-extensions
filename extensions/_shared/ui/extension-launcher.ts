@@ -1,13 +1,21 @@
 import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@mariozechner/pi-tui";
 import type { PiExtensionRegistration } from "../registry";
 
+export type ExtensionLauncherResult =
+	| { kind: "select"; extension: PiExtensionRegistration }
+	| { kind: "actions"; extension: PiExtensionRegistration }
+	| { kind: "docs"; extension: PiExtensionRegistration }
+	| { kind: "settings"; extension: PiExtensionRegistration }
+	| { kind: "dashboard" }
+	| { kind: "cancel" };
+
 export interface ExtensionLauncherOptions {
 	extensions: PiExtensionRegistration[];
 	theme: {
 		fg(color: string, text: string): string;
 		bold(text: string): string;
 	};
-	done(extension: PiExtensionRegistration | undefined): void;
+	done(result: ExtensionLauncherResult): void;
 	requestRender?: () => void;
 }
 
@@ -31,7 +39,7 @@ const GROUP_ORDER = ["Compaction", "Skills", "Docs", "Environment", "Session", "
 export class ExtensionLauncher implements Component {
 	private readonly extensions: PiExtensionRegistration[];
 	private readonly theme: ExtensionLauncherOptions["theme"];
-	private readonly done: (extension: PiExtensionRegistration | undefined) => void;
+	private readonly done: (result: ExtensionLauncherResult) => void;
 	private readonly requestRender: (() => void) | undefined;
 	private query = "";
 	private cursor = 0;
@@ -48,11 +56,31 @@ export class ExtensionLauncher implements Component {
 
 	handleInput(data: string): void {
 		if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
-			this.done(undefined);
+			this.done({ kind: "cancel" });
 			return;
 		}
 		if (matchesKey(data, Key.enter)) {
-			this.done(this.filtered()[this.cursor]?.extension);
+			const extension = this.currentExtension();
+			if (extension) this.done({ kind: "select", extension });
+			return;
+		}
+		if (data === "?" || matchesKey(data, "f1")) {
+			const extension = this.currentExtension();
+			if (extension) this.done({ kind: "docs", extension });
+			return;
+		}
+		if (data === "a") {
+			const extension = this.currentExtension();
+			if (extension) this.done({ kind: "actions", extension });
+			return;
+		}
+		if (data === "s") {
+			const extension = this.currentExtension();
+			if (extension) this.done({ kind: "settings", extension });
+			return;
+		}
+		if (data === "d") {
+			this.done({ kind: "dashboard" });
 			return;
 		}
 		if (matchesKey(data, Key.up)) {
@@ -147,6 +175,10 @@ export class ExtensionLauncher implements Component {
 		this.markDirty();
 	}
 
+	private currentExtension(): PiExtensionRegistration | undefined {
+		return this.filtered()[this.cursor]?.extension;
+	}
+
 	private ensureScroll(visibleRows: number, rows: ListRenderRow[]): void {
 		const selectedLine = rows.findIndex((row) => row.extensionIndex === this.cursor);
 		if (selectedLine === -1) {
@@ -177,7 +209,7 @@ export class ExtensionLauncher implements Component {
 
 	private renderHelpLine(matchCount: number): string {
 		const count = this.theme.fg("accent", this.theme.bold(` ${matchCount} extensions`));
-		const help = this.theme.fg("dim", "  ·  Enter select  ·  Esc close  ·  ↑↓ navigate  ·  Ctrl+U clear");
+		const help = this.theme.fg("dim", "  ·  Enter run  ·  a actions  ·  ? docs  ·  s settings  ·  d dashboard  ·  Esc close");
 		return `${count}${help}`;
 	}
 
@@ -235,6 +267,27 @@ export class ExtensionLauncher implements Component {
 		lines.push("");
 		lines.push(` ${this.theme.fg("accent", this.theme.bold(extension.name))}`);
 		lines.push(...wrapTextWithAnsi(` ${extension.description}`, Math.max(10, width)).map((line) => ` ${line.trimStart()}`));
+		if (extension.actions?.length || extension.run) {
+			lines.push("");
+			lines.push(` ${this.theme.fg("dim", "Actions")}`);
+			if (extension.run) lines.push("   Enter  Default action");
+			lines.push(...(extension.actions ?? []).slice(0, 4).map((action) => `   ${action.default ? "Enter" : "a"}  ${action.title}`));
+		}
+		if (extension.docs?.length) {
+			lines.push("");
+			lines.push(` ${this.theme.fg("dim", "Docs")}`);
+			lines.push(...extension.docs.slice(0, 3).map((doc) => `   ?  ${doc.title}`));
+		}
+		if (extension.settings) {
+			lines.push("");
+			lines.push(` ${this.theme.fg("dim", "Settings")}`);
+			lines.push("   s  Configure extension");
+		}
+		if (extension.widgets?.length) {
+			lines.push("");
+			lines.push(` ${this.theme.fg("dim", "Widgets")}`);
+			lines.push(...extension.widgets.slice(0, 3).map((widget) => `   ${widget.defaultZone ?? "dashboard"}: ${widget.title}`));
+		}
 		if (extension.commands?.length) {
 			lines.push("");
 			lines.push(` ${this.theme.fg("dim", "Commands")}`);
