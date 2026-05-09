@@ -119,9 +119,18 @@ async function openLauncher(ctx: ExtensionCommandContext): Promise<void> {
 async function handleLauncherResult(result: ExtensionLauncherResult, ctx: ExtensionCommandContext): Promise<void> {
 	if (result.kind === "cancel") return;
 	if (result.kind === "dashboard") return openDashboard(ctx);
-	if (result.kind === "docs") return openDocs(ctx, result.extension);
-	if (result.kind === "settings") return openSettings(ctx, result.extension);
-	if (result.kind === "actions") return openActions(ctx, result.extension);
+	if (result.kind === "docs") {
+		await openDocs(ctx, result.extension);
+		return openLauncher(ctx);
+	}
+	if (result.kind === "settings") {
+		await openSettings(ctx, result.extension);
+		return openLauncher(ctx);
+	}
+	if (result.kind === "actions") {
+		await openActions(ctx, result.extension);
+		return openLauncher(ctx);
+	}
 	return runExtensionDefault(ctx, result.extension);
 }
 

@@ -42,6 +42,7 @@ export class ExtensionLauncher implements Component {
 	private readonly done: (result: ExtensionLauncherResult) => void;
 	private readonly requestRender: (() => void) | undefined;
 	private query = "";
+	private searchActive = false;
 	private cursor = 0;
 	private scroll = 0;
 	private cachedWidth: number | undefined;
@@ -55,10 +56,54 @@ export class ExtensionLauncher implements Component {
 	}
 
 	handleInput(data: string): void {
-		if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
+		if (matchesKey(data, Key.ctrl("c"))) {
 			this.done({ kind: "cancel" });
 			return;
 		}
+		if (matchesKey(data, Key.escape)) {
+			if (this.searchActive) {
+				this.searchActive = false;
+				this.markDirty();
+				return;
+			}
+			this.done({ kind: "cancel" });
+			return;
+		}
+		if (data === "/" && !this.searchActive) {
+			this.searchActive = true;
+			this.markDirty();
+			return;
+		}
+
+		if (this.searchActive) {
+			if (matchesKey(data, Key.enter)) {
+				this.searchActive = false;
+				this.markDirty();
+				return;
+			}
+			if (matchesKey(data, Key.backspace)) {
+				this.query = this.query.slice(0, -1);
+				this.cursor = 0;
+				this.scroll = 0;
+				this.markDirty();
+				return;
+			}
+			if (matchesKey(data, Key.ctrl("u")) || data === "\u0015") {
+				this.query = "";
+				this.cursor = 0;
+				this.scroll = 0;
+				this.markDirty();
+				return;
+			}
+			if (data.length === 1 && data >= " " && data !== "\u007f") {
+				this.query += data;
+				this.cursor = 0;
+				this.scroll = 0;
+				this.markDirty();
+			}
+			return;
+		}
+
 		if (matchesKey(data, Key.enter)) {
 			const extension = this.currentExtension();
 			if (extension) this.done({ kind: "select", extension });
@@ -97,28 +142,7 @@ export class ExtensionLauncher implements Component {
 			return;
 		}
 		if (matchesKey(data, Key.end)) {
-			this.cursor = Math.max(0, this.filtered().length - 1);
-			this.markDirty();
-			return;
-		}
-		if (matchesKey(data, Key.backspace)) {
-			this.query = this.query.slice(0, -1);
-			this.cursor = 0;
-			this.scroll = 0;
-			this.markDirty();
-			return;
-		}
-		if (matchesKey(data, Key.ctrl("u")) || data === "\u0015") {
-			this.query = "";
-			this.cursor = 0;
-			this.scroll = 0;
-			this.markDirty();
-			return;
-		}
-		if (data.length === 1 && data >= " " && data !== "\u007f") {
-			this.query += data;
-			this.cursor = 0;
-			this.scroll = 0;
+			this.cursor = Math.max(0, this.visibleExtensions().length - 1);
 			this.markDirty();
 		}
 	}
@@ -132,10 +156,11 @@ export class ExtensionLauncher implements Component {
 		const splitRightWidth = modalWidth - 3 - splitLeftWidth;
 		const bodyRows = 16;
 		const filtered = this.filtered();
-		this.cursor = Math.min(this.cursor, Math.max(0, filtered.length - 1));
-		const selected = filtered[this.cursor]?.extension;
+		const visibleExtensions = this.visibleExtensions(filtered);
+		this.cursor = Math.min(this.cursor, Math.max(0, visibleExtensions.length - 1));
+		const selected = visibleExtensions[this.cursor];
 
-		const listRows = this.buildListRows(filtered.map((item) => item.extension), splitLeftWidth);
+		const listRows = this.buildListRows(visibleExtensions, splitLeftWidth);
 		this.ensureScroll(bodyRows, listRows);
 
 		const lines: string[] = [];
@@ -169,14 +194,14 @@ export class ExtensionLauncher implements Component {
 	}
 
 	private move(delta: number): void {
-		const count = this.filtered().length;
+		const count = this.visibleExtensions().length;
 		if (count === 0) return;
 		this.cursor = Math.max(0, Math.min(count - 1, this.cursor + delta));
 		this.markDirty();
 	}
 
 	private currentExtension(): PiExtensionRegistration | undefined {
-		return this.filtered()[this.cursor]?.extension;
+		return this.visibleExtensions()[this.cursor];
 	}
 
 	private ensureScroll(visibleRows: number, rows: ListRenderRow[]): void {
@@ -192,24 +217,33 @@ export class ExtensionLauncher implements Component {
 
 	private filtered(): ScoredExtension[] {
 		const query = this.query.trim().toLowerCase();
-		const scored = this.extensions
+		return this.extensions
 			.map((extension) => ({ extension, score: scoreExtension(extension, query) }))
-			.filter((item) => item.score >= 0)
-			.sort((a, b) => b.score - a.score || a.extension.name.localeCompare(b.extension.name));
-		return scored;
+			.filter((item) => item.score >= 0);
+	}
+
+	private visibleExtensions(scored = this.filtered()): PiExtensionRegistration[] {
+		const byId = new Map(scored.map((item) => [item.extension.id, item.score]));
+		return groupExtensions(scored.map((item) => item.extension))
+			.flatMap((group) => group.extensions
+				.sort((a, b) => (byId.get(b.id) ?? 0) - (byId.get(a.id) ?? 0) || a.name.localeCompare(b.name)));
 	}
 
 	private renderSearchLine(width: number): string {
 		const prompt = this.theme.fg("dim", " Search: ");
 		const cursor = this.theme.fg("accent", "█");
-		const placeholder = this.theme.fg("dim", " type to filter");
-		const value = this.query ? `${this.query}${cursor}` : `${cursor}${placeholder}`;
+		const placeholder = this.theme.fg("dim", this.searchActive ? " type to filter" : " / to filter");
+		const value = this.searchActive
+			? (this.query ? `${this.query}${cursor}` : `${cursor}${placeholder}`)
+			: (this.query ? `${this.query} ${this.theme.fg("dim", "(/ edit)")}` : placeholder);
 		return truncateToWidth(`${prompt}${value}`, width, "…");
 	}
 
 	private renderHelpLine(matchCount: number): string {
 		const count = this.theme.fg("accent", this.theme.bold(` ${matchCount} extensions`));
-		const help = this.theme.fg("dim", "  ·  Enter run  ·  a actions  ·  ? docs  ·  s settings  ·  d dashboard  ·  Esc close");
+		const help = this.searchActive
+			? this.theme.fg("dim", "  ·  search active  ·  Enter accept  ·  Esc leave search  ·  Ctrl+U clear")
+			: this.theme.fg("dim", "  ·  / search  ·  Enter run  ·  a actions  ·  ? docs  ·  s settings  ·  d dashboard");
 		return `${count}${help}`;
 	}
 
@@ -235,10 +269,10 @@ export class ExtensionLauncher implements Component {
 		if (items.length === 0) return [{ text: this.theme.fg("warning", " No matching extensions") }];
 		const rows: ListRenderRow[] = [
 			{ text: this.theme.fg("dim", " GROUP") },
-			{ text: "" },
 		];
 		const grouped = groupExtensions(items);
-		for (const group of grouped) {
+		for (const [groupIndex, group] of grouped.entries()) {
+			if (groupIndex > 0) rows.push({ text: "" });
 			rows.push({ text: this.theme.fg("accent", ` ▸ ${group.name}`) });
 			for (const extension of group.extensions) {
 				const extensionIndex = items.indexOf(extension);
@@ -252,7 +286,6 @@ export class ExtensionLauncher implements Component {
 					extensionIndex,
 				});
 				rows.push({ text: truncateToWidth(this.theme.fg("dim", `     ${subtitle}`), width, "…") });
-				rows.push({ text: "" });
 			}
 		}
 		return rows.map((row) => ({ ...row, text: truncateToWidth(row.text, width, "…") }));
@@ -305,13 +338,14 @@ export class ExtensionLauncher implements Component {
 	}
 
 	private renderFooter(width: number, filtered: ScoredExtension[]): string[] {
-		const queryEcho = this.query ? ` ${this.query}` : " Tip: v0 selects an extension name; action launching comes later.";
-		const names = filtered
+		const visible = this.visibleExtensions(filtered);
+		const queryEcho = this.query ? ` filter: ${this.query}` : " Tip: press / to search; normal letters trigger launcher shortcuts.";
+		const names = visible
 			.slice(0, 4)
-			.map((item) => item.extension.name)
+			.map((extension) => extension.name)
 			.join(", ");
-		const suffix = filtered.length > 4 ? `, +${filtered.length - 4} more` : "";
-		const summary = filtered.length === 0 ? " matched: none" : ` matched: ${names}${suffix}`;
+		const suffix = visible.length > 4 ? `, +${visible.length - 4} more` : "";
+		const summary = visible.length === 0 ? " matched: none" : ` matched: ${names}${suffix}`;
 		return [truncateToWidth(queryEcho, width, "…"), truncateToWidth(this.theme.fg("dim", summary), width, "…")];
 	}
 }
