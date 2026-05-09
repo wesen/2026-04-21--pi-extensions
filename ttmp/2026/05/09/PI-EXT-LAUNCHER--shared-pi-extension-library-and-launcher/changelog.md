@@ -27,3 +27,14 @@ Committed shared extension launcher implementation (commit d2e5033) and prepared
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/registry.ts — Shared registry committed
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — /px launcher committed
 
+
+## 2026-05-09
+
+Step 2: Polished /px into a framed two-pane grouped launcher modal and updated the UI authoring guide (commit ca10f75)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/docs/pi-tui-ui-authoring-guide.md — Implementation notes
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Framed grouped launcher modal
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — requestRender wiring
+

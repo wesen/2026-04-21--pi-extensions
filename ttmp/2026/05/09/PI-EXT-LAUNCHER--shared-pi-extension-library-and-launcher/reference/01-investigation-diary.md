@@ -11,18 +11,25 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: docs/pi-tui-ui-authoring-guide.md
+      Note: Step 2 documents real /px implementation notes (commit ca10f75)
     - Path: extensions/_shared/registry.ts
       Note: Implementation diary core registry
+    - Path: extensions/_shared/ui/extension-launcher.ts
+      Note: Step 2 polished /px modal UI (commit ca10f75)
     - Path: extensions/launcher/index.ts
-      Note: Implementation diary launcher command
+      Note: |-
+        Implementation diary launcher command
+        Step 2 passes requestRender into launcher modal (commit ca10f75)
     - Path: ttmp/2026/05/09/PI-EXT-LAUNCHER--shared-pi-extension-library-and-launcher/design-doc/01-shared-extension-library-launcher-analysis-design-and-implementation-guide.md
       Note: Primary guide produced for this ticket
 ExternalSources: []
 Summary: Chronological diary for shared Pi extension library and launcher implementation.
-LastUpdated: 2026-05-09T18:30:00-04:00
+LastUpdated: 2026-05-09T19:05:00-04:00
 WhatFor: Use to resume or review the shared launcher implementation work.
 WhenToUse: When continuing PI-EXT-LAUNCHER or auditing the initial shared registry/launcher implementation.
 ---
+
 
 
 # Diary
@@ -170,4 +177,126 @@ Validation result:
 
 ```text
 code=0
+```
+
+## Step 2: Polish `/px` into a framed two-pane launcher modal
+
+I used the UI authoring guide's render-helper hierarchy to turn `/px` from a plain list/details view into a framed modal with a search header, grouped extension list, details pane, and footer. The implementation is still intentionally launcher v0: selecting an item reports the selected extension name rather than executing extension actions.
+
+After an early manual test, the search placeholder was adjusted so the cursor appears immediately after `Search:` in the empty state. That makes the placeholder read as a hint instead of looking like text that has already been typed into the input.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Then use it to actually implement the UI for the /px , and update the document as needed. Let me know when I should test to give you feedback, potentially before you get too far."
+
+**Assistant interpretation:** Apply the new UI authoring guide to the real `/px` launcher, update the guide with any implementation lessons, pause for manual feedback before over-polishing, then commit and record the work.
+
+**Inferred user intent:** The user wants the launcher UI to become a practical example of the documented component hierarchy pattern and wants a chance to shape visual polish interactively.
+
+**Commit (code):** ca10f75c2a9b8d15eb012a8ab524cfbaaa0a4f66 — "Improve extension launcher modal UI"
+
+### What I did
+
+- Reworked `extensions/_shared/ui/extension-launcher.ts` around a hierarchy of render helpers:
+  - `renderSearchLine()`
+  - `renderHelpLine()`
+  - `renderSplitBody()`
+  - `buildListRows()`
+  - `renderDetails()`
+  - `renderFooter()`
+- Added a full modal frame with centered title, search row, grouped list/details split, and footer.
+- Added extension grouping by inferred domain: compaction, skills, docs, environment, session, demos, launcher, and other.
+- Added width-safe helpers for borders, rows, split separators, and ANSI-aware padding.
+- Updated `extensions/launcher/index.ts` to pass `requestRender: () => tui.requestRender()` into the modal so input changes redraw reliably.
+- Updated `docs/pi-tui-ui-authoring-guide.md` with implementation notes from the real `/px` launcher.
+- Applied user feedback to make the empty search line render like `Search: █ type to filter` instead of placing the cursor after the placeholder.
+- Validated load behavior with:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
+```
+
+### Why
+
+The previous launcher proved the registry architecture but did not demonstrate the richer component-system-like UI structure the guide described. This change makes `/px` a concrete example of the intended pattern: one stateful `Component` with a YAML-like hierarchy expressed as small render methods.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0` after the refactor.
+- The user manually opened `/px` and reported that the overall modal looked great.
+- The render-helper decomposition made the UI easier to adjust after feedback; the search cursor fix only touched `renderSearchLine()`.
+- Passing `requestRender` from the `ctx.ui.custom()` factory gives the component an explicit redraw path after keyboard input.
+
+### What didn't work
+
+- The first empty search rendering placed the cursor after the placeholder text:
+
+```text
+Search: type to filter█
+```
+
+The user pointed out that this made the placeholder look like typed input. I changed it to:
+
+```text
+Search: █ type to filter
+```
+
+### What I learned
+
+- The documented hierarchy pattern is useful, but for precise terminal layout it should compile to line helpers rather than built-in vertical widgets.
+- Placeholder/cursor ordering matters a lot in terminal UIs because there is no native input element styling to distinguish placeholder text from entered text.
+- Manual testing is especially valuable for TUI polish; static load validation only catches extension load/runtime syntax issues.
+
+### What was tricky to build
+
+The tricky part was reconciling grouped list rows with cursor-based selection and scrolling. Group headers and subtitle rows are rendered alongside selectable extension rows, so scroll logic cannot assume one visual row per extension. I solved this by building `ListRenderRow` objects where only selectable rows carry `extensionIndex`, then locating the selected visual row before adjusting scroll.
+
+The other sharp edge was width accounting with styled strings. The launcher now pads and truncates with `visibleWidth()` and `truncateToWidth()` so ANSI color sequences do not cause obvious border drift.
+
+### What warrants a second pair of eyes
+
+- The group inference in `primaryGroup()` is heuristic and may misclassify future extensions with overlapping tags.
+- The current implementation still keeps frame/layout helpers inside `extension-launcher.ts`; if another modal needs them, they should be extracted into shared `frame.ts` or `layout.ts`.
+- The selected row uses accent styling rather than a background fill, so visual emphasis should be reviewed across light/dark themes.
+
+### What should be done in the future
+
+- Extract reusable modal frame and split-pane helpers after one more consumer exists.
+- Add action-level launcher entries once the extension-level UX is stable.
+- Consider showing command aliases more prominently in the list subtitle instead of tags when that is more useful.
+
+### Code review instructions
+
+- Start with `extensions/_shared/ui/extension-launcher.ts`, especially `render()`, `buildListRows()`, `ensureScroll()`, and `renderSearchLine()`.
+- Review `extensions/launcher/index.ts` to verify the `requestRender` callback is passed correctly from `ctx.ui.custom()`.
+- Review `docs/pi-tui-ui-authoring-guide.md` for whether the implementation notes match the actual code.
+- Validate loading with `timeout 20 pi --list-models`.
+- Manually validate with `/reload` then `/px`; test empty search, typed search, `Ctrl+U`, arrows, `Enter`, and `Esc`.
+
+### Technical details
+
+The empty search input now renders with the cursor before the placeholder:
+
+```text
+Search: █ type to filter
+```
+
+The key implementation pattern is:
+
+```ts
+private markDirty(): void {
+  this.invalidate();
+  this.requestRender?.();
+}
+```
+
+and the command factory wires it with:
+
+```ts
+(tui, theme, _keybindings, done) => new ExtensionLauncher({
+  extensions,
+  theme,
+  done,
+  requestRender: () => tui.requestRender(),
+})
 ```
