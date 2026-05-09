@@ -21,6 +21,14 @@ topics:
       description: Context compaction, summarization thresholds, and related session management behavior
     - slug: tokens
       description: Token accounting, context usage, and token-budget display
+    - slug: direnv
+      description: Project-local environment management with direnv and .envrc
+    - slug: pi
+      description: Pi coding agent core concepts, APIs, docs, and implementation details.
+    - slug: tui
+      description: Terminal user interface components, overlays, widgets, keyboard UX, and rendering patterns.
+    - slug: extensions
+      description: Pi extension APIs, lifecycle hooks, custom commands/tools, and UI integration.
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
