@@ -14,6 +14,7 @@ import {
 	renderPinnedSkills,
 	type RenderPinnedSkillsResult,
 } from "./prompt";
+import { refreshDashboard } from "../_shared/dashboard/manager";
 import { registerPiExtension } from "../_shared/registry";
 import { DocViewer } from "../_shared/ui/doc-viewer";
 import { PinnedSkillsChecklist, type SkillListItem } from "./ui";
@@ -62,6 +63,7 @@ function branchHasAssistantMessage(ctx: ExtensionContext): boolean {
 function setStatus(ctx: ExtensionContext, result: RenderPinnedSkillsResult, pending: boolean): void {
 	if (!ctx.hasUI) return;
 	ctx.ui.setStatus(STATUS_KEY, formatStatus(result, pending));
+	void refreshDashboard(ctx);
 }
 
 function showWarnings(ctx: ExtensionContext, warnings: string[]): void {

@@ -80,7 +80,7 @@ export async function renderDashboardZone(
 	const zoneConfig = config.zones[zone] ?? defaultZoneConfig(zone);
 	if (!zoneConfig.enabled) return [];
 	const configured = new Map(zoneConfig.items.map((item) => [item.widget, item]));
-	const widgets = listPiDashboardWidgets().filter(({ key, widget }) => (widget.defaultZone ?? "dashboardOverlay") === zone || configured.has(key));
+	const widgets = listPiDashboardWidgets().filter(({ key, widget }) => zone === "dashboardOverlay" || (widget.defaultZone ?? "dashboardOverlay") === zone || configured.has(key));
 	const rendered: RenderedDashboardWidget[] = [];
 	let order = 0;
 	for (const contribution of widgets) {
@@ -95,6 +95,9 @@ export async function renderDashboardZone(
 
 export async function renderDashboardOverlayLines(ctx: ExtensionContext, theme: Theme, width: number): Promise<string[]> {
 	const rendered = await renderDashboardZone(ctx, theme, "dashboardOverlay", "card", width);
+	if (rendered.length === 0) {
+		return [theme.fg("warning", "No dashboard widgets are registered or visible."), theme.fg("dim", "Add widgets via registerPiExtension({ widgets: [...] }) or enable them in dashboard settings.")];
+	}
 	return renderGridDashboard(rendered, width, theme);
 }
 
