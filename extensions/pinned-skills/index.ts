@@ -167,13 +167,14 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 			kind: "custom",
 			title: "Pinned Skills settings",
 			description: "Open the pinned skills checklist.",
-			open: ({ ctx, theme, done }) => {
+			open: ({ ctx, theme, done, requestRender }) => {
 				const read = readConfig(ctx.cwd);
 				const items = getAvailableSkillList(pi, lastSkills);
 				return new PinnedSkillsChecklist({
 					items,
 					selectedNames: read.config.skills,
 					theme,
+					requestRender,
 					done: async (selected) => {
 						if (selected !== undefined) {
 							const config = updateConfigSkills(read.config, "set", selected);
@@ -220,7 +221,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 			return;
 		}
 		const selected = await ctx.ui.custom<string[] | undefined>(
-			(_tui: unknown, theme: any, _keybindings: unknown, done: (result: string[] | undefined) => void) => new PinnedSkillsChecklist({ items, selectedNames: config.skills, theme, done }),
+			(tui: any, theme: any, _keybindings: unknown, done: (result: string[] | undefined) => void) => new PinnedSkillsChecklist({ items, selectedNames: config.skills, theme, done, requestRender: () => tui.requestRender() }),
 			{ overlay: true, overlayOptions: { width: "90%", maxHeight: "80%", minWidth: 70, margin: 1 } },
 		);
 		if (selected === undefined) return;
@@ -354,7 +355,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 					return;
 				}
 				const selected = await ctx.ui.custom<string[] | undefined>(
-					(_tui, theme, _keybindings, done) => new PinnedSkillsChecklist({ items, selectedNames: config.skills, theme, done }),
+					(tui, theme, _keybindings, done) => new PinnedSkillsChecklist({ items, selectedNames: config.skills, theme, done, requestRender: () => tui.requestRender() }),
 					{
 						overlay: true,
 						overlayOptions: { width: "90%", maxHeight: "80%", minWidth: 70, margin: 1 },
