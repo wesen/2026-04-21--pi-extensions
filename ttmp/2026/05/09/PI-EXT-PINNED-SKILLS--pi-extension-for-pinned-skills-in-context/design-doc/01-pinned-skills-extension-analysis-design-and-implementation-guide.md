@@ -21,12 +21,21 @@ RelatedFiles:
       Note: Existing extension-owned JSON config reading pattern
     - Path: extensions/compaction-title/index.ts
       Note: Existing compaction hook
+    - Path: extensions/pinned-skills/README.md
+      Note: User-facing extension documentation
+    - Path: extensions/pinned-skills/config.ts
+      Note: Implemented extension config file schema and persistence
+    - Path: extensions/pinned-skills/index.ts
+      Note: Implemented lifecycle hooks
+    - Path: extensions/pinned-skills/prompt.ts
+      Note: Implemented pinned skill prompt rendering and byte limits
 ExternalSources: []
 Summary: Design for a Pi extension that pins selected full skill instructions into every turn's system prompt, with config-file and checklist UI workflows.
 LastUpdated: 2026-05-09T16:55:00-04:00
 WhatFor: Use when implementing or reviewing the pinned-skills Pi extension.
 WhenToUse: When an engineer needs to understand Pi skills, extension hooks, system-prompt injection, compaction behavior, and the phased implementation plan.
 ---
+
 
 
 # Pinned skills extension analysis design and implementation guide

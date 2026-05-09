@@ -13,6 +13,12 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../.nvm/versions/node/v22.22.1/lib/node_modules/@mariozechner/pi-coding-agent/dist/core/extensions/types.d.ts
       Note: Type-level API evidence recorded in the diary
+    - Path: extensions/pinned-skills/config.ts
+      Note: Implementation diary Step 3 config helper
+    - Path: extensions/pinned-skills/index.ts
+      Note: Implementation diary Step 3 code focus
+    - Path: extensions/pinned-skills/prompt.ts
+      Note: Implementation diary Step 3 prompt helper
     - Path: ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/design-doc/01-pinned-skills-extension-analysis-design-and-implementation-guide.md
       Note: Primary design output produced during this investigation
 ExternalSources: []
@@ -21,6 +27,7 @@ LastUpdated: 2026-05-09T16:55:00-04:00
 WhatFor: Use to resume or review how the pinned-skills extension design was researched and documented.
 WhenToUse: When continuing this ticket, reviewing evidence, or implementing the proposed extension.
 ---
+
 
 
 # Diary
@@ -262,4 +269,145 @@ Final validation result:
 ### PI-EXT-PINNED-SKILLS
 
 - ✅ All checks passed
+```
+
+## Step 3: Implement cache-safe pinned-skills extension
+
+I updated the design to capture the cache-stability warning discussed after the initial handoff, then implemented the extension under `extensions/pinned-skills/`. The implementation follows the design's conservative prompt-epoch policy: `before_agent_start` is the only hook that appends full skill text to the system prompt, while later config changes are saved and marked pending if a session already has an active assistant turn.
+
+I committed this work in two intervals: first the design/ticket package, then the extension implementation. The extension smoke check used `pi --extension ./extensions/pinned-skills/index.ts --list-models`, which loads extension code without spending a model request.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, let's update the document to include that warning when skills are modified later on. Then add tasks to the ticket, and build the thing, commit at appropriate intervals, and keep a diary"
+
+**Assistant interpretation:** Update the existing ticket design for deferred cache-safe toggles, add implementation tasks, build the pinned-skills extension, commit meaningful checkpoints, and continue the diary.
+
+**Inferred user intent:** The user wants the research ticket to become an implemented extension while preserving documentation quality, git hygiene, and a reviewable work history.
+
+**Commit (code):** `196da9e9b25dc71f0331f81c7ce720e74f0ccd9d` — "Add pinned skills extension"
+
+### What I did
+
+- Added ticket tasks for:
+  - documenting cache-safe prompt epochs and deferred toggles,
+  - implementing the extension,
+  - adding config/rendering helpers and README,
+  - smoke-checking and updating diary/changelog.
+- Updated the design document with a new cache-safe prompt epoch section and explicit warning text:
+
+```text
+Pinned skills config changed. To preserve prompt-cache stability, this session will keep using the currently loaded pinned-skills prompt until /compact or a new session. The new selection is saved and pending.
+```
+
+- Implemented `extensions/pinned-skills/config.ts`:
+  - global/project config paths,
+  - JSON parsing and validation,
+  - default config,
+  - project config writing,
+  - config hashing and skill-list updates.
+- Implemented `extensions/pinned-skills/prompt.ts`:
+  - full skill rendering,
+  - per-skill and total byte limits,
+  - missing/skipped/warning reporting,
+  - status/detail formatting,
+  - stable SHA-256 prompt hashing.
+- Implemented `extensions/pinned-skills/index.ts`:
+  - `session_start` state restore,
+  - `before_agent_start` prompt injection,
+  - deferred config behavior after an active assistant turn,
+  - `session_compact` prompt-epoch reset,
+  - `/pinned-skills` command verbs: `list`, `preview`, `add`, `remove`, `clear`, `on`, `off`, and `edit`.
+- Added `extensions/pinned-skills/README.md` with configuration, command, status, and cache-safety notes.
+- Ran smoke check:
+
+```bash
+timeout 20 pi --extension ./extensions/pinned-skills/index.ts --list-models >/tmp/pinned-skills-list-models.out 2>/tmp/pinned-skills-list-models.err
+```
+
+- Committed docs first:
+
+```text
+002891564b1108e0c5734df832f07d718e187df8 Document pinned skills extension design
+```
+
+- Committed extension second:
+
+```text
+196da9e9b25dc71f0331f81c7ce720e74f0ccd9d Add pinned skills extension
+```
+
+### Why
+
+The cache-stability behavior needed to be explicit in the design before implementation. Changing a pinned skill selection mid-session can change a large prefix of the system prompt and reduce provider prompt-cache reuse, so the implementation saves changes but defers activation until compaction or a new session once an assistant turn already exists.
+
+### What worked
+
+- `pi --extension ./extensions/pinned-skills/index.ts --list-models` exited with code `0`, which confirms the extension can be loaded by Pi's extension loader path without a model call.
+- The implementation could reuse Pi's loaded `Skill[]` from `event.systemPromptOptions.skills`, so no custom skill scanner was necessary.
+- Committing in two steps produced a clean documentation checkpoint followed by an implementation checkpoint.
+
+### What didn't work
+
+- A direct noninteractive model smoke command timed out:
+
+```bash
+pi --no-session --extension ./extensions/pinned-skills/index.ts --no-skills -p "Reply with exactly: ok"
+```
+
+It timed out after 120 seconds, likely waiting on provider/model execution rather than extension loading. I replaced it with `--list-models`, which is enough to validate extension loading without spending a model request.
+
+- A quick ad hoc Jiti import attempt produced unusably large bundled output and exited nonzero. I did not rely on that result.
+
+### What I learned
+
+- `--list-models` is a practical low-cost smoke check for extension load syntax when the extension factory itself is synchronous and side-effect safe.
+- Session metadata should avoid being appended on every turn. The implementation only appends `pinned-skills-state` when the active prompt hash/config hash changes or when pending state changes.
+- Command handlers cannot access `event.systemPromptOptions.skills`; the implementation caches the most recent skills snapshot from `before_agent_start` and warns if no snapshot is available yet.
+
+### What was tricky to build
+
+The hardest part was reconciling cache stability with user expectations. If a user runs `/pinned-skills add diary` after the session already has an assistant response, immediately changing the system prompt would satisfy the command but destabilize the prompt prefix. The extension instead writes `.pi/pinned-skills.json`, marks a pending hash, keeps using the previously active config in `before_agent_start`, and clears the active epoch on `session_compact` so the pending config can apply later.
+
+Another subtlety is reload/resume behavior. The extension persists the active config snapshot and hashes in `pi.appendEntry()` metadata. On `session_start`, it restores that metadata from the session so the extension can continue to distinguish active versus pending config.
+
+### What warrants a second pair of eyes
+
+- Whether the deferred behavior should also send an actual follow-up user message, or whether the current UI notification/status is less disruptive.
+- Whether `session_compact` should clear the active prompt epoch immediately, or only mark `pendingMayApply` so the next `before_agent_start` can decide.
+- Whether `.pi/pinned-skills.json` project config should merge with or replace global config. The implementation currently follows the design: project config overrides fields from global config.
+
+### What should be done in the future
+
+- Add a true checkmark-list TUI modal using `ctx.ui.custom()`; the current `/pinned-skills edit` command provides an editor-based list as the first interactive workflow.
+- Add automated tests if/when the repository gets a TypeScript test harness.
+- Consider adding a `pinned-skills-self-test` command for pure helper checks.
+
+### Code review instructions
+
+- Start with `extensions/pinned-skills/index.ts` to review lifecycle and command behavior.
+- Then review `extensions/pinned-skills/config.ts` and `extensions/pinned-skills/prompt.ts` as pure helpers.
+- Read `extensions/pinned-skills/README.md` for user-facing behavior.
+- Validate extension load with:
+
+```bash
+timeout 20 pi --extension ./extensions/pinned-skills/index.ts --list-models >/tmp/pinned-skills-list-models.out 2>/tmp/pinned-skills-list-models.err
+```
+
+### Technical details
+
+Files added:
+
+- `extensions/pinned-skills/index.ts`
+- `extensions/pinned-skills/config.ts`
+- `extensions/pinned-skills/prompt.ts`
+- `extensions/pinned-skills/README.md`
+
+Key runtime policy:
+
+```text
+new session / no assistant turn -> apply current config
+assistant turn exists + config differs from active config -> save as pending and keep active prompt
+session_compact -> clear active prompt epoch
+next before_agent_start -> apply current config
 ```

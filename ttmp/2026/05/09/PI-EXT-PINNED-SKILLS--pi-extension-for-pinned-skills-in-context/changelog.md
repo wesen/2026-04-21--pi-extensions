@@ -43,3 +43,15 @@ Re-uploaded reMarkable bundle after adding final diary step
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/reference/01-investigation-diary.md — Updated diary included in refreshed reMarkable bundle
 
+
+## 2026-05-09
+
+Implemented pinned-skills extension with cache-safe deferred config behavior (commit 196da9e)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/config.ts — Configuration helper
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Core extension implementation
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/prompt.ts — Prompt rendering helper
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/reference/01-investigation-diary.md — Recorded implementation step and smoke-check evidence
+
