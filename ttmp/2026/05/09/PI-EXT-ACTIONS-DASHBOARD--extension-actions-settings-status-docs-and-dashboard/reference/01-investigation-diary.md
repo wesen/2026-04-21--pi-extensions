@@ -13,7 +13,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: extensions/_shared/dashboard/manager.ts
-      Note: Step 2 dashboard bridge
+      Note: |-
+        Step 2 dashboard bridge
+        Step 7 dashboard overlay includes all widgets
     - Path: extensions/_shared/registry.ts
       Note: |-
         Current registry evidence for Step 1
@@ -43,6 +45,7 @@ RelatedFiles:
         Step 4 requestRender wiring for pinned skills settings
         Step 5 opens available skills list in DocViewer
         Step 6 pink lifecycle notifications and injection dashboard state
+        Step 7 pinned-skills refreshes dashboard after status changes
     - Path: extensions/pinned-skills/ui.ts
       Note: Step 4 restyled pinned skills settings modal
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
@@ -53,6 +56,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 
@@ -723,4 +727,78 @@ Injected this session: yes/no
 Last injected: <timestamp|never>
 Active skills: <names|(none)>
 Pending config: yes/no
+```
+
+## Step 7: Make dashboard overlay show pinned-skills widgets reliably
+
+I investigated why the pinned-skills dashboard widget could be hard to see even when `diary` and `docmgr` were configured. The dashboard overlay was too strict: it only included widgets whose default zone was `dashboardOverlay`, which made the overlay less useful for checking status-style widgets.
+
+I changed the dashboard overlay to include all registered dashboard widgets by default and added an explicit empty-state message. I also made pinned-skills status updates refresh the dashboard bridge so the status/dashboard view can reflect injection state after prompt events.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I have diary and docmgr configure in pinned-skills, but when I go to the dashboard, I don't see anything."
+
+**Assistant interpretation:** The pinned-skills dashboard state is not visible enough or not rendering in the dashboard overlay, so make dashboard inclusion and refresh behavior more robust.
+
+**Inferred user intent:** The user wants `/px dashboard` to be a reliable validation surface for pinned-skills configuration and injection state.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Updated `renderDashboardZone(...)` so `dashboardOverlay` includes all registered widgets by default, not only widgets whose `defaultZone` is `dashboardOverlay`.
+- Added a clear empty state to `renderDashboardOverlayLines(...)` when no widgets are registered or visible.
+- Updated `pinned-skills` `setStatus(...)` to call `refreshDashboard(ctx)` after its own status changes.
+- Validated with:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list.out 2>/tmp/pi-list.err
+```
+
+### Why
+
+The dashboard overlay is a debugging and validation surface. It should show status widgets too, especially when users are trying to verify that a status-oriented extension like pinned-skills is working.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0`.
+- The overlay will now show at least an explanatory empty-state message instead of appearing blank.
+- Pinned-skills status changes now request dashboard refresh through the shared dashboard manager.
+
+### What didn't work
+
+- I did not complete a visual `/px dashboard` test in this step; the user should still confirm the card appears in the live TUI.
+
+### What I learned
+
+- Treating the dashboard overlay as a strict zone is less useful than treating it as an aggregate inspection view.
+- Status widgets should be visible in the overlay because they are often the exact widgets users need for debugging.
+
+### What was tricky to build
+
+The main concern was not breaking zone-specific placement. The change only broadens `dashboardOverlay`; statusBar, aboveEditor, and belowEditor still use their specific zone filters.
+
+### What warrants a second pair of eyes
+
+- Whether showing all widgets in the overlay creates too much duplication when an extension has both a short status widget and a card widget.
+- Whether pinned-skills calling `refreshDashboard(ctx)` from `setStatus()` is too eager.
+
+### What should be done in the future
+
+- Add dashboard overlay filters or grouping by zone.
+- Add per-widget visibility settings to hide duplicate status/card pairs.
+
+### Code review instructions
+
+- Review `extensions/_shared/dashboard/manager.ts` for the overlay filtering change.
+- Review `extensions/pinned-skills/index.ts` for dashboard refresh on status update.
+- Test `/px dashboard` after `/reload` and after sending one prompt.
+
+### Technical details
+
+Overlay widget selection now treats `dashboardOverlay` specially:
+
+```ts
+zone === "dashboardOverlay" || widget.defaultZone === zone || configured.has(key)
 ```

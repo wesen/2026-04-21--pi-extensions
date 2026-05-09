@@ -84,3 +84,13 @@ Added pink pinned-skills lifecycle notifications and dashboard injection-state w
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Pink load/injection notifications and dashboard summary widget
 
+
+## 2026-05-09
+
+Made dashboard overlay include all widgets and refresh after pinned-skills status changes
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/dashboard/manager.ts — Dashboard overlay includes all registered widgets
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Pinned-skills status refreshes dashboard bridge
+
