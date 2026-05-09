@@ -66,3 +66,15 @@ Added pi.getCommands fallback so /pinned-skills list works before first prompt
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Skill list fallback implementation
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/reference/01-investigation-diary.md — Recorded Step 4 fallback implementation
 
+
+## 2026-05-09
+
+Added TUI checklist menu for selecting pinned skills
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/README.md — Documented menu controls
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Wired /pinned-skills menu and ui commands
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/ui.ts — New TUI checklist component
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/reference/01-investigation-diary.md — Recorded TUI menu implementation step
+

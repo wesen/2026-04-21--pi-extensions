@@ -30,6 +30,7 @@ Example:
 ```text
 /pinned-skills
 /pinned-skills list
+/pinned-skills menu
 /pinned-skills preview
 /pinned-skills add docmgr diary
 /pinned-skills remove diary
@@ -38,6 +39,8 @@ Example:
 /pinned-skills off
 /pinned-skills edit
 ```
+
+`/pinned-skills menu` opens a TUI checklist with skill descriptions. Use ↑/↓ to move, Space to toggle, type to filter, Enter to save, and Escape to cancel.
 
 `/pinned-skills edit` opens a small editor where each line is a pinned skill name.
 

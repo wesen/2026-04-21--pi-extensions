@@ -19,6 +19,8 @@ RelatedFiles:
       Note: Implementation diary Step 3 code focus
     - Path: extensions/pinned-skills/prompt.ts
       Note: Implementation diary Step 3 prompt helper
+    - Path: extensions/pinned-skills/ui.ts
+      Note: TUI checklist component for selecting pinned skills
     - Path: ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/design-doc/01-pinned-skills-extension-analysis-design-and-implementation-guide.md
       Note: Primary design output produced during this investigation
 ExternalSources: []
@@ -27,6 +29,7 @@ LastUpdated: 2026-05-09T16:55:00-04:00
 WhatFor: Use to resume or review how the pinned-skills extension design was researched and documented.
 WhenToUse: When continuing this ticket, reviewing evidence, or implementing the proposed extension.
 ---
+
 
 
 
@@ -491,4 +494,88 @@ pi.getCommands()
     path: command.sourceInfo.path,
     source: "commands-fallback",
   }));
+```
+
+## Step 5: Add TUI checklist menu
+
+I added an interactive TUI checklist for selecting pinned skills so the user does not need to type skill names manually. The new command is `/pinned-skills menu` (alias behavior also accepts `/pinned-skills ui`). It shows skill names with checkmarks on the left and the selected skill's description/path on the right.
+
+The menu supports keyboard navigation and filtering. It writes the same `.pi/pinned-skills.json` config as the existing command/edit flows, so it inherits the same cache-safe deferred behavior when a session already has an active prompt epoch.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, now I want to have a TUI menu where I can see the skill description, a list of skills with checkmarks, because this is a bit tedious."
+
+**Assistant interpretation:** Add a custom TUI component to choose pinned skills from a checklist with descriptions.
+
+**Inferred user intent:** The user wants a faster, less error-prone interactive selector for skill pinning.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Read the Pi TUI docs for custom components, keyboard input, line-width constraints, overlays, and `ctx.ui.custom()`.
+- Added `extensions/pinned-skills/ui.ts` with `PinnedSkillsChecklist`.
+- Added a reusable `SkillListItem` interface shared by the list fallback and the TUI menu.
+- Updated `extensions/pinned-skills/index.ts` so `/pinned-skills menu` and `/pinned-skills ui` open the checklist overlay.
+- Updated `extensions/pinned-skills/README.md` with menu usage.
+- Ran extension load validation:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-menu-load.out 2>/tmp/pi-menu-load.err
+```
+
+### Why
+
+Typing exact skill names is tedious and error-prone, especially with many scanned skills. The extension already knows how to list skills; the natural next step is to wrap the same data in a checklist that writes the same config file.
+
+### What worked
+
+- The extension still loaded successfully with `pi --list-models` after adding the TUI module.
+- The menu uses both metadata sources:
+  - rich `Skill[]` snapshot after the first prompt,
+  - `pi.getCommands()` fallback immediately after startup.
+
+### What didn't work
+
+- N/A in this step. The menu itself still needs an interactive smoke test in a real Pi TUI session.
+
+### What I learned
+
+- Pi custom components must keep every rendered line within the provided width. The component uses `truncateToWidth()` and `wrapTextWithAnsi()` for that.
+- `ctx.ui.custom()` overlay mode is sufficient for a modal-like selector without replacing the whole session UI permanently.
+
+### What was tricky to build
+
+The component has to behave well in narrow terminals and with styled ANSI text. I used a fixed two-column layout with a bounded left list, a right details pane, and conservative truncation/wrapping. I also kept filtering simple: printable characters append to the filter, Backspace edits it, and Ctrl+U clears it.
+
+### What warrants a second pair of eyes
+
+- Whether the menu should show more than 14 rows or adapt to actual terminal height. The current component uses a simple fixed visible row count inside an overlay.
+- Whether typed filtering should require `/` to enter search mode instead of always treating printable keys as filter input.
+- Whether the checklist should show package/scope/source in addition to name, description, and path.
+
+### What should be done in the future
+
+- Run an interactive manual smoke test: `/reload`, `/pinned-skills menu`, toggle a skill, save, then inspect `.pi/pinned-skills.json`.
+- Consider adding mouse support or richer keybinding hints if Pi TUI exposes those patterns.
+
+### Code review instructions
+
+- Review `extensions/pinned-skills/ui.ts` first for component rendering and keyboard handling.
+- Review the `/pinned-skills menu` branch in `extensions/pinned-skills/index.ts` to confirm it writes config through the same path as other flows.
+- Validate extension loading with `timeout 20 pi --list-models`.
+
+### Technical details
+
+Menu controls:
+
+```text
+↑/↓ move
+Space toggle
+type to filter
+Backspace edit filter
+Ctrl+U clear filter
+Enter save
+Esc cancel
 ```

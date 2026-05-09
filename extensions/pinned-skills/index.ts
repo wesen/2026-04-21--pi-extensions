@@ -14,6 +14,7 @@ import {
 	renderPinnedSkills,
 	type RenderPinnedSkillsResult,
 } from "./prompt";
+import { PinnedSkillsChecklist, type SkillListItem } from "./ui";
 
 const STATUS_KEY = "pinned-skills";
 const CUSTOM_TYPE = "pinned-skills-state";
@@ -84,14 +85,6 @@ function summarizeConfig(config: PinnedSkillsConfig, globalPath: string, project
 		"",
 		formatRenderDetails(lastRender),
 	].join("\n");
-}
-
-interface SkillListItem {
-	name: string;
-	description: string;
-	path: string;
-	disabled?: boolean;
-	source: "skills-snapshot" | "commands-fallback";
 }
 
 function skillCommandName(command: SlashCommandInfo): string {
@@ -218,7 +211,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("pinned-skills", {
-		description: "List or configure skills pinned into the system prompt (args: list add remove clear on off edit preview)",
+		description: "List or configure skills pinned into the system prompt (args: list add remove clear on off edit menu preview)",
 		handler: async (args, ctx) => {
 			const read = readConfig(ctx.cwd);
 			let config = read.config;
@@ -260,8 +253,24 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 				if (edited === undefined) return;
 				config = updateConfigSkills(config, "set", edited.split(/\r?\n/));
 				changed = true;
+			} else if (verb === "menu" || verb === "ui") {
+				const items = getAvailableSkillList(pi, lastSkills);
+				if (items.length === 0) {
+					ctx.ui.notify("No skills are currently available.", "warning");
+					return;
+				}
+				const selected = await ctx.ui.custom<string[] | undefined>(
+					(_tui, theme, _keybindings, done) => new PinnedSkillsChecklist({ items, selectedNames: config.skills, theme, done }),
+					{
+						overlay: true,
+						overlayOptions: { width: "90%", maxHeight: "80%", minWidth: 70, margin: 1 },
+					},
+				);
+				if (selected === undefined) return;
+				config = updateConfigSkills(config, "set", selected);
+				changed = true;
 			} else if (verb !== "status") {
-				ctx.ui.notify(`Unknown pinned-skills command: ${verb}\nUse: list, add, remove, clear, on, off, edit, preview`, "warning");
+				ctx.ui.notify(`Unknown pinned-skills command: ${verb}\nUse: list, add, remove, clear, on, off, edit, menu, preview`, "warning");
 				return;
 			}
 
