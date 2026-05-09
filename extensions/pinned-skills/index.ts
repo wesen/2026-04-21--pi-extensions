@@ -15,6 +15,7 @@ import {
 	type RenderPinnedSkillsResult,
 } from "./prompt";
 import { registerPiExtension } from "../_shared/registry";
+import { DocViewer } from "../_shared/ui/doc-viewer";
 import { PinnedSkillsChecklist, type SkillListItem } from "./ui";
 
 const STATUS_KEY = "pinned-skills";
@@ -154,7 +155,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 		actions: [
 			{ id: "menu", title: "Open checklist", description: "Select pinned skills in a TUI checklist.", default: true, run: async (ctx) => openPinnedSkillsMenu(ctx) },
 			{ id: "preview", title: "Preview prompt block", description: "Show the prompt block that will be injected.", run: async (ctx) => previewPinnedSkills(ctx) },
-			{ id: "list", title: "List available skills", description: "List all currently available skills.", run: async (ctx) => ctx.ui.notify(availableSkillsText(pi, lastSkills), "info") },
+			{ id: "list", title: "List available skills", description: "List all currently available skills.", run: async (ctx) => openAvailableSkillsList(ctx) },
 		],
 		docs: [
 			{
@@ -210,6 +211,20 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 		lastRender = rendered;
 		setStatus(ctx, rendered, Boolean(state.pendingConfigHash));
 		ctx.ui.notify(formatRenderDetails(rendered), rendered.warnings.length > 0 ? "warning" : "info");
+	}
+
+	async function openAvailableSkillsList(ctx: any): Promise<void> {
+		const body = availableSkillsText(pi, lastSkills);
+		await ctx.ui.custom<void>(
+			(tui: any, theme: any, _keybindings: unknown, done: () => void) => new DocViewer({
+				title: "Available Skills",
+				markdown: `# Available Skills\n\n${body}`,
+				theme,
+				done,
+				requestRender: () => tui.requestRender(),
+			}),
+			{ overlay: true, overlayOptions: { width: "90%", maxHeight: "85%", minWidth: 70, margin: 1 } },
+		);
 	}
 
 	async function openPinnedSkillsMenu(ctx: any): Promise<void> {
@@ -315,7 +330,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 			const rest = tokens.slice(1);
 
 			if (verb === "list") {
-				ctx.ui.notify(availableSkillsText(pi, lastSkills), "info");
+				await openAvailableSkillsList(ctx);
 				return;
 			}
 
