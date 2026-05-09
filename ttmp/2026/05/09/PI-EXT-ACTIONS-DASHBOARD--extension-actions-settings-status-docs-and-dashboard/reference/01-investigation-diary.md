@@ -12,10 +12,30 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: extensions/_shared/dashboard/manager.ts
+      Note: Step 2 dashboard bridge
     - Path: extensions/_shared/registry.ts
-      Note: Current registry evidence for Step 1
+      Note: |-
+        Current registry evidence for Step 1
+        Step 2 contribution contracts (commit 13bb60d)
+    - Path: extensions/_shared/ui/action-picker.ts
+      Note: Step 2 generic action picker
+    - Path: extensions/_shared/ui/dashboard-overlay.ts
+      Note: Step 2 dashboard overlay
+    - Path: extensions/_shared/ui/doc-viewer.ts
+      Note: Step 2 docs viewer
+    - Path: extensions/_shared/ui/settings-view.ts
+      Note: Step 2 generic settings view
+    - Path: extensions/agent-env/index.ts
+      Note: Step 2 pilot schema settings
+    - Path: extensions/kanban-demo/index.ts
+      Note: Step 2 pilot dashboard card
     - Path: extensions/launcher/index.ts
-      Note: Current launcher callback invocation gap
+      Note: |-
+        Current launcher callback invocation gap
+        Step 2 launcher orchestration (commit 13bb60d)
+    - Path: extensions/pinned-skills/index.ts
+      Note: Step 2 pilot actions docs settings widget
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
       Note: Primary design produced in Step 1
 ExternalSources: []
@@ -24,6 +44,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 # Diary
@@ -193,4 +214,151 @@ Recommended first implementation phase:
 
 ```text
 Phase 1: actions + docs in registry, then launcher keys Enter/?/a.
+```
+
+## Step 2: Implement contribution callbacks, settings, docs, and dashboard first pass
+
+I implemented the first pass of the contribution platform described in the design guide. The registry now accepts actions, docs, settings contributions, and dashboard widgets; `/px` can route to those contributions; and several existing extensions register pilot contributions.
+
+The implementation deliberately keeps compatibility with the old command/status model. Existing slash commands and direct `ctx.ui.setStatus()` calls still work, while new launcher/dashboard paths provide a migration target.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add detailed tasks, grouped by phase, then work on them one by one, keeping a diary as you work, and committing at appropriate inervals. 
+
+Do them all, I expect you to be done when I come back. You can verify visual stuff by using tmux."
+
+**Assistant interpretation:** Break the contribution-platform design into phase-grouped implementation tasks, implement the phases end-to-end, keep the diary updated, validate manually where possible, and commit at sensible checkpoints.
+
+**Inferred user intent:** The user wants autonomous implementation of the designed extension contribution system, with durable documentation and commits ready for review when they return.
+
+**Commit (code):** 13bb60d5776ed893f05c8dafeadd405b8acf71ae — "Add extension contribution callbacks and dashboard"
+
+### What I did
+
+- Replaced the short task list with detailed phase-grouped tasks in `tasks.md`.
+- Extended `extensions/_shared/registry.ts` with contracts for:
+  - actions and action callbacks,
+  - docs,
+  - schema/custom settings,
+  - dashboard widgets,
+  - dashboard widget listing/key helpers.
+- Updated `extensions/_shared/ui/extension-launcher.ts` so `/px` returns structured intents:
+  - select/run,
+  - actions,
+  - docs,
+  - settings,
+  - dashboard,
+  - cancel.
+- Added shared UI components:
+  - `extensions/_shared/ui/action-picker.ts`
+  - `extensions/_shared/ui/doc-viewer.ts`
+  - `extensions/_shared/ui/settings-view.ts`
+  - `extensions/_shared/ui/dashboard-overlay.ts`
+- Added dashboard helpers:
+  - `extensions/_shared/dashboard/config.ts`
+  - `extensions/_shared/dashboard/layout.ts`
+  - `extensions/_shared/dashboard/manager.ts`
+- Reworked `extensions/launcher/index.ts` to:
+  - invoke default actions,
+  - open action picker with `a`,
+  - open docs with `?`,
+  - open settings with `s`,
+  - open dashboard with `d` or `/px dashboard`,
+  - refresh the dashboard after actions/settings.
+- Added pilot contributions to:
+  - `pinned-skills` — actions, docs, custom settings view, status widget,
+  - `compaction-meter` — action, docs, status widget,
+  - `agent-env` — actions, docs, schema settings, status widget,
+  - `kanban-demo` — actions, docs, dashboard card widget,
+  - `launcher` — docs and dashboard zone settings.
+- Validated extension loading with:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list.out 2>/tmp/pi-list.err
+```
+
+- Started a tmux smoke test with `pi` and attempted `/px` interaction. This verified that Pi still started, but the captured run submitted `/px` as normal input rather than showing the overlay in the captured pane, so the visual test remains partially inconclusive.
+
+### Why
+
+The design called for a contribution registry rather than more ad hoc top-level commands. Implementing the registry contracts and pilot contributions first gives the launcher real extension callbacks to invoke and gives dashboard/settings/docs code real consumers.
+
+The status/dashboard bridge was implemented without replacing Pi's built-in footer because that is the lowest-risk migration path. It lets dashboard widgets render into a normal extension status entry while old status entries still exist.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0` after the implementation.
+- The registry type remained backwards compatible with existing metadata-only registrations.
+- The launcher orchestration is now centralized in `extensions/launcher/index.ts`, which makes actions/docs/settings/dashboard behavior easier to review.
+- Pilot extensions demonstrate both schema settings (`agent-env`) and custom settings (`pinned-skills`).
+- The dashboard config layer can already read/merge global/project config and write `.pi/dashboard.json`.
+
+### What didn't work
+
+- The tmux `/px` smoke test did not conclusively show the overlay. The captured pane showed Pi startup and then treated `/px` as submitted input, producing normal agent activity. This may be due to timing, duplicate/global extension command conflicts, or how the interactive command system behaves under the automated tmux send sequence.
+- No full TypeScript compile command exists in this repository, so `pi --list-models` is the current load validation.
+
+### What I learned
+
+- The existing `run` field was enough to preserve a simple default-action path while adding richer `actions[]`.
+- `ctx.ui.custom()` can host all the first-pass generic views, including docs/settings/dashboard overlays.
+- The status bar can be treated as a dashboard zone by rendering short widgets into `ctx.ui.setStatus("dashboard", ...)`.
+- Schema settings are best for booleans/selects at this stage; custom views remain necessary for rich controls like the pinned-skills checklist.
+
+### What was tricky to build
+
+The tricky part was keeping the custom settings contract flexible without nesting overlays incorrectly. The `pinned-skills` custom settings view now returns a `PinnedSkillsChecklist` component directly instead of opening another `ctx.ui.custom()` from inside the settings factory.
+
+Another tricky point was dashboard rendering. Dashboard widgets can return strings, string arrays, or components, but the status bridge needs line-oriented output. The layout helpers normalize each rendered widget to lines before composing inline, stack, or grid layouts.
+
+### What warrants a second pair of eyes
+
+- The generic settings view is intentionally minimal and should be reviewed before relying on it for string/path editing.
+- The dashboard manager installs above/below editor dashboard components even when there may be no visible widgets; verify this does not create blank chrome in all themes/modes.
+- The tmux `/px` interaction needs a better repeatable visual test recipe.
+- Callback reload safety still relies on overwrite-by-ID; generation sweeping remains future work.
+
+### What should be done in the future
+
+- Add registry generation cleanup for reload/disappearing extension safety.
+- Improve doc viewer rendering by embedding or adapting the real `Markdown` component with scroll support.
+- Add a per-widget dashboard layout editor rather than only zone toggles.
+- Migrate more extensions to registered actions/widgets and eventually remove duplicated direct status strings.
+
+### Code review instructions
+
+- Start with `extensions/_shared/registry.ts` to review the new contribution contracts.
+- Review `extensions/launcher/index.ts` for orchestration and callback invocation.
+- Review shared UI components under `extensions/_shared/ui/`.
+- Review dashboard helpers under `extensions/_shared/dashboard/`.
+- Spot-check pilot contributions in `pinned-skills`, `agent-env`, `compaction-meter`, and `kanban-demo`.
+- Validate with `timeout 20 pi --list-models`.
+- Manually test `/reload`, `/px`, `a`, `?`, `s`, `d`, and `/px dashboard` in a real terminal.
+
+### Technical details
+
+New result type from the launcher modal:
+
+```ts
+export type ExtensionLauncherResult =
+  | { kind: "select"; extension: PiExtensionRegistration }
+  | { kind: "actions"; extension: PiExtensionRegistration }
+  | { kind: "docs"; extension: PiExtensionRegistration }
+  | { kind: "settings"; extension: PiExtensionRegistration }
+  | { kind: "dashboard" }
+  | { kind: "cancel" };
+```
+
+Dashboard config paths:
+
+```text
+~/.pi/agent/dashboard.json
+.pi/dashboard.json
+```
+
+Validation result:
+
+```text
+timeout 20 pi --list-models: exit=0
 ```

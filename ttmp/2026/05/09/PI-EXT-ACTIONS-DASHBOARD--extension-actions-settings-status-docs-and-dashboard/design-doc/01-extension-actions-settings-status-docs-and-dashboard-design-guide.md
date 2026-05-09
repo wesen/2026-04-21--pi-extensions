@@ -1309,3 +1309,78 @@ Pi API references:
 ## Recommended next step
 
 Implement Phase 1 first: actions and docs. It is the smallest step that proves the callback model. After that, implement schema settings for one extension and only then build dashboard layout persistence. This keeps the platform incremental and avoids designing too much UI before there is a second real consumer.
+
+## Implementation addendum: Phase 1-5 first pass
+
+The first implementation pass followed the phased design with a pragmatic scope. It adds the contribution contracts and wires real launcher behavior, but keeps extraction and visual polish incremental.
+
+### Implemented registry surface
+
+`extensions/_shared/registry.ts` now defines the platform contribution contracts:
+
+- `PiExtensionAction` and `PiExtensionActionHandler` for launcher callbacks.
+- `PiExtensionDoc` for inline, file-backed, or lazy-loaded docs.
+- `PiSettingsSchema`, `PiSettingsField`, and settings contribution types for schema/custom settings.
+- `PiDashboardWidget`, `PiDashboardZone`, and `PiDashboardVariant` for status/dashboard widgets.
+- `listPiDashboardWidgets()` and `dashboardWidgetKey()` helpers.
+
+The registry remains backwards compatible: existing metadata-only registrations still work, and `run` remains the default action callback.
+
+### Implemented launcher behavior
+
+`/px` now receives structured results from `ExtensionLauncher`:
+
+```ts
+type ExtensionLauncherResult =
+  | { kind: "select"; extension: PiExtensionRegistration }
+  | { kind: "actions"; extension: PiExtensionRegistration }
+  | { kind: "docs"; extension: PiExtensionRegistration }
+  | { kind: "settings"; extension: PiExtensionRegistration }
+  | { kind: "dashboard" }
+  | { kind: "cancel" };
+```
+
+The launcher now supports:
+
+- `Enter` to run an extension default action,
+- `a` to open the action picker,
+- `?` to open registered docs,
+- `s` to open registered settings,
+- `d` to open the dashboard overlay,
+- `/px dashboard` as a command shortcut.
+
+### Implemented generic views
+
+New shared views:
+
+- `extensions/_shared/ui/action-picker.ts` — searchable action picker.
+- `extensions/_shared/ui/doc-viewer.ts` — scrollable framed markdown-ish docs viewer.
+- `extensions/_shared/ui/settings-view.ts` — schema-backed settings view using `SettingsList`.
+- `extensions/_shared/ui/dashboard-overlay.ts` — dashboard overlay using registered widgets.
+
+### Implemented dashboard first pass
+
+New dashboard helpers:
+
+- `extensions/_shared/dashboard/config.ts` — global/project config paths, read/write, merge helpers.
+- `extensions/_shared/dashboard/layout.ts` — inline, stack, and grid rendering helpers.
+- `extensions/_shared/dashboard/manager.ts` — status bridge and editor-zone widget installer.
+
+The first pass uses the safe bridge approach recommended above: short dashboard widgets are rendered into `ctx.ui.setStatus("dashboard", ...)`. It does not replace Pi's built-in footer yet.
+
+### Pilot extensions
+
+Pilot contributions were added to:
+
+- `pinned-skills`: actions, docs, custom settings view, status widget.
+- `compaction-meter`: default status action, docs, short status widget.
+- `agent-env`: actions, docs, schema settings, short status widget.
+- `kanban-demo`: actions, docs, dashboard card widget.
+- `launcher`: docs and dashboard layout settings.
+
+### Known limitations of the first pass
+
+- The docs viewer is markdown-ish, not a full `Markdown` component in a scroll container.
+- The schema settings view handles booleans/select-like fields best; arbitrary text editing should use custom settings for now.
+- The dashboard layout settings currently toggle zones. Fine-grained per-widget ordering/visibility is represented in config and layout code, but the UI for editing every widget item is still basic.
+- Direct extension `ctx.ui.setStatus()` calls remain during migration, so status entries may be duplicated until extensions fully move to dashboard widgets.
