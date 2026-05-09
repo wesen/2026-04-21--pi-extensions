@@ -41,6 +41,7 @@ RelatedFiles:
       Note: |-
         Step 2 pilot actions docs settings widget
         Step 4 requestRender wiring for pinned skills settings
+        Step 5 opens available skills list in DocViewer
     - Path: extensions/pinned-skills/ui.ts
       Note: Step 4 restyled pinned skills settings modal
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
@@ -51,6 +52,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 
@@ -559,4 +561,76 @@ search mode:
   Enter   leave search mode
   Esc     leave search mode
   Ctrl+U  clear query
+```
+
+## Step 5: Open available skills list in a framed viewer
+
+I changed the pinned-skills `list` path from a plain notification to a focused TUI overlay. The extension now uses the shared `DocViewer` component to show available skills in a framed, scrollable widget.
+
+This applies the same new UI direction to read-only skill listing without inventing another specialized list component yet.
+
+### Prompt Context
+
+**User prompt (verbatim):** "same for listing the skills, that should open a widget if possible (not sure if we alreayd have the API for that. if we don't, don't implement it)"
+
+**Assistant interpretation:** If the current extension APIs support it, make the pinned-skills list action open a TUI widget instead of using notification text.
+
+**Inferred user intent:** The user wants all pinned-skills surfaces to feel like the new cohesive widget system, including read-only skill listing.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Imported the shared `DocViewer` into `extensions/pinned-skills/index.ts`.
+- Added `openAvailableSkillsList(ctx)` which wraps `availableSkillsText(...)` in a framed `DocViewer` overlay.
+- Updated the registered `list` action to call the viewer.
+- Updated `/pinned-skills list` to call the viewer.
+- Validated with `timeout 20 pi --list-models`.
+
+### Why
+
+The API already exists through `ctx.ui.custom()`, and `DocViewer` is sufficient for a read-only, scrollable skills listing. This avoids using `ctx.ui.notify()` for a long list and keeps the output inside the new framed UI vocabulary.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0`.
+- The change is small and reuses the existing shared viewer.
+
+### What didn't work
+
+- This is a framed document viewer rather than a specialized searchable skills list. That is acceptable for now, but may not be the final UX if the list gets long.
+
+### What I learned
+
+- The shared `DocViewer` is a useful bridge for read-only extension content until richer domain-specific widgets exist.
+
+### What was tricky to build
+
+The main consideration was not to overbuild a second skills browser. Since the user explicitly said not to implement it if the API was not available, I chose the smallest available widget API path: `ctx.ui.custom()` plus `DocViewer`.
+
+### What warrants a second pair of eyes
+
+- Whether the read-only skills listing should eventually become a searchable two-pane widget like the settings checklist.
+
+### What should be done in the future
+
+- Consider extracting a read-only `SkillBrowser` component if users want search/details without toggling selections.
+
+### Code review instructions
+
+- Review `openAvailableSkillsList()` in `extensions/pinned-skills/index.ts`.
+- Test `/pinned-skills list` and `/px` → Pinned Skills → `a` → List available skills.
+
+### Technical details
+
+The viewer is opened with:
+
+```ts
+ctx.ui.custom((tui, theme, _keybindings, done) => new DocViewer({
+  title: "Available Skills",
+  markdown: `# Available Skills\n\n${body}`,
+  theme,
+  done,
+  requestRender: () => tui.requestRender(),
+}))
 ```

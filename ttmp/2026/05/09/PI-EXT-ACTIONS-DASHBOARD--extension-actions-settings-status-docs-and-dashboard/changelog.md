@@ -66,3 +66,12 @@ Restyled pinned-skills settings checklist with the shared framed modal pattern
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — requestRender wiring for settings/menu checklist
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/ui.ts — Framed two-pane pinned skills checklist
 
+
+## 2026-05-09
+
+Changed pinned-skills list action to open a framed TUI viewer instead of a notification
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Available skills DocViewer action
+
