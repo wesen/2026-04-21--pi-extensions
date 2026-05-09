@@ -14,6 +14,7 @@ import {
 	renderPinnedSkills,
 	type RenderPinnedSkillsResult,
 } from "./prompt";
+import { registerPiExtension } from "../_shared/registry";
 import { PinnedSkillsChecklist, type SkillListItem } from "./ui";
 
 const STATUS_KEY = "pinned-skills";
@@ -143,6 +144,13 @@ function stateMatchesActivePrompt(state: PinnedSkillsState, configHash: string, 
 }
 
 export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "pinned-skills",
+		name: "Pinned Skills",
+		description: "Pins selected full skill instructions into the system prompt with cache-safe deferred config changes.",
+		commands: ["pinned-skills"],
+		tags: ["skills", "prompt", "context"],
+	});
 	let state: PinnedSkillsState = {};
 	let lastSkills: Skill[] = [];
 	let lastRender: RenderPinnedSkillsResult = createEmptyRender();

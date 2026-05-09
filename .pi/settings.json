@@ -1,5 +1,15 @@
 {
   "extensions": [
-    "../extensions/pinned-skills/index.ts"
+    "../extensions/launcher/index.ts",
+    "../extensions/agent-env/index.ts",
+    "../extensions/compaction-meter/index.ts",
+    "../extensions/compaction-title/index.ts",
+    "../extensions/direnv-bash/index.ts",
+    "../extensions/docmgr/index.ts",
+    "../extensions/kanban-demo/index.ts",
+    "../extensions/pinned-skills/index.ts",
+    "../extensions/response-capture/index.ts",
+    "../extensions/session-summary/index.ts",
+    "../extensions/tui-showcase/index.ts"
   ]
 }

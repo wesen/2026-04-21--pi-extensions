@@ -10,6 +10,7 @@ import {
 	saveCapturedResponse,
 	type ResponseCaptureState,
 } from "./response";
+import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "response-capture";
 
@@ -81,6 +82,13 @@ async function importSavedResponse(ctx: ExtensionCommandContext, state: Response
 }
 
 export default function responseCapture(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "response-capture",
+		name: "Response Capture",
+		description: "Captures the last assistant response, previews it, saves it to disk, and imports it into docmgr tickets.",
+		commands: ["response-preview", "response-save", "response-import", "response-import-last"],
+		tags: ["response", "docmgr", "capture"],
+	});
 	const state = createState();
 
 	pi.on("turn_end", async (event, ctx) => {

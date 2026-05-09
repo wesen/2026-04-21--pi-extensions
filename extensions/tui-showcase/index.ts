@@ -19,6 +19,7 @@ import {
 	type TUI,
 } from "@mariozechner/pi-tui";
 import { Type } from "typebox";
+import { registerPiExtension } from "../_shared/registry";
 
 const EXT_KEY = "tui-showcase";
 const RESET = "\x1b[0m";
@@ -514,6 +515,13 @@ async function showSettingsDemo(ctx: any): Promise<void> {
 }
 
 export default function tuiShowcase(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "tui-showcase",
+		name: "TUI Showcase",
+		description: "Interactive showcase of Pi TUI widgets, palettes, forms, dashboards, markdown, and custom editor patterns.",
+		commands: ["tui-demo"],
+		tags: ["demo", "tui", "showcase"],
+	});
 	let chromeEnabled = false;
 	let paletteName: PaletteName = "aurora";
 

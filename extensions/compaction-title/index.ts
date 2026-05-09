@@ -5,6 +5,7 @@ import {
 	parseTitleAndSummary,
 	runTitleParserSelfTests,
 } from "./title";
+import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "compaction-title";
 const CUSTOM_TYPE = "compaction-title-state";
@@ -105,6 +106,13 @@ function applyArgs(args: string, state: CompactionTitleState): string[] {
 }
 
 export default function compactionTitleExtension(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "compaction-title",
+		name: "Compaction Title",
+		description: "Customizes compaction so summaries can propose concise session titles and update the Pi session name.",
+		commands: ["compaction-title", "ctitle", "compaction-title-self-test"],
+		tags: ["compaction", "session", "title"],
+	});
 	const state = createState();
 
 	pi.on("session_start", async (_event, ctx) => {

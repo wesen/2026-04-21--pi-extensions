@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { truncateToWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { SYSTEM_PROMPT_INSTRUCTION } from "./prompt";
+import { registerPiExtension } from "../_shared/registry";
 
 const WIDGET_KEY = "session-summary";
 const SUMMARY_COMMAND_PREVIEW_LINES = 30;
@@ -174,6 +175,13 @@ function createSummaryWidget(
 
 // ── Main extension ───────────────────────────────────────────────────────
 export default function (pi: ExtensionAPI) {
+  registerPiExtension({
+    id: "session-summary",
+    name: "Session Summary",
+    description: "Requires compact <summary> blocks, displays the latest summary widget, and exposes summary diagnostics.",
+    commands: ["summary", "summary-toggle", "summary-logs", "summary-debug"],
+    tags: ["summary", "prompt", "widget"],
+  });
   const state: SummaryState = {
     lastSummary: null,
     lastTurnHadSummary: false,

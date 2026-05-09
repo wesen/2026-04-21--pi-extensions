@@ -11,6 +11,7 @@ import {
 	runInternalSelfTests,
 	type AgentEnvBuildDetails,
 } from "./env";
+import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "agent-env";
 const QUOTE_TEST_VALUE = "$(printf injected)";
@@ -112,6 +113,13 @@ async function runShellSelfTest(ctx: ExtensionContext, state: AgentEnvState): Pr
 }
 
 export default function agentEnvExtension(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "agent-env",
+		name: "Agent Env",
+		description: "Injects Pi session metadata environment variables into bash tool calls for scripts and debugging.",
+		commands: ["agent-env", "ae", "agent-env-toggle", "ae-toggle", "agent-env-self-test"],
+		tags: ["bash", "environment", "metadata"],
+	});
 	const state = createState();
 
 	pi.on("session_start", async (_event, ctx) => {

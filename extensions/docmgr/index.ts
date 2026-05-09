@@ -15,6 +15,7 @@ import {
 } from "./docmgr-cli";
 import type { DocRecord, DocmgrAction, DocmgrSessionState, DocmgrSnapshot, TaskRecord, TicketRecord } from "./models";
 import { createEmptySnapshot, isOpenTicket, mergeSnapshotWithSession, pickActiveTicket, recordTicketSelection, restoreDocmgrState, updateSnapshotStatus } from "./state";
+import { registerPiExtension } from "../_shared/registry";
 
 const SHORTCUTS = {
 	tickets: Key.ctrlAlt("t"),
@@ -432,6 +433,13 @@ async function closeTicketFlow(ctx: ExtensionCommandContext, ticket: TicketRecor
 }
 
 export default function docmgrExtension(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "docmgr",
+		name: "Docmgr",
+		description: "Interactive ticket, document, and task browser for docmgr workspaces.",
+		commands: ["docmgr", "docmgr-refresh", "docmgr-debug", "docmgr-tickets", "docmgr-docs", "docmgr-tasks", "docmgr-close"],
+		tags: ["docmgr", "tickets", "docs", "tasks"],
+	});
 	pi.on("session_start", async (_event, ctx) => {
 		sessionState = restoreDocmgrState(ctx.sessionManager);
 		await refreshSnapshot(ctx);

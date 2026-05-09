@@ -1,6 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { createSnapshot, formatDetails, formatStatus, type CompactionMeterSnapshot } from "./meter";
 import { readCompactionSettings } from "./settings";
+import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "compaction-meter";
 
@@ -35,6 +36,13 @@ function maybeNotifyWarnings(ctx: ExtensionCommandContext, snapshot: CompactionM
 }
 
 export default function compactionMeter(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "compaction-meter",
+		name: "Compaction Meter",
+		description: "Shows remaining context tokens before automatic compaction and exposes compact-meter status commands.",
+		commands: ["compact-meter", "cm"],
+		tags: ["compaction", "status"],
+	});
 	const state = createState();
 
 	pi.on("session_start", async (_event, ctx) => {

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 import { Box, Key, Text, matchesKey, truncateToWidth, visibleWidth, type Component, type Focusable, type TUI } from "@mariozechner/pi-tui";
 import { Type } from "typebox";
+import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "kanban";
 const WIDGET_KEY = "kanban-demo";
@@ -416,6 +417,13 @@ const KanbanParams = Type.Object({
 });
 
 export default function kanbanDemo(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "kanban-demo",
+		name: "Kanban Demo",
+		description: "Demo rich TUI kanban board extension with custom widgets, commands, and tool support.",
+		commands: ["kanban"],
+		tags: ["demo", "tui", "kanban"],
+	});
 	let board: Board | undefined;
 	let widgetTui: TUI | undefined;
 

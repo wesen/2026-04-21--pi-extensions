@@ -10,6 +10,7 @@ import {
 	runInternalSelfTests,
 	type DirenvBashOptions,
 } from "./direnv";
+import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "direnv-bash";
 
@@ -123,6 +124,13 @@ async function runShellSelfTest(ctx: ExtensionContext, state: DirenvBashState): 
 }
 
 export default function direnvBashExtension(pi: ExtensionAPI): void {
+	registerPiExtension({
+		id: "direnv-bash",
+		name: "Direnv Bash",
+		description: "Loads direnv environment changes into bash tool calls before execution.",
+		commands: ["direnv-bash", "dbash", "direnv-bash-self-test"],
+		tags: ["bash", "direnv", "environment"],
+	});
 	const state = createState();
 
 	pi.on("session_start", async (_event, ctx) => {
