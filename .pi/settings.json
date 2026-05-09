@@ -1,0 +1,5 @@
+{
+  "extensions": [
+    "../extensions/pinned-skills/index.ts"
+  ]
+}

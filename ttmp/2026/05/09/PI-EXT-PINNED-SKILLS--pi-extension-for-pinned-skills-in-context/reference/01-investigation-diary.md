@@ -411,3 +411,84 @@ assistant turn exists + config differs from active config -> save as pending and
 session_compact -> clear active prompt epoch
 next before_agent_start -> apply current config
 ```
+
+## Step 4: Add immediate skill-list fallback via pi.getCommands
+
+I updated `/pinned-skills list` so it can show available skill names immediately after startup, before the first `before_agent_start` event has populated the richer `Skill[]` snapshot. The command now uses the cached `Skill[]` when available and falls back to `pi.getCommands().filter(command => command.source === "skill")` otherwise.
+
+This does not change prompt injection. Full pinned-skill injection still depends on the richer `event.systemPromptOptions.skills` metadata because that has canonical `filePath`, `baseDir`, and `disableModelInvocation` fields.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add it"
+
+**Assistant interpretation:** Add the `pi.getCommands()` fallback discussed in the previous answer so `/pinned-skills list` works before the first prompt.
+
+**Inferred user intent:** The user wants the extension to be usable immediately after startup for discovering skill names, without needing to send a dummy prompt first.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Added `SlashCommandInfo` type import to `extensions/pinned-skills/index.ts`.
+- Added `SkillListItem`, `skillCommandName()`, and `getAvailableSkillList()` helpers.
+- Changed `availableSkillsText()` to:
+  - use the rich cached `Skill[]` snapshot when available,
+  - otherwise list skill commands from `pi.getCommands()`.
+- Updated `/pinned-skills list` to call `availableSkillsText(pi, lastSkills)`.
+- Updated `extensions/pinned-skills/README.md` to document the immediate startup fallback.
+- Re-ran extension load validation:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-settings-load2.out 2>/tmp/pi-settings-load2.err
+```
+
+### Why
+
+Command handlers do not receive `event.systemPromptOptions.skills`. Without a fallback, `/pinned-skills list` could only show full metadata after at least one prompt. `pi.getCommands()` is available in command context and includes skill commands, so it can provide names/descriptions/paths for immediate discovery.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0` after the change, confirming the configured extension still loads.
+- The fallback keeps prompt injection conservative: it is only for listing, not for rendering pinned skill content.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- `pi.getCommands()` is useful for command/UI discovery, while `before_agent_start` `systemPromptOptions.skills` remains the better API for exact skill injection.
+
+### What was tricky to build
+
+The tricky part was avoiding over-promising what the fallback can do. A skill command gives enough information to display a list, but the extension should not rely on command metadata as the canonical source for reading and injecting skill files. The implementation explicitly labels the source as `commands-fallback` in the list output.
+
+### What warrants a second pair of eyes
+
+- Whether command names ever include `skill:` prefixes in all modes. The helper strips `skill:` defensively.
+- Whether `sourceInfo.path` is always meaningful for skill command display across package-installed skills.
+
+### What should be done in the future
+
+- Add an automated or interactive smoke test for `/pinned-skills list` once command execution can be tested without a full interactive session.
+
+### Code review instructions
+
+- Review `getAvailableSkillList()` and `availableSkillsText()` in `extensions/pinned-skills/index.ts`.
+- Validate extension load with `timeout 20 pi --list-models`.
+
+### Technical details
+
+Fallback shape:
+
+```ts
+pi.getCommands()
+  .filter((command) => command.source === "skill")
+  .map((command) => ({
+    name: command.name.startsWith("skill:") ? command.name.slice("skill:".length) : command.name,
+    description: command.description ?? "",
+    path: command.sourceInfo.path,
+    source: "commands-fallback",
+  }));
+```

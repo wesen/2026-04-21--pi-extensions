@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext, Skill } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, Skill, SlashCommandInfo } from "@mariozechner/pi-coding-agent";
 import {
 	DEFAULT_CONFIG,
 	hashConfig,
@@ -86,14 +86,55 @@ function summarizeConfig(config: PinnedSkillsConfig, globalPath: string, project
 	].join("\n");
 }
 
-function availableSkillsText(skills: Skill[]): string {
-	if (skills.length === 0) return "No skill snapshot is available yet. Send one prompt first, then run this command again.";
-	return skills
-		.map((skill) => {
-			const disabled = skill.disableModelInvocation ? " [disable-model-invocation]" : "";
-			return `- ${skill.name}${disabled}: ${skill.description}\n  ${skill.filePath}`;
-		})
-		.join("\n");
+interface SkillListItem {
+	name: string;
+	description: string;
+	path: string;
+	disabled?: boolean;
+	source: "skills-snapshot" | "commands-fallback";
+}
+
+function skillCommandName(command: SlashCommandInfo): string {
+	return command.name.startsWith("skill:") ? command.name.slice("skill:".length) : command.name;
+}
+
+function getAvailableSkillList(pi: ExtensionAPI, skills: Skill[]): SkillListItem[] {
+	if (skills.length > 0) {
+		return skills.map((skill) => ({
+			name: skill.name,
+			description: skill.description,
+			path: skill.filePath,
+			disabled: skill.disableModelInvocation,
+			source: "skills-snapshot",
+		}));
+	}
+
+	return pi
+		.getCommands()
+		.filter((command) => command.source === "skill")
+		.map((command) => ({
+			name: skillCommandName(command),
+			description: command.description ?? "",
+			path: command.sourceInfo.path,
+			source: "commands-fallback" as const,
+		}));
+}
+
+function availableSkillsText(pi: ExtensionAPI, skills: Skill[]): string {
+	const items = getAvailableSkillList(pi, skills);
+	if (items.length === 0) return "No skills are currently available.";
+	const source = items.some((item) => item.source === "skills-snapshot")
+		? "Skill metadata source: before_agent_start systemPromptOptions snapshot."
+		: "Skill metadata source: pi.getCommands() fallback. Send one prompt before using preview/injection for richer Skill metadata.";
+	return [
+		source,
+		"",
+		...items.map((item) => {
+			const disabled = item.disabled ? " [disable-model-invocation]" : "";
+			const description = item.description ? `: ${item.description}` : "";
+			return `- ${item.name}${disabled}${description}\n  ${item.path}`;
+		}),
+	].join("\n");
 }
 
 function splitArgs(args: string): string[] {
@@ -186,7 +227,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 			const rest = tokens.slice(1);
 
 			if (verb === "list") {
-				ctx.ui.notify(availableSkillsText(lastSkills), "info");
+				ctx.ui.notify(availableSkillsText(pi, lastSkills), "info");
 				return;
 			}
 

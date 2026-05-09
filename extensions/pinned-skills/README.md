@@ -41,6 +41,8 @@ Example:
 
 `/pinned-skills edit` opens a small editor where each line is a pinned skill name.
 
+`/pinned-skills list` works immediately after startup by falling back to `pi.getCommands()` and filtering skill commands. After the first user prompt, the extension switches to the richer `before_agent_start` `systemPromptOptions.skills` snapshot, which includes exact `filePath`, `baseDir`, and `disableModelInvocation` metadata for prompt injection.
+
 ## Cache-safe behavior
 
 The extension tries not to trash provider prompt/KV caches. Once a session already has an assistant turn and an active pinned-skills prompt, config changes are saved but deferred.

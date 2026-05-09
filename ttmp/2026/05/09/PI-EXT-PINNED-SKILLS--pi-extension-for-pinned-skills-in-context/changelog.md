@@ -55,3 +55,14 @@ Implemented pinned-skills extension with cache-safe deferred config behavior (co
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/prompt.ts — Prompt rendering helper
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/reference/01-investigation-diary.md — Recorded implementation step and smoke-check evidence
 
+
+## 2026-05-09
+
+Added pi.getCommands fallback so /pinned-skills list works before first prompt
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/README.md — Documented immediate startup fallback
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Skill list fallback implementation
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/09/PI-EXT-PINNED-SKILLS--pi-extension-for-pinned-skills-in-context/reference/01-investigation-diary.md — Recorded Step 4 fallback implementation
+
