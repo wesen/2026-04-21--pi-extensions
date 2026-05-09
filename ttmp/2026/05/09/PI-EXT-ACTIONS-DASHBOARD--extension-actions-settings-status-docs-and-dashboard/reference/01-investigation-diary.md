@@ -42,6 +42,7 @@ RelatedFiles:
         Step 2 pilot actions docs settings widget
         Step 4 requestRender wiring for pinned skills settings
         Step 5 opens available skills list in DocViewer
+        Step 6 pink lifecycle notifications and injection dashboard state
     - Path: extensions/pinned-skills/ui.ts
       Note: Step 4 restyled pinned skills settings modal
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
@@ -52,6 +53,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 
@@ -633,4 +635,92 @@ ctx.ui.custom((tui, theme, _keybindings, done) => new DocViewer({
   done,
   requestRender: () => tui.requestRender(),
 }))
+```
+
+## Step 6: Add pink pinned-skills load/injection notifications and dashboard summary widget
+
+I added explicit pink notifications for pinned-skills lifecycle events so prompt injection is easier to validate visually. The extension now announces configured pinned skills on startup, announces when pinned skills are injected into the system prompt, and announces reset-after-compaction state.
+
+I also expanded the pinned-skills dashboard contribution so the dashboard can show whether pinned skills have been injected into the system prompt in the current session.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Udate the pinned skill extension to print out in pink that it loaded pinned skill on startup / compaction, so I can validate that it works. Also add a dashboard widget that shows the pinned skills, and if thye have been injected into the system prompt within this session."
+
+**Assistant interpretation:** Add visible pink lifecycle notifications for pinned-skills startup/compaction/injection, and add dashboard state showing pinned skills plus whether injection happened this session.
+
+**Inferred user intent:** The user wants quick visual confidence that pinned-skills config loading and prompt injection are actually happening.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Added injected-session state fields to `PinnedSkillsState`:
+  - `injectedThisSession`
+  - `lastInjectedAt`
+  - `lastInjectedSkills`
+  - `lastNotifiedPromptHash`
+- Added a pink ANSI helper and `notifyPinnedSkillsLoaded(...)`.
+- On `session_start`, the extension now announces loaded configured skills in pink when enabled.
+- On `before_agent_start`, when a prompt block is actually returned, the extension records injection state and announces injected skills in pink once per prompt hash.
+- On `session_compact`, the extension clears injection state and announces that pinned skills will inject on the next prompt.
+- Replaced the previous simple status widget rendering with `renderPinnedSkillsDashboard(...)`.
+- Added a second pinned-skills dashboard widget for the dashboard overlay:
+  - `pinned-skills.summary`
+- Validated extension loading with:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list.out 2>/tmp/pi-list.err
+```
+
+### Why
+
+The status bar alone does not make it obvious whether pinned skills have only been configured or actually injected into the system prompt in this session. The new state and dashboard widget make that difference explicit.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0`.
+- The notification path uses existing `ctx.ui.notify(...)` with ANSI pink styling, so no new UI API was needed.
+- The dashboard widget uses the contribution API added earlier.
+
+### What didn't work
+
+- The pink color still depends on the terminal/UI honoring ANSI in notification text. If Pi strips ANSI in notifications, the text will still appear but not pink.
+
+### What I learned
+
+- The distinction between “loaded config” and “injected into system prompt” needs to be represented explicitly in state.
+- The dashboard `short` variant and overlay `card` variant can share one render helper.
+
+### What was tricky to build
+
+The tricky part was avoiding repeated notifications. The extension now records `lastNotifiedPromptHash` and only announces a new injection once per prompt hash.
+
+### What warrants a second pair of eyes
+
+- Whether startup notification should say “loaded config” rather than “loaded pinned skills” if actual prompt injection has not happened yet.
+- Whether compaction should clear `lastInjectedSkills` or keep the previous list visible as historical context.
+
+### What should be done in the future
+
+- If notifications become too noisy, add a pinned-skills setting to enable/disable lifecycle announcements.
+- Consider using a dedicated custom message renderer if ANSI notifications are not reliably colored.
+
+### Code review instructions
+
+- Review `PinnedSkillsState` and `before_agent_start` in `extensions/pinned-skills/index.ts`.
+- Review `renderPinnedSkillsDashboard(...)` and the two widget registrations.
+- Validate with `/reload`, then send a prompt and look for pink injection notification.
+- Run `/px dashboard` and confirm the pinned-skills card shows injection state.
+
+### Technical details
+
+The dashboard card reports:
+
+```text
+Pinned Skills
+Injected this session: yes/no
+Last injected: <timestamp|never>
+Active skills: <names|(none)>
+Pending config: yes/no
 ```

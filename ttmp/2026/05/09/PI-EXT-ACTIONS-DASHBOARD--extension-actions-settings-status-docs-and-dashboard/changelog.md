@@ -75,3 +75,12 @@ Changed pinned-skills list action to open a framed TUI viewer instead of a notif
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Available skills DocViewer action
 
+
+## 2026-05-09
+
+Added pink pinned-skills lifecycle notifications and dashboard injection-state widget
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Pink load/injection notifications and dashboard summary widget
+
