@@ -94,3 +94,12 @@ Made dashboard overlay include all widgets and refresh after pinned-skills statu
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/dashboard/manager.ts — Dashboard overlay includes all registered widgets
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Pinned-skills status refreshes dashboard bridge
 
+
+## 2026-05-09
+
+Fixed pinned-skills notification and dashboard formatting to show skill names instead of object strings
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/pinned-skills/index.ts — Normalize pinned skill render objects to display names
+

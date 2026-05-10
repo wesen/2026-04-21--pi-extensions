@@ -46,6 +46,7 @@ RelatedFiles:
         Step 5 opens available skills list in DocViewer
         Step 6 pink lifecycle notifications and injection dashboard state
         Step 7 pinned-skills refreshes dashboard after status changes
+        Step 8 fixed [object Object] skill name formatting
     - Path: extensions/pinned-skills/ui.ts
       Note: Step 4 restyled pinned skills settings modal
     - Path: ttmp/2026/05/09/PI-EXT-ACTIONS-DASHBOARD--extension-actions-settings-status-docs-and-dashboard/design-doc/01-extension-actions-settings-status-docs-and-dashboard-design-guide.md
@@ -56,6 +57,7 @@ LastUpdated: 2026-05-09T19:25:00-04:00
 WhatFor: Use this to resume or review the PI-EXT-ACTIONS-DASHBOARD design work.
 WhenToUse: When implementing launcher callbacks, registered docs, extension settings, or dashboard widgets.
 ---
+
 
 
 
@@ -801,4 +803,72 @@ Overlay widget selection now treats `dashboardOverlay` specially:
 
 ```ts
 zone === "dashboardOverlay" || widget.defaultZone === zone || configured.has(key)
+```
+
+## Step 8: Fix pinned-skill names in notifications and dashboard
+
+I fixed a formatting bug where injected pinned skills were displayed as `[object Object]`. The render result stores included skills as objects with a `name` field, but the notification and dashboard code treated the array as strings.
+
+The extension now normalizes pinned-skill render objects to names before joining them for notifications or dashboard display.
+
+### Prompt Context
+
+**User prompt (verbatim):** "💗 pinned-skills injected into system prompt: [object Object], [object Object]"
+
+**Assistant interpretation:** Fix the injected pinned-skills notification so it prints skill names instead of object stringification, and apply the same fix to dashboard output.
+
+**Inferred user intent:** The user wants the validation notifications/dashboard to be readable and trustworthy.
+
+**Commit (code):** pending at time of diary entry.
+
+### What I did
+
+- Added `pinnedSkillNames(...)` to normalize arrays of strings or `{ name }` objects.
+- Updated `notifyPinnedSkillsLoaded(...)` to accept either strings or render objects.
+- Updated dashboard active-skill rendering to use `pinnedSkillNames(lastRender.included)`.
+- Updated injection state persistence to store `lastInjectedSkills` as string names.
+- Validated with `timeout 20 pi --list-models`.
+
+### Why
+
+`RenderPinnedSkillsResult.included` is an array of `PinnedSkillRender` objects, not strings. Joining those objects produces `[object Object]`. The fix preserves the richer render data internally but formats names at UI boundaries.
+
+### What worked
+
+- `timeout 20 pi --list-models` exited with code `0`.
+- The same helper fixes both notification output and dashboard output.
+
+### What didn't work
+
+- No live prompt injection test was run after the fix, so the user should confirm the pink notification now shows `diary, docmgr`.
+
+### What I learned
+
+- UI formatting boundaries should accept domain objects but explicitly extract display strings.
+
+### What was tricky to build
+
+The tricky bit was making the helper accept both old string arrays and render objects so existing `config.skills` calls did not need to change.
+
+### What warrants a second pair of eyes
+
+- Whether dashboard should show configured skills, injected skills, or both when injection has not happened yet.
+
+### What should be done in the future
+
+- Add a small unit-style script for pinned-skills dashboard formatting.
+
+### Code review instructions
+
+- Review `pinnedSkillNames(...)`, `notifyPinnedSkillsLoaded(...)`, and `renderPinnedSkillsDashboard(...)` in `extensions/pinned-skills/index.ts`.
+- Validate by sending a prompt with pinned skills configured and checking `/px dashboard`.
+
+### Technical details
+
+The helper is:
+
+```ts
+function pinnedSkillNames(items: Array<string | { name: string }>): string[] {
+  return items.map((item) => typeof item === "string" ? item : item.name).filter(Boolean);
+}
 ```
