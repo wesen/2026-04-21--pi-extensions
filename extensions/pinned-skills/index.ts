@@ -81,7 +81,12 @@ function pink(text: string): string {
 	return `\x1b[95m${text}\x1b[0m`;
 }
 
-function notifyPinnedSkillsLoaded(ctx: ExtensionContext, reason: string, skillNames: string[]): void {
+function pinnedSkillNames(items: Array<string | { name: string }>): string[] {
+	return items.map((item) => typeof item === "string" ? item : item.name).filter(Boolean);
+}
+
+function notifyPinnedSkillsLoaded(ctx: ExtensionContext, reason: string, skills: Array<string | { name: string }>): void {
+	const skillNames = pinnedSkillNames(skills);
 	if (!ctx.hasUI || skillNames.length === 0) return;
 	ctx.ui.notify(pink(`💗 pinned-skills ${reason}: ${skillNames.join(", ")}`), "info");
 }
@@ -161,7 +166,7 @@ function stateMatchesActivePrompt(state: PinnedSkillsState, configHash: string, 
 
 function renderPinnedSkillsDashboard(state: PinnedSkillsState, lastRender: RenderPinnedSkillsResult, variant: string): string | string[] {
 	const injected = state.injectedThisSession ? "yes" : "no";
-	const activeSkills = state.lastInjectedSkills?.length ? state.lastInjectedSkills : lastRender.included;
+	const activeSkills = state.lastInjectedSkills?.length ? state.lastInjectedSkills : pinnedSkillNames(lastRender.included);
 	if (variant === "short") {
 		return `pins:${lastRender.included.length} injected:${injected}`;
 	}
@@ -351,7 +356,7 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 		if (!rendered.prompt) return;
 		state.injectedThisSession = true;
 		state.lastInjectedAt = new Date().toISOString();
-		state.lastInjectedSkills = rendered.included;
+		state.lastInjectedSkills = pinnedSkillNames(rendered.included);
 		if (state.lastNotifiedPromptHash !== promptHash) {
 			notifyPinnedSkillsLoaded(ctx, "injected into system prompt", rendered.included);
 			state.lastNotifiedPromptHash = promptHash;
