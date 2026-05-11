@@ -11,8 +11,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../.pi/agent/extensions/selective-compaction/index.ts
+      Note: Step 5 global installed extension entry point
     - Path: .pi/settings.json
-      Note: Step 3 project extension loading
+      Note: |-
+        Step 3 project extension loading
+        Step 5 removes project-local selective-compaction loading after global install
     - Path: extensions/selective-compaction/index.ts
       Note: |-
         Step 3 main extension implementation
@@ -31,6 +35,7 @@ LastUpdated: 2026-05-11T09:03:54.103885917-04:00
 WhatFor: Record interpretation, design, implementation, validation, failures, and review notes for PI-EXT-SELECTIVE-COMPACTION.
 WhenToUse: Use before resuming work on the selective compaction extension ticket.
 ---
+
 
 
 
@@ -301,3 +306,68 @@ The fix keeps the success notification inside `withSession`, where Pi provides t
 ### Technical details
 - Reported error: `This extension ctx is stale after session replacement or reload. Do not use a captured pi or command ctx after ctx.newSession(), ctx.fork(), ctx.switchSession(), or ctx.reload().`
 - Fix pattern: `await ctx.newSession({ ..., withSession: async (replacementCtx) => { ... } }); return;`
+
+
+## Step 5: Install selective compaction globally
+
+I installed the selective compaction extension into Pi's global extension discovery directory so it is available outside the `2026-04-21--pi-extensions` repository. Global installation uses Pi's documented auto-discovery path, `~/.pi/agent/extensions/*/index.ts`, rather than a project-local `.pi/settings.json` entry.
+
+I also removed the project-local selective-compaction settings entry from this repository. That prevents the same command from being registered twice in the extension development repo after the global copy is loaded.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Install the extension computer wide"
+
+**Assistant interpretation:** Make the selective compaction extension available globally on this machine, not only in the current project.
+
+**Inferred user intent:** Be able to use `/selective-compact` and `/scompact` from any Pi working directory.
+
+### What I did
+- Copied `extensions/selective-compaction/` to `/home/manuel/.pi/agent/extensions/selective-compaction/`.
+- Used the existing global `_shared` symlink at `/home/manuel/.pi/agent/extensions/_shared`, which points at this repository's shared extension framework.
+- Patched the installed global copy's launcher doc path to the absolute global README path.
+- Removed `../extensions/selective-compaction/index.ts` from `.pi/settings.json` so this project does not load a duplicate project-local copy in addition to the global extension.
+- Validated global startup from `/tmp` with `timeout 30 pi --list-models`.
+- Validated project startup from the extension repo with `timeout 30 pi --list-models`.
+- Updated the docmgr changelog.
+
+### Why
+- Pi globally auto-discovers extensions from `~/.pi/agent/extensions/*/index.ts`.
+- A global install should not also require every project to add the extension to `.pi/settings.json`.
+- Removing the project-local entry avoids duplicate command registration in this repository.
+
+### What worked
+- `cd /tmp && timeout 30 pi --list-models` passed, which validates the global extension can load outside the project repository.
+- `timeout 30 pi --list-models` passed inside the project repository after removing the local settings entry.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- The machine already has `/home/manuel/.pi/agent/extensions/_shared` as a symlink to this repository's shared extension framework, so the global extension can keep importing `../_shared/registry`.
+- The registered README path needed to be made absolute in the installed copy because launcher docs resolve file paths from the current working directory.
+
+### What was tricky to build
+- The extension depends on the shared extension registry. Installing only `selective-compaction/` without the sibling `_shared` registry would fail on import. The existing global `_shared` symlink solves that dependency.
+- The local project settings entry would have caused the same extension to be loaded from both global discovery and project settings, so it was removed.
+
+### What warrants a second pair of eyes
+- Confirm whether the shared launcher in other projects should also be installed globally if `/px` discovery is expected everywhere. Direct slash commands are globally available through the installed extension.
+- Confirm whether future shared-framework changes should be copied into global install or continue using the current symlinked `_shared` framework.
+
+### What should be done in the future
+- Consider packaging this extension and the shared launcher as a Pi package if it should be shared across machines.
+- Add a small install script to sync global extension copies and patch any machine-local absolute doc paths.
+
+### Code review instructions
+- Review `.pi/settings.json` to confirm the project-local selective-compaction entry was removed intentionally.
+- Inspect `/home/manuel/.pi/agent/extensions/selective-compaction/index.ts` for the installed global entry point.
+- Validate with `cd /tmp && timeout 30 pi --list-models`.
+- In a fresh Pi session, run `/selective-compact` or `/scompact`.
+
+### Technical details
+- Global install directory: `/home/manuel/.pi/agent/extensions/selective-compaction/`.
+- Shared framework path: `/home/manuel/.pi/agent/extensions/_shared -> /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared`.
+- Validation commands:
+  - `cd /tmp && timeout 30 pi --list-models`
+  - `cd /home/manuel/code/wesen/2026-04-21--pi-extensions && timeout 30 pi --list-models`

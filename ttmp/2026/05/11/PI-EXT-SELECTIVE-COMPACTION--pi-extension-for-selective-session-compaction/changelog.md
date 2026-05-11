@@ -89,3 +89,15 @@ Fixed stale extension context bug by returning immediately after ctx.newSession 
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/selective-compaction/index.ts — Avoids using old command ctx after session replacement
 
+
+## 2026-05-11
+
+Installed selective-compaction as a global Pi extension under ~/.pi/agent/extensions and removed project-local settings entry to avoid duplicate command registration
+
+### Related Files
+
+- /home/manuel/.pi/agent/extensions/selective-compaction/index.ts — Global auto-discovered extension entry point
+- /home/manuel/.pi/agent/extensions/selective-compaction/prompt.ts — Global prompt helper
+- /home/manuel/.pi/agent/extensions/selective-compaction/session.ts — Global session partition helper
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/.pi/settings.json — No longer needs project-local selective-compaction extension entry
+
