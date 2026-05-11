@@ -9,6 +9,7 @@
     "../extensions/kanban-demo/index.ts",
     "../extensions/pinned-skills/index.ts",
     "../extensions/response-capture/index.ts",
+    "../extensions/selective-compaction/index.ts",
     "../extensions/session-summary/index.ts",
     "../extensions/tui-showcase/index.ts"
   ]
