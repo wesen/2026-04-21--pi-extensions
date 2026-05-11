@@ -80,3 +80,12 @@ Adjusted selective compaction session helper types to use exported SessionMessag
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/selective-compaction/session.ts — Type import cleanup for maintainability
 
+
+## 2026-05-11
+
+Fixed stale extension context bug by returning immediately after ctx.newSession and keeping post-replacement work inside withSession
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/selective-compaction/index.ts — Avoids using old command ctx after session replacement
+

@@ -96,7 +96,7 @@ async function openSelectiveCompactionFlow(ctx: ExtensionCommandContext): Promis
 	if (!create) return;
 
 	const sourceSession = ctx.sessionManager.getSessionFile();
-	const result = await ctx.newSession({
+	await ctx.newSession({
 		parentSession: sourceSession,
 		setup: async (sm) => {
 			appendCompactedSession(sm, partition, finalGenerated, sourceSession);
@@ -105,9 +105,8 @@ async function openSelectiveCompactionFlow(ctx: ExtensionCommandContext): Promis
 			replacementCtx.ui.notify("Selective compaction session created.", "info");
 		},
 	});
-	if (result.cancelled) {
-		ctx.ui.notify("New session creation cancelled", "info");
-	}
+	// Do not touch `ctx` after `newSession()`: it may now be stale.
+	return;
 }
 
 async function generateWithLoader(

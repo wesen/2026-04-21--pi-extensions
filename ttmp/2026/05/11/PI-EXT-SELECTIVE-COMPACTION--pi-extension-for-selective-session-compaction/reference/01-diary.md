@@ -14,7 +14,9 @@ RelatedFiles:
     - Path: .pi/settings.json
       Note: Step 3 project extension loading
     - Path: extensions/selective-compaction/index.ts
-      Note: Step 3 main extension implementation
+      Note: |-
+        Step 3 main extension implementation
+        Step 4 stale-context lifecycle fix
     - Path: extensions/selective-compaction/prompt.ts
       Note: Step 3 dedicated prompt and parser
     - Path: extensions/selective-compaction/session.ts
@@ -29,6 +31,7 @@ LastUpdated: 2026-05-11T09:03:54.103885917-04:00
 WhatFor: Record interpretation, design, implementation, validation, failures, and review notes for PI-EXT-SELECTIVE-COMPACTION.
 WhenToUse: Use before resuming work on the selective compaction extension ticket.
 ---
+
 
 
 
@@ -237,3 +240,64 @@ The implementation is intentionally split into orchestration, prompt, session, a
 - Inserted custom message types: `selective-compaction-summary`, `selective-compaction-linkage`.
 - Non-context state custom type: `selective-compaction-state`.
 - Load validation command: `timeout 30 pi --list-models`.
+
+
+## Step 4: Fix stale context after new-session replacement
+
+I fixed the runtime error reported by the user after testing the extension through the launcher. The bug was caused by using the original command context after `ctx.newSession(...)`, which Pi explicitly forbids because the old context can point at a replaced session/runtime.
+
+The fix keeps the success notification inside `withSession`, where Pi provides the replacement context, and returns immediately after `await ctx.newSession(...)`. This preserves the extension's new-session behavior while respecting Pi's stale-context invariant.
+
+### Prompt Context
+
+**User prompt (verbatim):** "COmmit what we have so far if necessary, then do it."
+
+**Assistant interpretation:** Commit the current MVP before changing it, then patch the stale-context bug.
+
+**Inferred user intent:** Preserve the existing implementation as a baseline and then make the minimal safe fix for the runtime error.
+
+**Commit (code):** d056295309628073fbc6d1bf75a8f4856c555699 — "Add selective compaction extension MVP"
+
+### What I did
+- Staged and committed the MVP implementation and ticket docs before the fix.
+- Edited `extensions/selective-compaction/index.ts` so `openSelectiveCompactionFlow` no longer reads `result.cancelled` or calls `ctx.ui.notify(...)` after `await ctx.newSession(...)`.
+- Left the success notification inside `withSession`, using `replacementCtx`.
+- Ran `timeout 30 pi --list-models` to validate extension startup after the patch.
+- Updated the ticket changelog.
+
+### Why
+- Pi marks extension command contexts stale after session replacement, fork, switch, or reload.
+- Continuing to use the old `ctx` after `ctx.newSession(...)` can read or mutate the wrong runtime state, so Pi raises an error rather than allowing unsafe behavior.
+
+### What worked
+- The minimal patch is small and targeted.
+- Startup validation still passes with `timeout 30 pi --list-models`.
+- The previous MVP state is preserved in commit `d056295309628073fbc6d1bf75a8f4856c555699`.
+
+### What didn't work
+- The error was discovered only during interactive use; startup validation did not catch this lifecycle bug.
+- The extension no longer reports cancellation after the `newSession` call, because doing so safely would require knowing that no replacement happened and avoiding the stale old context.
+
+### What I learned
+- For Pi extension lifecycle methods that replace context, code must treat the call as a boundary: perform all old-context work before the call, and all new-context work inside the provided replacement callback.
+- Even seemingly harmless UI notifications after replacement can trip the stale-context guard.
+
+### What was tricky to build
+- The tricky part is that `ctx.newSession(...)` returns a result, which tempts code to inspect it afterward. In the successful replacement path, however, the old command context is no longer safe. The fix avoids that ambiguity by returning immediately after the awaited call.
+
+### What warrants a second pair of eyes
+- Confirm whether Pi exposes a safe pattern for cancellation feedback when `newSession` is cancelled before replacement. The current patch prioritizes avoiding stale context over reporting cancellation.
+- Retest the full interactive flow to ensure no other captured `ctx` use occurs after replacement.
+
+### What should be done in the future
+- Add lifecycle guidance to the extension README or implementation guide for future features that call `newSession`, `fork`, `switchSession`, or `reload`.
+- Consider a helper pattern for context-replacing flows that makes post-replacement old-context use harder to write.
+
+### Code review instructions
+- Review `extensions/selective-compaction/index.ts`, especially the tail of `openSelectiveCompactionFlow`.
+- Confirm all post-session-creation notifications use `replacementCtx` inside `withSession`.
+- Validate with `timeout 30 pi --list-models` and then manually run `/px` → Selective Compaction → create session.
+
+### Technical details
+- Reported error: `This extension ctx is stale after session replacement or reload. Do not use a captured pi or command ctx after ctx.newSession(), ctx.fork(), ctx.switchSession(), or ctx.reload().`
+- Fix pattern: `await ctx.newSession({ ..., withSession: async (replacementCtx) => { ... } }); return;`
