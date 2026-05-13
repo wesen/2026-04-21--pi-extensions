@@ -206,3 +206,58 @@ The corrected requirement is session-history based. Implementation needed to joi
 - Commands: `/markdown-recent-viewer`, `/md-recent`
 - Default settings: max 50 results, `.md,.markdown`, current branch only, hide missing files, no dark/no-reload flags.
 - md-view command: `md-view view [--dark] [--no-reload] <absolute path>`
+
+## Step 4: Symlink and smoke test
+
+Symlinked the extension into the local Pi extensions directory and ran a live tmux smoke test. The picker correctly found a Markdown file created by a `write` tool call in the same session and opened it with `md-view` when Enter was pressed.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Finish deployment and prove the implemented extension works in a real Pi session.
+
+**Inferred user intent:** Ensure the feature is not only load-valid but usable interactively.
+
+### What I did
+- Created symlink: `~/.pi/agent/extensions/markdown-recent-viewer -> /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/markdown-recent-viewer`.
+- Re-ran `timeout 20 pi --list-models` after symlink; exit code 0.
+- Started Pi in tmux session `mdview-smoke`.
+- Verified startup `[Extensions]` includes `markdown-recent-viewer`.
+- Asked the live Pi agent to use the `write` tool to create `/tmp/mdview-smoke.md`.
+- Ran `/md-recent`.
+- Verified the picker showed exactly `/tmp/mdview-smoke.md` from session edit/write tool history.
+- Pressed Enter and verified notification: `Opened /tmp/mdview-smoke.md with md-view`.
+- Checked off all tasks.
+
+### Why
+This validates the corrected source-of-truth behavior: a file becomes “recent” because of a successful session `write` tool call, not because of filesystem mtime.
+
+### What worked
+- The live write-tool-created Markdown file appeared in the picker.
+- Enter-to-open invoked `md-view view` successfully.
+- Alias command `/md-recent` works.
+
+### What didn't work
+- N/A — smoke test passed.
+
+### What I learned
+- The extension's overlay can appear over prior conversation text in tmux capture, but the framed picker remains readable enough for smoke testing.
+- The session-history extractor works with actual persisted live session messages, not just inferred type shapes.
+
+### What was tricky to build
+- The smoke test needed a real `write` tool call inside the tmux Pi session. Creating a file with shell outside Pi would not prove the session-history extractor.
+
+### What warrants a second pair of eyes
+- Whether the picker should remain open after opening a file, to allow opening multiple recent files in sequence. Current behavior opens one file and closes.
+
+### What should be done in the future
+- Optional: add a `noBrowser` setting for smoke tests/headless use.
+
+### Code review instructions
+- Reproduce with tmux: ask Pi to write a Markdown file, run `/md-recent`, press Enter.
+
+### Technical details
+- Smoke file: `/tmp/mdview-smoke.md`
+- Expected picker row: `write  /tmp/mdview-smoke.md`
+- Success notification: `Opened /tmp/mdview-smoke.md with md-view`

@@ -35,3 +35,12 @@ Step 3: Implemented markdown-recent-viewer extension (commit c5c1ce7) and valida
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/markdown-recent-viewer/index.ts — Registration/settings/commands/md-view invocation
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/markdown-recent-viewer/ui.ts — TUI picker
 
+
+## 2026-05-13
+
+Step 4: Symlinked markdown-recent-viewer and smoke tested via tmux: picker found write-tool-created /tmp/mdview-smoke.md and opened it with md-view
+
+### Related Files
+
+- /home/manuel/.pi/agent/extensions/markdown-recent-viewer — Symlink to extension directory
+

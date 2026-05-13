@@ -8,4 +8,4 @@
 - [x] Create TUI picker that opens selected file with md-view view
 - [x] Create extensions/markdown-recent-viewer/README.md
 - [x] Validate: timeout 20 pi --list-models passes
-- [ ] Symlink into ~/.pi/agent/extensions and smoke test with tmux
+- [x] Symlink into ~/.pi/agent/extensions and smoke test with tmux
