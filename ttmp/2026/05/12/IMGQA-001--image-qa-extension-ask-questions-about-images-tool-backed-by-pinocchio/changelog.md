@@ -46,3 +46,23 @@ Step 5: Wrote docs/pi-testing-guide.md (commit 8a4e7b8) — practical guide for 
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/docs/pi-testing-guide.md — Reusable testing guide for Pi extensions
 
+
+## 2026-05-12
+
+Step 6: Clarified image-qa tool docs for multi-image comparisons such as before/after screenshots
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/README.md — README now includes before/after multi-image example
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/index.ts — Tool description
+
+
+## 2026-05-12
+
+Step 6: Clarified image-qa docs for multi-image comparisons and VLM limitations (interpretations, not perfect visual ground truth)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/README.md — README now documents VLM limitations and updated before/after example
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/index.ts — Tool docs now mention multi-image before/after use and VLM uncertainty
+

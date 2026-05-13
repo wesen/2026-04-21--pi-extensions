@@ -247,3 +247,50 @@ We fumbled with tmux timing, launcher search quirks, and capture-pane flags. Doc
 ### Technical details
 - File: `docs/pi-testing-guide.md` (210 lines)
 - Covers: load check, tmux smoke test (8 substeps), capture cheatsheet, timing, pitfalls, checklist
+
+## Step 6: Clarify multi-image and VLM limitations
+
+Updated the image QA tool-facing docs and README to explicitly say that callers can pass multiple images in one invocation, including before/after comparisons. Also added a VLM limitation warning: results are model interpretations, not perfect visual ground truth.
+
+### Prompt Context
+
+**User prompt (verbatim):** "explicitly mention in the tool docs for the image analysis, that multiple images can be provided for example to do a before / after comparison."
+
+**User prompt (verbatim):** "also mention that it's going to be analyzedby a VLM and that things don't necessarily are true / perfect, since they don't have true vision."
+
+**Assistant interpretation:** Update the image analysis tool docs, README, and prompt guidance so the agent knows multi-image comparison is supported and VLM outputs may be imperfect.
+
+**Inferred user intent:** Make the tool safer and easier to use by documenting important usage patterns and uncertainty caveats directly where the LLM and humans will see them.
+
+### What I did
+- Updated `extensions/image-qa/index.ts` tool description to mention multi-image before/after comparisons and VLM limitations
+- Updated `promptSnippet`, `promptGuidelines`, and parameter descriptions
+- Updated `extensions/image-qa/README.md` with a VLM caveat section and before/after JSON example
+- Validated with `timeout 20 pi --list-models` (exit code 0)
+
+### Why
+The LLM chooses and calls the tool based on its schema/description, so these caveats belong in the tool metadata, not only in external docs.
+
+### What worked
+- The doc-only TypeScript changes load cleanly.
+
+### What didn't work
+- N/A
+
+### What I learned
+- For vision tools, documenting uncertainty is part of the API contract. The caller should not treat VLM descriptions as perfect observations.
+
+### What was tricky to build
+- Keeping the caveat short enough for the tool description while still being explicit: VLM outputs can miss details, misread text, hallucinate, or overstate confidence.
+
+### What warrants a second pair of eyes
+- Whether the warning is prominent enough in both the LLM-facing tool metadata and the human README.
+
+### What should be done in the future
+- Consider adding a focused prompt guideline encouraging the agent to ask targeted follow-up questions for uncertain visual details.
+
+### Code review instructions
+- Review `extensions/image-qa/index.ts` around `pi.registerTool()` and `extensions/image-qa/README.md` caveat/example sections.
+
+### Technical details
+- Load check: `timeout 20 pi --list-models` → `code=0`
