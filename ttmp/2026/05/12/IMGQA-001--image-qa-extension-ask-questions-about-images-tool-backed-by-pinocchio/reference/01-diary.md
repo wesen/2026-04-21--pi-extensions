@@ -199,3 +199,51 @@ Need to verify the full round-trip: extension load → tool registration → pin
 - Send command: `tmux send-keys -t pi-smoke "<text>" Enter`
 - Capture output: `tmux capture-pane -t pi-smoke -p -S -50`
 - Kill: `tmux send-keys -t pi-smoke C-c && tmux kill-session -t pi-smoke`
+
+## Step 5: Write testing guide
+
+Wrote `docs/pi-testing-guide.md` — a practical, reusable guide covering quick load checks, tmux-based interactive smoke tests, timing guidelines, common pitfalls, and a full checklist.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 4)
+
+**Assistant interpretation:** After the smoke test, write a professional testing guide in docs/ so future extensions can be validated without fumbling.
+
+**Inferred user intent:** Capture the testing workflow we just used (and the fumbling we did) into a reusable reference.
+
+**Commit:** 8a4e7b8 — "docs: add pi-testing-guide.md"
+
+### What I did
+- Wrote `docs/pi-testing-guide.md` with sections: Quick Load Check, Interactive Smoke Test via tmux, tmux Capture Cheatsheet, Timing Guidelines, Common Pitfalls, Full Checklist
+- Committed as 8a4e7b8
+
+### Why
+We fumbled with tmux timing, launcher search quirks, and capture-pane flags. Documenting these saves 15-20 minutes of fumbling per future extension.
+
+### What worked
+- Writing the guide right after the smoke test, while the fumbling was fresh in memory
+- Including exact command sequences that can be copy-pasted
+
+### What didn't work
+- N/A — straightforward documentation step
+
+### What I learned
+- The most valuable parts of a testing guide are: (1) the exact tmux commands, (2) the timing sleeps, (3) the pitfalls (launcher search by name not id, stale captures, wrong extension selected). These are the things you always forget between sessions.
+
+### What was tricky to build
+- Getting the right level of detail — too little and you're back to fumbling, too much and nobody reads it. Went with copy-paste-ready command sequences plus short explanatory paragraphs.
+
+### What warrants a second pair of eyes
+- Whether the timing guidelines are right for slower machines
+
+### What should be done in the future
+- Could add a script that automates the full smoke test sequence (but tmux send-keys is fragile — manual is more reliable for now)
+
+### Code review instructions
+- Read `docs/pi-testing-guide.md`
+- Try following the tmux smoke test section step by step for any extension
+
+### Technical details
+- File: `docs/pi-testing-guide.md` (210 lines)
+- Covers: load check, tmux smoke test (8 substeps), capture cheatsheet, timing, pitfalls, checklist

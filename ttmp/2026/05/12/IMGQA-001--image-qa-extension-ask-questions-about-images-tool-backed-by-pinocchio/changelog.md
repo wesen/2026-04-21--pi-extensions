@@ -37,3 +37,12 @@ Step 3: Symlinked to ~/.pi/agent/extensions/image-qa, validated load (pi --list-
 
 Step 4: Smoke tested via tmux — /image-qa command works, /px launcher shows Image QA, ask_questions_about_images tool registered and functional (identified red rectangle correctly)
 
+
+## 2026-05-12
+
+Step 5: Wrote docs/pi-testing-guide.md (commit 8a4e7b8) — practical guide for load checks, tmux smoke tests, pitfalls, and checklist
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/docs/pi-testing-guide.md — Reusable testing guide for Pi extensions
+
