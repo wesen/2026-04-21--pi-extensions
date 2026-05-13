@@ -1,288 +1,196 @@
-# pi-extensions
+# Pi Extensions
 
-Documentation and experiments for Pi coding agent extensions.
+A source-controlled collection of local [Pi coding agent](https://github.com/badlogic/pi-mono) extensions, plus the shared framework and documentation we use to build them consistently.
 
-## What's here
+This repository is about making Pi extensions feel like one cohesive product instead of a pile of unrelated slash commands. Extensions live under `extensions/`, register through the shared framework, and can contribute launcher actions, docs, settings, dashboard widgets, commands, and LLM-callable tools.
 
-This repository contains design docs, implementation guides, and working extensions for the [Pi coding agent](https://github.com/badlogic/pi-mono). Each extension lives in `~/.pi/agent/extensions/` and is tracked here through docmgr tickets.
+## What is here
+
+```text
+extensions/
+  _shared/                    # Shared registry, launcher/dashboard UI, common framework pieces
+  agent-env/                  # Inject PI_AGENT_* context into shell executions
+  compaction-meter/           # Context remaining/status widgets
+  compaction-title/           # compact() + automatic session title generation
+  direnv-bash/                # direnv-aware bash/user shell execution
+  docmgr/                     # docmgr ticket browser/status inside Pi
+  image-qa/                   # ask_questions_about_images tool via pinocchio
+  kagi-web-search/            # kagi_web_search tool via surf
+  kanban-demo/                # Rich TUI Kanban/demo tool extension
+  launcher/                   # /px shared extension launcher
+  markdown-recent-viewer/     # Session edit/write Markdown picker + md-view
+  pinned-skills/              # Persistent pinned skill prompt injection
+  response-capture/           # Capture assistant responses into docmgr
+  selective-compaction/       # User-selected range compaction
+  session-summary/            # Mandatory <summary> block enforcement/widget
+  session-tagger/             # Tag moments in session history
+  tui-showcase/               # TUI component/pattern showcase
+
+docs/
+  pi-shared-extension-framework-guide.md  # How to write extensions in this repo
+  pi-tui-ui-authoring-guide.md            # How to build Pi TUI components
+  pi-testing-guide.md                     # Load checks and tmux smoke tests
+  pi-compaction-textbook.md               # Compaction concepts and extension patterns
+
+ttmp/                         # docmgr ticket workspaces and implementation diaries
+```
+
+## Shared framework
+
+Every extension in this repo should call `registerPiExtension()` from `extensions/_shared/registry.ts`.
+
+The shared framework lets an extension declare its contributions in a common shape:
+
+- **metadata** — stable id, name, description, tags
+- **actions** — user-facing verbs surfaced in `/px`
+- **docs** — README/help pages opened from the launcher
+- **settings** — schema or custom settings UI
+- **widgets** — dashboard/status widgets
+- **commands** — compatibility slash commands
+
+The launcher and dashboard discover these contributions from the shared registry. Direct slash commands are still useful, but they should not be the only way to discover or use an extension.
+
+Start here before adding or refactoring an extension:
+
+- [`docs/pi-shared-extension-framework-guide.md`](docs/pi-shared-extension-framework-guide.md)
+- [`docs/pi-tui-ui-authoring-guide.md`](docs/pi-tui-ui-authoring-guide.md) when building custom TUI
+- [`docs/pi-testing-guide.md`](docs/pi-testing-guide.md) before validating or smoke-testing
+- [`docs/pi-compaction-textbook.md`](docs/pi-compaction-textbook.md) before changing compaction-related extensions
 
 ## Current extensions
 
-| Extension | Purpose | File |
-|-----------|---------|------|
-| `hello-world-thinking` | Displays "Hello World" in a widget when the LLM emits a thinking block | [`ttmp/.../pi-ext-thinking-hello/design/implementation.md`](ttmp/2026/04/21/pi-ext-thinking-hello--pi-extension-hello-world-before-thinking-blocks/design/implementation.md) |
-| `session-summary` | Forces the model to output `<summary>...</summary>` blocks at the end of every turn; shows parsed summary in a compact widget | [`extensions/session-summary/index.ts`](extensions/session-summary/index.ts) |
-| `docmgr` | Shows docmgr workspace status, ticket/doc/task browsers, and ticket-close flows in Pi | [`extensions/docmgr/index.ts`](extensions/docmgr/index.ts) |
-| `direnv-bash` | Applies the current directory's allowed `direnv` environment before Pi `bash` tool calls and user `!` / `!!` commands | [`extensions/direnv-bash/index.ts`](extensions/direnv-bash/index.ts) |
-| `compaction-title` | Reuses Pi's built-in `compact()` helper with appended title instructions, then stores the parsed title via `pi.setSessionName()` | [`extensions/compaction-title/index.ts`](extensions/compaction-title/index.ts) |
-| `tui-showcase` | Grab-bag demo of rich Pi TUI patterns: overlays, palettes, widgets, custom chrome, custom renderers, and animated components | [`extensions/tui-showcase/index.ts`](extensions/tui-showcase/index.ts) |
-| `kanban-demo` | Full-featured TUI Kanban task system demo with overlay board, persistent widget, WIP limits, file-backed state, and LLM tool integration | [`extensions/kanban-demo/index.ts`](extensions/kanban-demo/index.ts) |
+| Extension | Purpose | Main files |
+|-----------|---------|------------|
+| `launcher` | Provides `/px`, the shared extension launcher/dashboard entry point. | [`extensions/launcher/index.ts`](extensions/launcher/index.ts) |
+| `_shared` | Registry, launcher UI, docs/settings UI, dashboard integration. | [`extensions/_shared/`](extensions/_shared/) |
+| `agent-env` | Injects Pi session metadata (`PI_AGENT_*`) into bash/user shell executions. | [`extensions/agent-env/index.ts`](extensions/agent-env/index.ts), [`README`](extensions/agent-env/README.md) |
+| `direnv-bash` | Loads allowed `direnv` environments before bash/user shell commands. | [`extensions/direnv-bash/index.ts`](extensions/direnv-bash/index.ts), [`README`](extensions/direnv-bash/README.md) |
+| `docmgr` | Shows docmgr ticket/doc/task status and workflows inside Pi. | [`extensions/docmgr/index.ts`](extensions/docmgr/index.ts) |
+| `pinned-skills` | Keeps selected skill instructions loaded in prompt context. | [`extensions/pinned-skills/index.ts`](extensions/pinned-skills/index.ts), [`README`](extensions/pinned-skills/README.md) |
+| `session-summary` | Enforces final `<summary>...</summary>` blocks and displays compact summaries. | [`extensions/session-summary/index.ts`](extensions/session-summary/index.ts) |
+| `session-tagger` | Tags important session moments for later analysis/forking. | [`extensions/session-tagger/index.ts`](extensions/session-tagger/index.ts) |
+| `response-capture` | Captures assistant responses into docmgr. | [`extensions/response-capture/index.ts`](extensions/response-capture/index.ts), [`README`](extensions/response-capture/README.md) |
+| `compaction-meter` | Shows context/compaction status in Pi. | [`extensions/compaction-meter/index.ts`](extensions/compaction-meter/index.ts), [`README`](extensions/compaction-meter/README.md) |
+| `compaction-title` | Runs compaction/title generation and stores session titles. | [`extensions/compaction-title/index.ts`](extensions/compaction-title/index.ts), [`README`](extensions/compaction-title/README.md) |
+| `selective-compaction` | Lets the user compact a selected range instead of the whole branch. | [`extensions/selective-compaction/index.ts`](extensions/selective-compaction/index.ts), [`README`](extensions/selective-compaction/README.md) |
+| `image-qa` | Adds `ask_questions_about_images` backed by `pinocchio code professional --images`. | [`extensions/image-qa/index.ts`](extensions/image-qa/index.ts), [`README`](extensions/image-qa/README.md) |
+| `kagi-web-search` | Adds `kagi_web_search` backed by `surf kagi search --query`. | [`extensions/kagi-web-search/index.ts`](extensions/kagi-web-search/index.ts), [`README`](extensions/kagi-web-search/README.md) |
+| `markdown-recent-viewer` | Lists Markdown files touched by session `edit`/`write` tool calls and opens them with `md-view view`. | [`extensions/markdown-recent-viewer/index.ts`](extensions/markdown-recent-viewer/index.ts), [`README`](extensions/markdown-recent-viewer/README.md) |
+| `kanban-demo` | Rich TUI Kanban board demo with an LLM-callable task tool. | [`extensions/kanban-demo/index.ts`](extensions/kanban-demo/index.ts), [`README`](extensions/kanban-demo/README.md) |
+| `tui-showcase` | Grab-bag of TUI patterns, overlays, widgets, tools, and renderers. | [`extensions/tui-showcase/index.ts`](extensions/tui-showcase/index.ts), [`README`](extensions/tui-showcase/README.md) |
 
-The installed `session-summary` and `docmgr` extensions are symlinks to the source-controlled directories in `extensions/`.
+## Installing local extensions
 
-## Analyzing your extension sessions with go-minitrace
-
-When you develop extensions, you run many Pi sessions. The raw JSONL session files are verbose and hard to read. [go-minitrace](https://github.com/go-go-golems/go-minitrace) converts them into a structured DuckDB-backed format you can query efficiently.
-
-### The three-layer funnel
-
-```text
-Native Pi sessions (.jsonl)
-    ↓  convert
-.minitrace.json archives
-    ↓  query with DuckDB
-Structured evidence rows
-    ↓  JS summarizers
-Compact human-readable report
-```
-
-Don't read raw transcripts. Convert, query, summarize.
-
-### Converting Pi sessions
+Pi loads local extensions from `~/.pi/agent/extensions/`. For development, symlink repo directories into that folder:
 
 ```bash
-# Convert all sessions for one working directory
-go-minitrace convert pi \
-  --source-dir ~/.pi/agent/sessions/--home-manuel-code-wesen-2026-04-21--pi-extensions-- \
-  --output-dir ./analysis/pi-extensions
-
-# Convert a single session
-go-minitrace convert pi \
-  --source-session ~/.pi/agent/sessions/--home-manuel-code-wesen-2026-04-21--pi-extensions--/2026-04-23T15-32-13-035Z_b12a8d9f-87a1-4693-b0a9-24ff8726b323.jsonl \
-  --output-dir ./analysis/pi-extensions
+mkdir -p ~/.pi/agent/extensions
+ln -s "$PWD/extensions/launcher" ~/.pi/agent/extensions/launcher
+ln -s "$PWD/extensions/_shared" ~/.pi/agent/extensions/_shared
+ln -s "$PWD/extensions/image-qa" ~/.pi/agent/extensions/image-qa
 ```
 
-### Useful SQL queries for extension development
+Most extensions in this repo are developed this way. After adding or changing symlinks, start a fresh Pi session or run `/reload` inside Pi.
 
-Save these as `.sql` files in a `scripts/query-commands/` directory and run them with:
+## Creating a new extension
 
-```bash
-go-minitrace query duckdb \
-  --archive-glob './analysis/pi-extensions/active/*/*.minitrace.json' \
-  --sql-file ./scripts/query-commands/my-query.sql
-```
+1. Read [`docs/pi-shared-extension-framework-guide.md`](docs/pi-shared-extension-framework-guide.md).
+2. Create a directory under `extensions/<extension-id>/`.
+3. Register through the shared framework:
 
-#### 1. Find sessions where extensions loaded
+```ts
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { registerPiExtension } from "../_shared/registry";
 
-```sql
-SELECT
-  id,
-  title,
-  timing->>'started_at' AS started_at,
-  json_extract_string(environment, '$.model_name') AS model,
-  json_extract_string(environment, '$.agent_framework') AS framework,
-  tool_count,
-  turn_count
-FROM sessions_base
-ORDER BY started_at DESC
-LIMIT 25;
-```
+export default function myExtension(pi: ExtensionAPI): void {
+  registerPiExtension({
+    id: "my-extension",
+    name: "My Extension",
+    description: "What this extension does.",
+    commands: ["my-extension"],
+    tags: ["demo"],
+    run: async (ctx) => ctx.ui.notify("My Extension is installed.", "info"),
+    docs: [{ id: "overview", title: "Overview", path: "extensions/my-extension/README.md" }],
+  });
 
-#### 2. Find extension-related bash commands
-
-```sql
-SELECT
-  id AS session_id,
-  title,
-  timing->>'started_at' AS started_at,
-  CAST(tc->>'emitting_turn_index' AS INT) AS turn_index,
-  json_extract_string(tc, '$.input.command') AS bash_command,
-  json_extract_string(tc, '$.output.result') AS bash_output
-FROM sessions_base,
-     UNNEST(tool_calls) AS t(tc)
-WHERE (tc->>'tool_name') = 'bash'
-  AND (
-    json_extract_string(tc, '$.input.command') LIKE '%extension%'
-    OR json_extract_string(tc, '$.input.command') LIKE '%session-summary%'
-    OR json_extract_string(tc, '$.input.command') LIKE '%hello-world-thinking%'
-    OR json_extract_string(tc, '$.output.result') LIKE '%extension%'
-  )
-ORDER BY started_at, turn_index
-LIMIT 50;
-```
-
-#### 3. Find file reads/writes of extension files
-
-```sql
-SELECT
-  id AS session_id,
-  title,
-  timing->>'started_at' AS started_at,
-  CAST(tc->>'emitting_turn_index' AS INT) AS turn_index,
-  (tc->>'tool_name') AS tool_name,
-  COALESCE(
-    json_extract_string(tc, '$.input.path'),
-    json_extract_string(tc, '$.input.file_path'),
-    json_extract_string(tc, '$.input.arguments.path')
-  ) AS file_path,
-  json_extract_string(tc, '$.output.result') AS result
-FROM sessions_base,
-     UNNEST(tool_calls) AS t(tc)
-WHERE (tc->>'tool_name') IN ('read', 'write', 'edit')
-  AND (
-    COALESCE(
-      json_extract_string(tc, '$.input.path'),
-      json_extract_string(tc, '$.input.file_path'),
-      json_extract_string(tc, '$.input.arguments.path')
-    ) LIKE '%session-summary%'
-    OR COALESCE(
-      json_extract_string(tc, '$.input.path'),
-      json_extract_string(tc, '$.input.file_path'),
-      json_extract_string(tc, '$.input.arguments.path')
-    ) LIKE '%extensions%'
-  )
-ORDER BY started_at, turn_index
-LIMIT 50;
-```
-
-#### 4. Find errors in extension sessions
-
-```sql
-SELECT
-  id AS session_id,
-  title,
-  timing->>'started_at' AS started_at,
-  CAST(tc->>'emitting_turn_index' AS INT) AS turn_index,
-  (tc->>'tool_name') AS tool_name,
-  json_extract_string(tc, '$.input.command') AS bash_command,
-  json_extract_string(tc, '$.output.result') AS bash_output
-FROM sessions_base,
-     UNNEST(tool_calls) AS t(tc)
-WHERE (tc->>'tool_name') = 'bash'
-  AND json_extract_string(tc, '$.output.result') LIKE '%error%'
-ORDER BY started_at DESC
-LIMIT 25;
-```
-
-#### 5. Count tool usage per session
-
-```sql
-SELECT
-  id AS session_id,
-  title,
-  (tc->>'tool_name') AS tool_name,
-  COUNT(*) AS call_count
-FROM sessions_base,
-     UNNEST(tool_calls) AS t(tc)
-GROUP BY id, title, tc->>'tool_name'
-ORDER BY call_count DESC
-LIMIT 50;
-```
-
-### JS command example: extension activity summary
-
-For more complex analysis, write a JS command. Save as `scripts/query-commands/pi-extensions/analysis/extension-activity.js`:
-
-```javascript
-__section__("filters", {
-  fields: {
-    extension: { type: "string", help: "Extension name to filter by" },
-    limit:     { type: "int", default: 10, help: "Max sessions to return" },
-  },
-});
-
-function extensionActivity(filters) {
-  const mt = require("minitrace");
-
-  const extensionPattern = filters.extension || "extension";
-
-  const rows = mt.query(`
-    SELECT
-      id,
-      title,
-      timing->>'started_at' AS started_at,
-      json_extract_string(environment, '$.model_name') AS model,
-      turn_count,
-      tool_count
-    FROM ${mt.tableName}
-    WHERE title LIKE ${mt.sql.string("%" + extensionPattern + "%")}
-       OR EXISTS (
-         SELECT 1 FROM UNNEST(tool_calls) AS t(tc)
-         WHERE json_extract_string(tc, '$.input.command') LIKE ${mt.sql.string("%" + extensionPattern + "%")}
-       )
-    ORDER BY timing->>'started_at' DESC
-    LIMIT ${filters.limit}
-  `);
-
-  return rows.map((r) => ({
-    session_id: r.id,
-    title: r.title,
-    started_at: r.started_at,
-    model: r.model,
-    turns: r.turn_count,
-    tools: r.tool_count,
-  }));
+  pi.registerCommand("my-extension", {
+    description: "Show extension status",
+    handler: async (_args, ctx) => ctx.ui.notify("My Extension is installed.", "info"),
+  });
 }
-
-__verb__("extensionActivity", {
-  name: "extension-activity",
-  short: "Summarize sessions related to extension development",
-  fields: { filters: { bind: "filters" } },
-});
 ```
 
-Run it:
+4. Add `README.md` for user-facing docs.
+5. Add settings/actions/widgets/tools only as needed.
+6. Validate and smoke test.
+
+## Testing and smoke tests
+
+Quick load check:
 
 ```bash
-go-minitrace query commands \
-  --query-repository ./scripts/query-commands \
-  pi-extensions analysis extension-activity \
-  --archive-glob './analysis/pi-extensions/active/*/*.minitrace.json' \
-  --extension "session-summary" \
-  --output json
+timeout 20 pi --list-models
 ```
 
-### Key go-minitrace commands
+This catches extension import/registration errors without starting an interactive session.
+
+For interactive validation, use tmux as described in [`docs/pi-testing-guide.md`](docs/pi-testing-guide.md):
 
 ```bash
-# List all help pages
-go-minitrace help --all
-
-# Query with built-in preset
-go-minitrace query duckdb \
-  --archive-glob './analysis/*/active/*/*.minitrace.json' \
-  --preset framework-summary
-
-# Run a SQL file
-go-minitrace query duckdb \
-  --archive-glob './analysis/*/active/*/*.minitrace.json' \
-  --sql-file ./scripts/my-query.sql
-
-# List embedded query commands
-go-minitrace query commands --help
-
-# View a session as HTML
-go-minitrace export html \
-  --archive './analysis/pi-extensions/active/2026-04/session-id.minitrace.json' \
-  --output ./exports/session.html
+SESSION="pi-smoke"
+tmux new-session -d -s "$SESSION" -x 120 -y 40
+tmux send-keys -t "$SESSION" "pi" Enter
+sleep 5
+tmux capture-pane -t "$SESSION" -p -S -80 | grep "your-extension-id"
 ```
 
-### Working rules
+A complete handoff should usually verify:
 
-1. **Convert only relevant sessions** — don't convert the whole `~/.pi/agent/sessions/` tree
-2. **Keep queries in `scripts/query-commands/`** — ticket-local, reusable, versioned
-3. **Start with SQL, then JS** — SQL for filtering, JS for summarization
-4. **Use `json_extract_string(...)`** — safe JSON access in DuckDB predicates
-5. **Prefix JS helpers with `_`** — prevents scanner confusion with Glazed flags
+- `timeout 20 pi --list-models` passes
+- extension appears in startup `[Extensions]`
+- `/px` can discover the extension
+- extension default action works
+- direct slash commands work
+- docs/settings open if registered
+- tools execute end-to-end if the extension registers tools
 
-## Docmgr tickets
+## Docmgr workflow
 
-Documentation is organized in docmgr ticket workspaces under `ttmp/`:
+Non-trivial extension work should have a docmgr ticket under `ttmp/` with:
 
-| Ticket | Topic | Date |
-|--------|-------|------|
-| `pi-ext-thinking-hello` | Hello World thinking block extension | 2026-04-21 |
-| `pi-ext-session-summary` | Session summary block extension | 2026-04-23 |
+- design doc
+- diary/reference doc
+- task list
+- changelog
+- related files
 
-Each ticket contains:
-- `design/analysis.md` — system architecture and design decisions
-- `design/implementation.md` — complete implementation guide with code
-- `reference/api-cheatsheet.md` — quick API reference
-- `playbooks/setup-and-test.md` — step-by-step testing commands
-- `sources/` — saved upstream resources (defuddled docs, source files)
+Useful commands:
+
+```bash
+docmgr ticket create-ticket --ticket TICKET-ID --title "Short title" --topics pi-extension,tools
+docmgr doc add --ticket TICKET-ID --doc-type design --title "Extension Design"
+docmgr doc add --ticket TICKET-ID --doc-type reference --title "Diary"
+docmgr task add --ticket TICKET-ID --text "Implement extension"
+docmgr changelog update --ticket TICKET-ID --entry "What changed and why"
+```
+
+Implementation diaries should record what changed, why, what failed, what was tricky, and how to validate.
+
+## Conventions
+
+- All extensions live under `extensions/`.
+- Every extension calls `registerPiExtension()` from `extensions/_shared/registry.ts`.
+- Shared UI/framework code belongs under `extensions/_shared/`.
+- Extension docs paths in `registerPiExtension({ docs: [...] })` are relative paths, never absolute paths.
+- Prefer schema settings for simple booleans/numbers/strings.
+- Use custom TUI components for pickers, dashboards, multi-step flows, and rich interaction.
+- Keep dashboard render callbacks cheap; don't scan large directories in a widget render.
+- Validate with `timeout 20 pi --list-models` before committing.
+- Use tmux smoke tests for interactive commands, tools, and overlays.
 
 ## Further reading
 
-- [Pi extensions documentation](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md)
-- [go-minitrace help](https://github.com/go-go-golems/go-minitrace) — `go-minitrace help --all`
-- Obsidian vault playbook: [[ARTICLE - Playbook - Efficient Past Transcript Analysis with go-minitrace]]
+- [`docs/pi-shared-extension-framework-guide.md`](docs/pi-shared-extension-framework-guide.md)
+- [`docs/pi-tui-ui-authoring-guide.md`](docs/pi-tui-ui-authoring-guide.md)
+- [`docs/pi-testing-guide.md`](docs/pi-testing-guide.md)
+- [`docs/pi-compaction-textbook.md`](docs/pi-compaction-textbook.md)
