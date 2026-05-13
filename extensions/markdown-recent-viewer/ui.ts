@@ -50,6 +50,104 @@ function bold(text: string): string {
 	return `\x1b[1m${text}${RESET}`;
 }
 
+const PATH_ELISION_WEIGHTS = {
+	suffixChars: 4,
+	prefixChars: 1,
+	suffixSegments: 8,
+	prefixSegments: 2,
+	prefixPresence: 12,
+};
+
+interface PathElisionCandidate {
+	rendered: string;
+	width: number;
+	score: number;
+	prefix: string[];
+	suffix: string[];
+}
+
+function takeTailToWidth(text: string, width: number): string {
+	if (width <= 0) return "";
+	let result = "";
+	for (const char of Array.from(text).reverse()) {
+		const next = char + result;
+		if (visibleWidth(next) > width) break;
+		result = next;
+	}
+	return result;
+}
+
+function elideFilenameTail(filename: string, width: number): string {
+	if (width <= 0) return "";
+	if (visibleWidth(filename) <= width) return filename;
+	const ellipsis = "…";
+	const ellipsisWidth = visibleWidth(ellipsis);
+	if (width <= ellipsisWidth) return truncateToWidth(ellipsis, width, "");
+	return `${ellipsis}${takeTailToWidth(filename, width - ellipsisWidth)}`;
+}
+
+function renderPathCandidate(prefix: string[], suffix: string[]): string {
+	if (prefix.length === 0) return `.../${suffix.join("/")}`;
+	return `${prefix.join("/")}/.../${suffix.join("/")}`;
+}
+
+function segmentChars(segments: string[]): number {
+	return segments.reduce((sum, segment) => sum + visibleWidth(segment), 0);
+}
+
+function scorePathCandidate(prefix: string[], suffix: string[]): number {
+	return PATH_ELISION_WEIGHTS.suffixChars * segmentChars(suffix)
+		+ PATH_ELISION_WEIGHTS.prefixChars * segmentChars(prefix)
+		+ PATH_ELISION_WEIGHTS.suffixSegments * suffix.length
+		+ PATH_ELISION_WEIGHTS.prefixSegments * prefix.length
+		+ (prefix.length > 0 ? PATH_ELISION_WEIGHTS.prefixPresence : 0);
+}
+
+function isBetterPathCandidate(candidate: PathElisionCandidate, best: PathElisionCandidate | undefined): boolean {
+	if (!best) return true;
+	if (candidate.score !== best.score) return candidate.score > best.score;
+	if (candidate.suffix.length !== best.suffix.length) return candidate.suffix.length > best.suffix.length;
+	if (candidate.prefix.length !== best.prefix.length) return candidate.prefix.length > best.prefix.length;
+	if (candidate.width !== best.width) return candidate.width < best.width;
+	return candidate.rendered < best.rendered;
+}
+
+function elidePathForWidth(relativePath: string, width: number): string {
+	if (width <= 0) return "";
+	if (visibleWidth(relativePath) <= width) return relativePath;
+
+	const normalized = relativePath.replace(/\\/g, "/");
+	const segments = normalized.split("/").filter(Boolean);
+	const filename = segments.at(-1) ?? relativePath;
+
+	if (visibleWidth(filename) > width) return elideFilenameTail(filename, width);
+	if (segments.length <= 1) return filename;
+
+	let best: PathElisionCandidate | undefined;
+
+	for (let prefixCount = 0; prefixCount < segments.length; prefixCount++) {
+		const maxSuffixCount = segments.length - prefixCount - 1;
+		for (let suffixCount = 1; suffixCount <= maxSuffixCount; suffixCount++) {
+			const prefix = segments.slice(0, prefixCount);
+			const suffix = segments.slice(segments.length - suffixCount);
+			const rendered = renderPathCandidate(prefix, suffix);
+			const renderedWidth = visibleWidth(rendered);
+			if (renderedWidth > width) continue;
+
+			const candidate: PathElisionCandidate = {
+				rendered,
+				width: renderedWidth,
+				score: scorePathCandidate(prefix, suffix),
+				prefix,
+				suffix,
+			};
+			if (isBetterPathCandidate(candidate, best)) best = candidate;
+		}
+	}
+
+	return best?.rendered ?? filename;
+}
+
 export class RecentMarkdownPicker implements Component {
 	private query = "";
 	private searchActive = false;
@@ -187,7 +285,9 @@ export class RecentMarkdownPicker implements Component {
 	private renderItem(item: RecentMarkdownItem, selected: boolean, width: number): string {
 		const prefix = selected ? bold(">") : " ";
 		const tool = item.toolName.padEnd(5);
-		const line = `${prefix} ${formatItemTime(item)}  ${tool}  ${item.relativePath}`;
+		const fixedPrefix = `${prefix} ${formatItemTime(item)}  ${tool}  `;
+		const pathWidth = Math.max(0, width - visibleWidth(fixedPrefix));
+		const line = `${fixedPrefix}${elidePathForWidth(item.relativePath, pathWidth)}`;
 		return selected ? bold(truncateToWidth(line, width, "…")) : truncateToWidth(line, width, "…");
 	}
 
