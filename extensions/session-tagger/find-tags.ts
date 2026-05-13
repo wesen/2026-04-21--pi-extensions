@@ -27,8 +27,27 @@ export interface ScannedTag {
 	timestamp: string;
 }
 
+/** CustomType used for soft-delete markers (stored as type:"custom" entries) */
+export const DELETED_MARKER_TYPE = "session-tagger-deleted";
+
+/** Scan entries for deletion markers, return Set of deleted targetEntryIds */
+export function findDeletedTargetIds(entries: SessionEntryLike[]): Set<string> {
+	const deleted = new Set<string>();
+	for (const entry of entries) {
+		if (
+			entry.type === "custom" &&
+			(entry as any).customType === DELETED_MARKER_TYPE &&
+			(entry as any).data
+		) {
+			const marker = (entry as any).data as DeletedMarker;
+			deleted.add(marker.targetEntryId);
+		}
+	}
+	return deleted;
+}
+
 /** Scan session entries for tag markers. No state, no cache. */
-export function findTags(entries: SessionEntryLike[]): ScannedTag[] {
+export function findTags(entries: SessionEntryLike[], deletedTargetIds?: Set<string>): ScannedTag[] {
 	const results: ScannedTag[] = [];
 	for (const entry of entries) {
 		if (
@@ -37,6 +56,8 @@ export function findTags(entries: SessionEntryLike[]): ScannedTag[] {
 			(entry as any).details
 		) {
 			const details = (entry as any).details as TagDetails;
+			// Skip soft-deleted tags
+			if (deletedTargetIds?.has(details.targetEntryId)) continue;
 			results.push({
 				entryId: entry.id,
 				targetEntryId: details.targetEntryId,
@@ -59,6 +80,14 @@ export function filterByTag(tags: ScannedTag[], tagName: string): ScannedTag[] {
 	return tags.filter((t) =>
 		t.tags.some((tag) => tag.toLowerCase() === tagName.toLowerCase()),
 	);
+}
+
+/** Deletion marker data stored in custom entries */
+export interface DeletedMarker {
+	/** The custom_message entry ID that was deleted */
+	entryId: string;
+	/** The target entry that was tagged */
+	targetEntryId: string;
 }
 
 /** Minimal entry shape we need — avoids importing heavy session types */
