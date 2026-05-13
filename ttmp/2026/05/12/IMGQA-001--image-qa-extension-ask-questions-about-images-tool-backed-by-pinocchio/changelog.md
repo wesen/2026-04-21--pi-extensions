@@ -23,3 +23,12 @@ Step 2: Implemented image-qa extension (commit 2d8a111) — index.ts + README.md
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/README.md — User-facing docs
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/index.ts — Tool registration + settings + command
 
+
+## 2026-05-12
+
+Step 3: Symlinked to ~/.pi/agent/extensions/image-qa, validated load (pi --list-models passes), all tasks complete
+
+### Related Files
+
+- /home/manuel/.pi/agent/extensions/image-qa — Symlink to extension directory
+
