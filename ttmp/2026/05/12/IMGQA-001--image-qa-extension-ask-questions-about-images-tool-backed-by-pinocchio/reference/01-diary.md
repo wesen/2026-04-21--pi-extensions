@@ -142,3 +142,60 @@ The design doc was complete and approved — time to implement. One commit for t
 - `ExecResult`: `{ stdout: string; stderr: string; code: number; killed: boolean }`
 - `pi.exec("pinocchio", ["code", "professional", "--profile", profile, "--images", csv, "--non-interactive", question], { signal, timeout })`
 - Settings: `state.profile` (string) and `state.timeout` (number, in seconds)
+
+## Step 4: Smoke test via tmux
+
+Ran a full interactive smoke test in a tmux session. All checks pass: the extension loads, the `/image-qa` command works, `/px` launcher shows Image QA, and the `ask_questions_about_images` tool is registered and functional (identified a red rectangle correctly).
+
+### Prompt Context
+
+**User prompt (verbatim):** "Do the somke test (use tmux) then once you get it all working, write a professional clear and to the point guide about testing in docs/ , so that we don't have to fumble about so much later."
+
+**Assistant interpretation:** Run an interactive smoke test in tmux, then write a reusable testing guide.
+
+**Inferred user intent:** Verify the extension works end-to-end in a live Pi session, then capture the testing workflow so future extensions can be validated without fumbling.
+
+### What I did
+- Started pi in a tmux session (`tmux new-session -d -s pi-smoke`)
+- Verified `image-qa` appears in the [Extensions] list on startup
+- Tested `/px` → search "Image QA" → Enter → shows `image-qa: profile=gpt-5-low timeout=120s`
+- Tested `/image-qa` command → shows settings
+- Asked the agent to list all tools → `ask_questions_about_images` appears as the only vision tool
+- End-to-end test: created `/tmp/test-red-rectangle.png` (200×100 red), asked the agent to use `ask_questions_about_images` → correctly identified as "solid bright red (#FF0000)"
+- Cleaned up tmux session
+
+### Why
+Need to verify the full round-trip: extension load → tool registration → pinocchio invocation → result return.
+
+### What worked
+- `tmux new-session -d -s <name>` + `tmux send-keys` + `tmux capture-pane -p -S -N` is an effective pattern for interactive testing
+- The agent correctly categorized `ask_questions_about_images` as a vision tool without any hints
+- Pinocchio `--non-interactive` correctly returns a single answer and exits
+
+### What didn't work
+- The `/px` search for "image" matched other entries before showing Image QA — needed to type "Image QA" to filter precisely
+- Initial `Enter` in the launcher ran the wrong extension (hello-world-thinking) because the search filter hadn't narrowed enough
+
+### What I learned
+- tmux-based smoke testing is reliable but requires careful timing (`sleep` between `send-keys` and `capture-pane`)
+- The `capture-pane -S -N` flag scrolls back N lines, essential for seeing tool output that scrolls off screen
+- `/px` search is case-sensitive and matches on extension name, not just id
+
+### What was tricky to build
+- Timing: need enough sleep between `send-keys` and `capture-pane` for Pi to process, but not so much that the test becomes slow. 2-5 seconds for UI actions, 15-30 seconds for LLM responses.
+- tmux `Escape` doesn't always close the launcher overlay cleanly — sometimes need `C-c` instead
+
+### What warrants a second pair of eyes
+- Nothing for this extension specifically — all tests pass
+
+### What should be done in the future
+- Write the testing guide (next step)
+
+### Code review instructions
+- No code changes in this step — purely a testing step
+
+### Technical details
+- tmux session: `tmux new-session -d -s pi-smoke -x 120 -y 40`
+- Send command: `tmux send-keys -t pi-smoke "<text>" Enter`
+- Capture output: `tmux capture-pane -t pi-smoke -p -S -50`
+- Kill: `tmux send-keys -t pi-smoke C-c && tmux kill-session -t pi-smoke`

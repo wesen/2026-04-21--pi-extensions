@@ -32,3 +32,8 @@ Step 3: Symlinked to ~/.pi/agent/extensions/image-qa, validated load (pi --list-
 
 - /home/manuel/.pi/agent/extensions/image-qa — Symlink to extension directory
 
+
+## 2026-05-12
+
+Step 4: Smoke tested via tmux — /image-qa command works, /px launcher shows Image QA, ask_questions_about_images tool registered and functional (identified red rectangle correctly)
+
