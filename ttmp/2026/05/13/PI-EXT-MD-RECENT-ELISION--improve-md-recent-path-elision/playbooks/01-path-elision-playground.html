@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>md-recent Path Elision Playground</title>
+<style>
+  :root {
+    --paper: #fff;
+    --ink: #000;
+    --shade: #d7d7d7;
+    --light: #f4f4f4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      repeating-linear-gradient(45deg, var(--paper) 0 2px, #f1f1f1 2px 4px);
+    color: var(--ink);
+    font-family: Monaco, "Courier New", ui-monospace, monospace;
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px;
+  }
+
+  h1, h2, h3, p { margin: 0; }
+
+  h1 {
+    font-size: 20px;
+    letter-spacing: -0.04em;
+    margin-bottom: 4px;
+  }
+
+  h2 {
+    font-size: 15px;
+    padding: 4px 6px;
+    color: var(--paper);
+    background: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  h3 {
+    font-size: 13px;
+    margin: 8px 0 4px;
+    text-decoration: underline;
+  }
+
+  .intro {
+    border: 3px double var(--ink);
+    background: var(--paper);
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .textbook {
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 5px 5px 0 var(--ink);
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .textbook p {
+    margin: 0 0 9px;
+    max-width: 92ch;
+  }
+
+  .textbook ol,
+  .textbook ul {
+    margin: 6px 0 10px 22px;
+    padding: 0;
+  }
+
+  .textbook li {
+    margin: 4px 0;
+  }
+
+  .rule-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 8px;
+    margin: 8px 0 10px;
+  }
+
+  .rule-card {
+    border: 1px solid var(--ink);
+    background: var(--light);
+    padding: 7px;
+  }
+
+  .rule-card strong {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  code {
+    background: var(--light);
+    border: 1px solid var(--ink);
+    padding: 0 3px;
+  }
+
+  .formula {
+    border: 2px solid var(--ink);
+    background: var(--light);
+    padding: 8px;
+    margin: 8px 0 10px;
+    white-space: pre-wrap;
+  }
+
+  .mini-formula {
+    border: 1px solid var(--ink);
+    background: var(--light);
+    padding: 6px;
+    margin: 8px 0;
+    font-size: 12px;
+    white-space: pre-wrap;
+  }
+
+  .example-table {
+    margin: 8px 0 10px;
+  }
+
+  .example-table td,
+  .example-table th {
+    font-size: 12px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.3fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .panel {
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 5px 5px 0 var(--ink);
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .control-row {
+    display: grid;
+    grid-template-columns: 170px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    margin: 7px 0;
+  }
+
+  .weights {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(72px, 1fr));
+    gap: 8px;
+  }
+
+  label { font-weight: bold; }
+
+  input, textarea, select, button {
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+  }
+
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    padding: 3px 4px;
+  }
+
+  input[type="range"] {
+    accent-color: var(--ink);
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 6px;
+    resize: vertical;
+  }
+
+  button {
+    padding: 5px 9px;
+    cursor: pointer;
+    background: var(--light);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  button:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .readout {
+    border: 2px solid var(--ink);
+    background: var(--light);
+    padding: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .mono-line {
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .best {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1px 3px;
+  }
+
+  .ok { font-weight: bold; }
+  .dim { color: #555; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  th, td {
+    border: 1px solid var(--ink);
+    padding: 3px 4px;
+    vertical-align: top;
+    text-align: left;
+  }
+
+  th {
+    color: var(--paper);
+    background: var(--ink);
+  }
+
+  tr.selected-row td {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .candidate-cell {
+    word-break: break-all;
+  }
+
+  .list-preview {
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    padding: 8px;
+    min-height: 130px;
+    overflow: auto;
+  }
+
+  .list-row {
+    white-space: pre;
+    font-variant-ligatures: none;
+  }
+
+  .list-row {
+    cursor: pointer;
+  }
+
+  .list-row:hover {
+    outline: 1px dotted var(--ink);
+  }
+
+  .selected-list-row {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .meter {
+    display: grid;
+    grid-template-columns: repeat(64, 1fr);
+    height: 15px;
+    border: 2px solid var(--ink);
+    margin-top: 5px;
+  }
+
+  .meter span:nth-child(odd) { background: var(--ink); }
+  .meter span:nth-child(even) { background: var(--paper); }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .control-row { grid-template-columns: 1fr; }
+    .weights { grid-template-columns: repeat(2, minmax(72px, 1fr)); }
+    .rule-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="intro">
+    <h1>md-recent Path Elision Playground</h1>
+    <p>This self-contained page exercises the proposed candidate-enumeration algorithm for the Markdown Recent Viewer. It keeps the filename whenever possible, scores complete path-segment candidates, and intentionally biases display budget toward folders near the filename.</p>
+  </section>
+
+  <section class="textbook">
+    <h2>What problem this page studies</h2>
+    <p>The Markdown Recent Viewer shows files that were edited or written during the current Pi session. Each row has a fixed part, such as the selection marker, timestamp, and tool name, followed by a relative file path. The fixed part is predictable. The path is not. Some paths are short enough to show directly, while ticket documents and nested extension files can be much wider than the terminal row.</p>
+    <p>End truncation is the wrong default for this UI because it often removes the filename. The filename is the object the user is about to open, so the algorithm must preserve it whenever it fits. The folders closest to the filename are usually the next most useful information because they distinguish common names such as <code>README.md</code>, <code>index.ts</code>, and <code>ui.ts</code>. The beginning of the path still matters because it identifies the broad repository area, but it should not consume most of the available width.</p>
+
+    <div class="rule-grid">
+      <div class="rule-card"><strong>1. Keep the target.</strong>The filename is shown in full whenever the filename itself fits inside the path budget.</div>
+      <div class="rule-card"><strong>2. Prefer nearby parents.</strong>Folders near the filename receive more score than folders near the path beginning.</div>
+      <div class="rule-card"><strong>3. Keep structure.</strong>The normal algorithm shows complete path segments and uses <code>.../</code> only between preserved segments.</div>
+    </div>
+
+    <h3>The algorithm in one pass</h3>
+    <ol>
+      <li>If the full path fits, return it unchanged.</li>
+      <li>Split the path into slash-separated segments. The final segment is the filename.</li>
+      <li>If the filename alone does not fit, return a tail-preserving filename fallback such as <code>…ending.markdown</code>.</li>
+      <li>Generate every middle-elided candidate made from a prefix slice, an ellipsis marker, and a suffix slice. Examples are <code>foo/.../bla.md</code>, <code>foo/.../bar/bla.md</code>, and <code>.../three/four/bar/bla.md</code>.</li>
+      <li>Discard candidates whose visible width is greater than the path budget.</li>
+      <li>Score each remaining candidate and choose the highest-scoring one.</li>
+    </ol>
+
+    <h3>The scoring rule</h3>
+    <p>The playground uses a deliberately small scoring model. It does not try to understand project semantics. It only expresses display priorities over path structure. The suffix side has higher value because it contains the filename and the folders that disambiguate it. The prefix side has lower value, plus a one-time bonus for keeping some beginning context when it is affordable.</p>
+    <div class="formula">score = suffixCharsWeight   × suffix character count
+      + prefixCharsWeight   × prefix character count
+      + suffixSegmentsWeight × suffix segment count
+      + prefixSegmentsWeight × prefix segment count
+      + prefixPresenceBonus  if at least one prefix segment is shown</div>
+    <p>The controls below expose these weights. Increasing <code>suffix chars</code> or <code>suffix segs</code> makes outputs move toward forms like <code>foo/.../three/four/bar/bla.md</code>. Increasing <code>prefix chars</code>, <code>prefix segs</code>, or <code>prefix bonus</code> makes outputs preserve more of the beginning, such as <code>foo/one/.../bar/bla.md</code>. The candidate table shows the exact alternatives and the score that made the selected candidate win.</p>
+
+    <h3>Worked scoring examples</h3>
+    <p>The default weights are suffix characters = 4, prefix characters = 1, suffix segments = 8, prefix segments = 2, and prefix presence bonus = 12. The table below uses the path <code>foo/one/two/three/four/bar/bla.md</code>. Slashes and the <code>.../</code> marker affect width, but the score counts only the preserved path segment names.</p>
+    <table class="example-table">
+      <thead>
+        <tr>
+          <th>Candidate</th>
+          <th>Calculation</th>
+          <th>Score</th>
+          <th>What it means</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>.../four/bar/bla.md</code></td>
+          <td><code>4×15 + 1×0 + 8×3 + 2×0 + 0</code></td>
+          <td><strong>84</strong></td>
+          <td>No beginning context, but strong filename-side context.</td>
+        </tr>
+        <tr>
+          <td><code>foo/.../bar/bla.md</code></td>
+          <td><code>4×10 + 1×3 + 8×2 + 2×1 + 12</code></td>
+          <td><strong>73</strong></td>
+          <td>Keeps the top-level folder, but shows less suffix context.</td>
+        </tr>
+        <tr>
+          <td><code>foo/.../four/bar/bla.md</code></td>
+          <td><code>4×15 + 1×3 + 8×3 + 2×1 + 12</code></td>
+          <td><strong>101</strong></td>
+          <td>Keeps both the top-level folder and the richer filename-side context.</td>
+        </tr>
+        <tr>
+          <td><code>foo/one/.../bla.md</code></td>
+          <td><code>4×6 + 1×6 + 8×1 + 2×2 + 12</code></td>
+          <td><strong>54</strong></td>
+          <td>Spends characters on the beginning, so it loses too much suffix context.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>The important comparison is not that every candidate must include <code>foo</code>. The important comparison is that <code>foo/.../four/bar/bla.md</code> beats <code>foo/one/.../bla.md</code>. That is the suffix bias in action: once the filename is safe, nearby parent folders usually explain more than extra leading folders.</p>
+  </section>
+
+  <div class="grid">
+    <section>
+      <div class="panel">
+        <h2>Inputs</h2>
+        <div class="control-row">
+          <label for="rowWidth">Simulated row width</label>
+          <input id="rowWidth" type="range" min="24" max="140" value="78">
+          <strong id="rowWidthValue">78</strong>
+        </div>
+        <div class="control-row">
+          <label for="fixedPrefix">Fixed row prefix</label>
+          <input id="fixedPrefix" type="text" value="> 08:41  edit   ">
+          <span id="prefixWidth">0</span>
+        </div>
+        <div class="control-row">
+          <label for="selectedPath">Focused path</label>
+          <select id="selectedPath"></select>
+          <span></span>
+        </div>
+        <label for="paths">Paths, one per line</label>
+        <textarea id="paths" spellcheck="false">extensions/markdown-recent-viewer/ui.ts
+extensions/markdown-recent-viewer/README.md
+ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/design/01-path-elision-algorithm-design-guide.md
+foo/one/two/three/four/bar/bla.md
+src/components/documentation/markdown/recent/viewer/path-elision-playground.md
+packages/rich-widgets/src/widgets/markdown/recent-viewer/parts.ts
+very-long-filename-with-important-ending.markdown
+docs/pi-tui-ui-authoring-guide.md</textarea>
+        <div class="button-row">
+          <button id="loadSamples">Load samples</button>
+          <button id="generatePaths">Generate 1,000 paths</button>
+          <button id="clearPaths">Clear</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Scoring Weights</h2>
+        <div class="weights">
+          <label>suffix chars <input id="wSuffixChars" type="number" value="4" min="0" step="1"></label>
+          <label>prefix chars <input id="wPrefixChars" type="number" value="1" min="0" step="1"></label>
+          <label>suffix segs <input id="wSuffixSegments" type="number" value="8" min="0" step="1"></label>
+          <label>prefix segs <input id="wPrefixSegments" type="number" value="2" min="0" step="1"></label>
+          <label>prefix bonus <input id="wPrefixPresence" type="number" value="12" min="0" step="1"></label>
+        </div>
+        <div class="mini-formula">score = suffixChars × suffix character count
+      + prefixChars × prefix character count
+      + suffixSegs × suffix segment count
+      + prefixSegs × prefix segment count
+      + prefixBonus when prefix is shown</div>
+        <p class="dim" style="margin-top: 8px;">Higher suffix weights mean more characters and complete folders near the filename win over additional beginning folders.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Benchmark</h2>
+        <div class="control-row">
+          <label for="benchCount">Random paths</label>
+          <input id="benchCount" type="number" min="100" max="200000" step="100" value="50000">
+          <span></span>
+        </div>
+        <div class="button-row">
+          <button id="runBenchmark">Run benchmark</button>
+          <button id="runWidthSweep">Width sweep</button>
+        </div>
+        <div id="benchmarkOutput" class="readout" style="margin-top: 8px;">No benchmark yet.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel">
+        <h2>Focused Result</h2>
+        <div id="resultOutput" class="readout mono-line"></div>
+        <div id="widthMeter" class="meter" aria-hidden="true"></div>
+      </div>
+
+      <div class="panel">
+        <h2>List Preview</h2>
+        <div id="listPreview" class="list-preview"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Candidate Table</h2>
+        <div id="candidateSummary" class="readout" style="margin-bottom: 8px;"></div>
+        <div style="max-height: 440px; overflow: auto; border: 2px solid #000;">
+          <table>
+            <thead>
+              <tr>
+                <th>chosen</th>
+                <th>candidate</th>
+                <th>width</th>
+                <th>score</th>
+                <th>prefix</th>
+                <th>suffix</th>
+              </tr>
+            </thead>
+            <tbody id="candidateRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  const samplePaths = `extensions/markdown-recent-viewer/ui.ts
+extensions/markdown-recent-viewer/README.md
+ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/design/01-path-elision-algorithm-design-guide.md
+foo/one/two/three/four/bar/bla.md
+src/components/documentation/markdown/recent/viewer/path-elision-playground.md
+packages/rich-widgets/src/widgets/markdown/recent-viewer/parts.ts
+very-long-filename-with-important-ending.markdown
+docs/pi-tui-ui-authoring-guide.md`;
+
+  const words = [
+    "extensions", "markdown", "recent", "viewer", "design", "guide", "components", "widgets",
+    "feature", "branch", "session", "history", "src", "docs", "ttmp", "packages", "playground",
+    "path", "elision", "algorithm", "candidate", "score", "suffix", "prefix", "render", "ui",
+    "model", "tests", "fixtures", "reference", "notes", "draft", "final"
+  ];
+  const filenames = [
+    "ui.ts", "index.ts", "README.md", "parts.ts", "01-diary.md", "path-elision-guide.md",
+    "algorithm-design-guide.md", "viewer-state.markdown", "rendering-notes.md", "candidate-table.ts",
+    "smoke-test-results.md", "implementation-plan.md"
+  ];
+
+  let focusedIndex = 0;
+
+  const $ = (id) => document.getElementById(id);
+
+  function charWidth(ch) {
+    const cp = ch.codePointAt(0);
+    if (cp === 0) return 0;
+    if (cp < 32 || (cp >= 0x7f && cp < 0xa0)) return 0;
+    return cp >= 0x1100 && (
+      cp <= 0x115f || cp === 0x2329 || cp === 0x232a ||
+      (cp >= 0x2e80 && cp <= 0xa4cf && cp !== 0x303f) ||
+      (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0xfe10 && cp <= 0xfe19) ||
+      (cp >= 0xfe30 && cp <= 0xfe6f) ||
+      (cp >= 0xff00 && cp <= 0xff60) ||
+      (cp >= 0xffe0 && cp <= 0xffe6) ||
+      (cp >= 0x1f300 && cp <= 0x1faff)
+    ) ? 2 : 1;
+  }
+
+  function visibleWidth(text) {
+    let width = 0;
+    for (const ch of Array.from(String(text))) width += charWidth(ch);
+    return width;
+  }
+
+  function takeTailToWidth(text, width) {
+    if (width <= 0) return "";
+    let result = "";
+    const chars = Array.from(String(text));
+    for (let i = chars.length - 1; i >= 0; i--) {
+      const next = chars[i] + result;
+      if (visibleWidth(next) > width) break;
+      result = next;
+    }
+    return result;
+  }
+
+  function elideFilenameTail(filename, width) {
+    if (width <= 0) return "";
+    if (visibleWidth(filename) <= width) return filename;
+    if (width <= visibleWidth("…")) return "…".slice(0, width);
+    return "…" + takeTailToWidth(filename, width - visibleWidth("…"));
+  }
+
+  function segmentChars(parts) {
+    return parts.reduce((sum, part) => sum + visibleWidth(part), 0);
+  }
+
+  function weights() {
+    return {
+      suffixChars: numberValue("wSuffixChars"),
+      prefixChars: numberValue("wPrefixChars"),
+      suffixSegments: numberValue("wSuffixSegments"),
+      prefixSegments: numberValue("wPrefixSegments"),
+      prefixPresence: numberValue("wPrefixPresence"),
+    };
+  }
+
+  function numberValue(id) {
+    const parsed = Number($(id).value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function scoreCandidate(candidate, w) {
+    const prefixChars = segmentChars(candidate.prefix);
+    const suffixChars = segmentChars(candidate.suffix);
+    const prefixSegments = candidate.prefix.length;
+    const suffixSegments = candidate.suffix.length;
+    return w.suffixChars * suffixChars
+      + w.prefixChars * prefixChars
+      + w.suffixSegments * suffixSegments
+      + w.prefixSegments * prefixSegments
+      + (prefixSegments > 0 ? w.prefixPresence : 0);
+  }
+
+  function renderCandidate(prefix, suffix) {
+    if (prefix.length === 0) return ".../" + suffix.join("/");
+    return prefix.join("/") + "/.../" + suffix.join("/");
+  }
+
+  function compareCandidates(a, b) {
+    if (a.score !== b.score) return a.score - b.score;
+    if (a.suffix.length !== b.suffix.length) return a.suffix.length - b.suffix.length;
+    if (a.prefix.length !== b.prefix.length) return a.prefix.length - b.prefix.length;
+    if (a.width !== b.width) return b.width - a.width;
+    return b.rendered.localeCompare(a.rendered);
+  }
+
+  function elidePathForWidth(path, width, w = weights()) {
+    const original = String(path);
+    if (width <= 0) {
+      return { rendered: "", reason: "zero-width", candidates: [], considered: 0, valid: 0 };
+    }
+    if (visibleWidth(original) <= width) {
+      const full = { rendered: original, width: visibleWidth(original), score: Infinity, prefix: [], suffix: [], kind: "full" };
+      return { rendered: original, reason: "full path fits", candidates: [full], best: full, considered: 1, valid: 1 };
+    }
+
+    const normalized = original.replace(/\\/g, "/");
+    const segments = normalized.split("/").filter(Boolean);
+    const filename = segments.at(-1) || original;
+
+    if (visibleWidth(filename) > width) {
+      const fallback = elideFilenameTail(filename, width);
+      const item = { rendered: fallback, width: visibleWidth(fallback), score: -1, prefix: [], suffix: [filename], kind: "filename-tail" };
+      return { rendered: fallback, reason: "filename tail fallback", candidates: [item], best: item, considered: 1, valid: 1 };
+    }
+
+    if (segments.length <= 1) {
+      const item = { rendered: filename, width: visibleWidth(filename), score: 0, prefix: [], suffix: [filename], kind: "filename" };
+      return { rendered: filename, reason: "single filename", candidates: [item], best: item, considered: 1, valid: 1 };
+    }
+
+    const candidates = [];
+    let considered = 0;
+
+    for (let prefixCount = 0; prefixCount < segments.length; prefixCount++) {
+      const maxSuffix = segments.length - prefixCount - 1;
+      for (let suffixCount = 1; suffixCount <= maxSuffix; suffixCount++) {
+        considered++;
+        const prefix = segments.slice(0, prefixCount);
+        const suffix = segments.slice(segments.length - suffixCount);
+        const rendered = renderCandidate(prefix, suffix);
+        const renderedWidth = visibleWidth(rendered);
+        if (renderedWidth > width) continue;
+        const candidate = {
+          rendered,
+          width: renderedWidth,
+          score: scoreCandidate({ prefix, suffix }, w),
+          prefix,
+          suffix,
+          kind: "middle",
+        };
+        candidates.push(candidate);
+      }
+    }
+
+    if (candidates.length === 0) {
+      const item = { rendered: filename, width: visibleWidth(filename), score: 0, prefix: [], suffix: [filename], kind: "filename" };
+      return { rendered: filename, reason: "filename fallback", candidates: [item], best: item, considered, valid: 1 };
+    }
+
+    candidates.sort((a, b) => compareCandidates(b, a));
+    return { rendered: candidates[0].rendered, reason: "scored candidate", candidates, best: candidates[0], considered, valid: candidates.length };
+  }
+
+  function getPaths() {
+    return $("paths").value.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  }
+
+  function pathWidth() {
+    return Math.max(0, Number($("rowWidth").value) - visibleWidth($("fixedPrefix").value));
+  }
+
+  function syncSelect() {
+    const paths = getPaths();
+    const select = $("selectedPath");
+    focusedIndex = Math.max(0, Math.min(focusedIndex, Math.max(0, paths.length - 1)));
+    select.innerHTML = "";
+    paths.forEach((path, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${index + 1}. ${path}`;
+      select.appendChild(option);
+    });
+    select.value = String(focusedIndex);
+  }
+
+  function padRight(text, width) {
+    return text + " ".repeat(Math.max(0, width - visibleWidth(text)));
+  }
+
+  function render() {
+    $("rowWidthValue").textContent = $("rowWidth").value;
+    $("prefixWidth").textContent = `${visibleWidth($("fixedPrefix").value)} cols`;
+    syncSelect();
+
+    const paths = getPaths();
+    const selectedIndex = focusedIndex;
+    const selectedPath = paths[selectedIndex] || "";
+    const width = pathWidth();
+    const rowWidth = Number($("rowWidth").value);
+    const result = elidePathForWidth(selectedPath, width);
+    const fixedPrefix = $("fixedPrefix").value;
+    const row = fixedPrefix + result.rendered;
+
+    $("resultOutput").textContent = [
+      `row width:       ${rowWidth}`,
+      `fixed prefix:    ${visibleWidth(fixedPrefix)} cols`,
+      `path budget:     ${width} cols`,
+      `chosen width:    ${visibleWidth(result.rendered)} cols`,
+      `reason:          ${result.reason}`,
+      `rendered path:   ${result.rendered}`,
+      `rendered row:    ${row}`,
+    ].join("\n");
+
+    renderMeter(rowWidth, visibleWidth(row));
+    renderList(paths, selectedIndex, rowWidth, fixedPrefix);
+    renderCandidates(result);
+  }
+
+  function renderMeter(rowWidth, used) {
+    const meter = $("widthMeter");
+    meter.innerHTML = "";
+    const cells = 64;
+    const filled = Math.max(0, Math.min(cells, Math.round((used / Math.max(1, rowWidth)) * cells)));
+    for (let i = 0; i < cells; i++) {
+      const span = document.createElement("span");
+      span.style.background = i < filled ? "#000" : "#fff";
+      meter.appendChild(span);
+    }
+  }
+
+  function renderList(paths, selectedIndex, rowWidth, fixedPrefix) {
+    const list = $("listPreview");
+    list.innerHTML = "";
+    const width = Math.max(0, rowWidth - visibleWidth(fixedPrefix));
+    paths.slice(0, 120).forEach((path, index) => {
+      const result = elidePathForWidth(path, width);
+      const div = document.createElement("div");
+      div.className = "list-row" + (index === selectedIndex ? " selected-list-row" : "");
+      div.title = "Click to focus this path";
+      div.textContent = padRight(fixedPrefix + result.rendered, rowWidth);
+      div.addEventListener("click", () => {
+        focusedIndex = index;
+        $("selectedPath").value = String(focusedIndex);
+        render();
+      });
+      list.appendChild(div);
+    });
+    if (paths.length > 120) {
+      const div = document.createElement("div");
+      div.className = "list-row dim";
+      div.textContent = `... ${paths.length - 120} more rows not shown`;
+      list.appendChild(div);
+    }
+  }
+
+  function renderCandidates(result) {
+    $("candidateSummary").textContent = `considered: ${result.considered}  valid: ${result.valid}  chosen: ${result.best ? result.best.rendered : ""}`;
+    const body = $("candidateRows");
+    body.innerHTML = "";
+    const rows = result.candidates.slice(0, 300);
+    rows.forEach((candidate, index) => {
+      const tr = document.createElement("tr");
+      if (candidate === result.best || candidate.rendered === result.rendered && index === 0) tr.className = "selected-row";
+      tr.innerHTML = `
+        <td>${candidate === result.best || index === 0 ? "yes" : ""}</td>
+        <td class="candidate-cell"></td>
+        <td>${candidate.width}</td>
+        <td>${candidate.score === Infinity ? "∞" : candidate.score}</td>
+        <td>${candidate.prefix.length}</td>
+        <td>${candidate.suffix.length}</td>
+      `;
+      tr.children[1].textContent = candidate.rendered;
+      body.appendChild(tr);
+    });
+  }
+
+  function randomChoice(items) {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  function randomPath() {
+    const depth = 2 + Math.floor(Math.random() * 11);
+    const parts = [];
+    for (let i = 0; i < depth; i++) parts.push(randomChoice(words));
+    parts.push(randomChoice(filenames));
+    return parts.join("/");
+  }
+
+  function generatedPaths(count) {
+    const paths = [];
+    for (let i = 0; i < count; i++) paths.push(randomPath());
+    return paths;
+  }
+
+  function runBenchmark(widths) {
+    const count = Math.max(1, Number($("benchCount").value) || 1);
+    const paths = generatedPaths(count);
+    const w = weights();
+    const lines = [];
+    widths.forEach((width) => {
+      let considered = 0;
+      let valid = 0;
+      let renderedWidth = 0;
+      const start = performance.now();
+      for (const path of paths) {
+        const result = elidePathForWidth(path, width, w);
+        considered += result.considered;
+        valid += result.valid;
+        renderedWidth += visibleWidth(result.rendered);
+      }
+      const elapsed = performance.now() - start;
+      const perSecond = Math.round(count / (elapsed / 1000));
+      lines.push([
+        `width ${String(width).padStart(3)}`,
+        `${elapsed.toFixed(2).padStart(9)} ms`,
+        `${String(perSecond).padStart(9)} paths/s`,
+        `avg considered ${(considered / count).toFixed(1)}`,
+        `avg valid ${(valid / count).toFixed(1)}`,
+        `avg rendered width ${(renderedWidth / count).toFixed(1)}`,
+      ].join("  "));
+    });
+    $("benchmarkOutput").textContent = lines.join("\n");
+  }
+
+  function wire() {
+    ["rowWidth", "fixedPrefix", "paths", "wSuffixChars", "wPrefixChars", "wSuffixSegments", "wPrefixSegments", "wPrefixPresence"].forEach((id) => {
+      $(id).addEventListener("input", render);
+      $(id).addEventListener("change", render);
+    });
+    $("selectedPath").addEventListener("change", () => {
+      focusedIndex = Number($("selectedPath").value || 0);
+      render();
+    });
+    $("loadSamples").addEventListener("click", () => { focusedIndex = 0; $("paths").value = samplePaths; render(); });
+    $("generatePaths").addEventListener("click", () => { focusedIndex = 0; $("paths").value = generatedPaths(1000).join("\n"); render(); });
+    $("clearPaths").addEventListener("click", () => { focusedIndex = 0; $("paths").value = ""; render(); });
+    $("runBenchmark").addEventListener("click", () => runBenchmark([pathWidth()]));
+    $("runWidthSweep").addEventListener("click", () => runBenchmark([16, 24, 32, 40, 56, 72, 96]));
+  }
+
+  wire();
+  render();
+})();
+</script>
+</body>
+</html>
