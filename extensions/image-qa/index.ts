@@ -89,26 +89,35 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 		label: "Ask questions about images",
 		description:
 			"Ask a vision-capable model questions about one or more images. " +
+			"You can provide multiple images in one call, for example to compare before/after screenshots, " +
+			"two versions of a diagram, or several related photos. " +
+			"The images are analyzed by a vision-language model (VLM), so results are interpretations, " +
+			"not guaranteed ground truth: visual details may be missed, hallucinated, or imperfect. " +
 			"IMPORTANT: This tool is stateless — each call starts a fresh session with no memory of " +
 			"previous calls. You MUST include all relevant context in the question parameter: describe " +
 			"what you already know, what you've already asked about these or related images, and what " +
 			"you're looking for now. Do not assume the model knows anything from prior turns or the " +
 			"current conversation.",
 		promptSnippet:
-			"ask_questions_about_images(images, question) — ask a vision model about images (stateless: include all context in question)",
+			"ask_questions_about_images(images, question) — ask a vision model about one or multiple images, including before/after comparisons (stateless: include all context in question)",
 		promptGuidelines: [
 			"When using ask_questions_about_images, include all relevant context in the question — the tool has no memory of past calls.",
+			"Provide multiple images in one ask_questions_about_images call when comparing before/after states, alternatives, screenshots, or related visual evidence.",
+			"Treat ask_questions_about_images results as VLM interpretations rather than perfect visual ground truth; verify important details when possible.",
 		],
 		parameters: Type.Object({
 			images: Type.Array(Type.String(), {
 				description:
-					"One or more image file paths (relative to cwd or absolute) to analyze.",
+					"One or more image file paths (relative to cwd or absolute) to analyze. " +
+					"Pass multiple images in the same call for comparisons such as before/after screenshots, " +
+					"two versions of a diagram, or related photos.",
 			}),
 			question: Type.String({
 				description:
 					"The question to ask about the images. MUST include all surrounding context " +
 					"because the tool is stateless — it does not remember past images, past questions, " +
-					"or any conversation history. Every invocation is a fresh session.",
+					"or any conversation history. Every invocation is a fresh session. " +
+					"Remember that answers come from a VLM interpretation and may miss or misread visual details.",
 			}),
 		}),
 
