@@ -42,6 +42,8 @@ the vision model.
 
 The tool-call display renders both `context` and `question`, so you can inspect
 what surrounding context the agent chose to send before the VLM answer appears.
+While `pinocchio` is running, stdout/stderr updates are streamed back into the
+Pi tool result when `pinocchio` flushes incremental output.
 
 ### Under the hood
 

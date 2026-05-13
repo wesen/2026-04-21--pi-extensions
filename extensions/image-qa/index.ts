@@ -2,12 +2,28 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@mariozechner/pi-ai";
 import { Text } from "@mariozechner/pi-tui";
 import { registerPiExtension } from "../_shared/registry";
+import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { resolve } from "path";
 
 interface ImageQaState {
 	profile: string;
 	timeout: number;
+}
+
+interface StreamingProcessResult {
+	code: number;
+	stdout: string;
+	stderr: string;
+	aborted: boolean;
+	timedOut: boolean;
+}
+
+interface StreamingProcessOptions {
+	cwd: string;
+	signal?: AbortSignal;
+	timeoutMs: number;
+	onOutput: (stdout: string, stderr: string) => void;
 }
 
 function promptSection(title: string, value: string): string {
@@ -28,6 +44,91 @@ function argString(args: Record<string, unknown>, key: string): string {
 
 function argImages(args: Record<string, unknown>): string[] {
 	return Array.isArray(args.images) ? args.images.filter((value): value is string => typeof value === "string") : [];
+}
+
+function runStreamingProcess(command: string, args: string[], options: StreamingProcessOptions): Promise<StreamingProcessResult> {
+	return new Promise((resolve, reject) => {
+		if (options.signal?.aborted) {
+			resolve({ code: -1, stdout: "", stderr: "", aborted: true, timedOut: false });
+			return;
+		}
+
+		let stdout = "";
+		let stderr = "";
+		let aborted = false;
+		let timedOut = false;
+		let settled = false;
+		let updateTimer: ReturnType<typeof setTimeout> | undefined;
+		let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
+		let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+
+		const child = spawn(command, args, {
+			cwd: options.cwd,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		const emitUpdate = () => {
+			updateTimer = undefined;
+			options.onOutput(stdout, stderr);
+		};
+
+		const scheduleUpdate = () => {
+			if (updateTimer) return;
+			updateTimer = setTimeout(emitUpdate, 150);
+		};
+
+		const cleanup = () => {
+			if (updateTimer) clearTimeout(updateTimer);
+			if (forceKillTimer) clearTimeout(forceKillTimer);
+			if (timeoutTimer) clearTimeout(timeoutTimer);
+			options.signal?.removeEventListener("abort", onAbort);
+		};
+
+		const terminate = () => {
+			if (child.exitCode !== null || child.signalCode !== null) return;
+			child.kill("SIGTERM");
+			forceKillTimer = setTimeout(() => {
+				if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+			}, 5_000);
+		};
+
+		const onAbort = () => {
+			aborted = true;
+			terminate();
+		};
+
+		timeoutTimer = setTimeout(() => {
+			timedOut = true;
+			terminate();
+		}, options.timeoutMs);
+
+		options.signal?.addEventListener("abort", onAbort, { once: true });
+
+		child.stdout.on("data", (chunk: Buffer) => {
+			stdout += chunk.toString("utf8");
+			scheduleUpdate();
+		});
+
+		child.stderr.on("data", (chunk: Buffer) => {
+			stderr += chunk.toString("utf8");
+			scheduleUpdate();
+		});
+
+		child.on("error", (error) => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			reject(error);
+		});
+
+		child.on("close", (code) => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			options.onOutput(stdout, stderr);
+			resolve({ code: code ?? -1, stdout, stderr, aborted, timedOut });
+		});
+	});
 }
 
 export default function imageQaExtension(pi: ExtensionAPI): void {
@@ -148,7 +249,7 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 			}),
 		}),
 
-		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const { images, context, question } = params;
 			if (!question.trim()) {
 				return {
@@ -191,11 +292,41 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 				pinocchioPrompt,
 			];
 
+			const baseDetails = { profile: state.profile, context, question };
+			onUpdate?.({
+				content: [{ type: "text" as const, text: "Starting image QA via pinocchio..." }],
+				details: { ...baseDetails, streaming: true },
+			});
+
 			try {
-				const result = await pi.exec("pinocchio", args, {
+				const result = await runStreamingProcess("pinocchio", args, {
+					cwd: ctx.cwd,
 					signal,
-					timeout: state.timeout * 1000,
+					timeoutMs: state.timeout * 1000,
+					onOutput: (stdout, stderr) => {
+						const text = stdout || (stderr ? `pinocchio stderr:\n${stderr}` : "Waiting for pinocchio output...");
+						onUpdate?.({
+							content: [{ type: "text" as const, text }],
+							details: { ...baseDetails, streaming: true, stderr: stderr || undefined },
+						});
+					},
 				});
+
+				if (result.aborted) {
+					const partial = result.stdout.trim() ? `\n\nPartial output:\n${result.stdout}` : "";
+					return {
+						content: [{ type: "text" as const, text: `Image QA call aborted.${partial}` }],
+						details: { ...baseDetails, error: true, aborted: true, stderr: result.stderr || undefined },
+					};
+				}
+
+				if (result.timedOut) {
+					const partial = result.stdout.trim() ? `\n\nPartial output:\n${result.stdout}` : "";
+					return {
+						content: [{ type: "text" as const, text: `Image QA call timed out after ${state.timeout}s.${partial}` }],
+						details: { ...baseDetails, error: true, timedOut: true, stderr: result.stderr || undefined },
+					};
+				}
 
 				if (result.code !== 0) {
 					return {
@@ -205,21 +336,15 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 								text: `pinocchio exited with code ${result.code}:\n${result.stderr}\n${result.stdout}`,
 							},
 						],
-						details: { error: true, exitCode: result.code },
+						details: { ...baseDetails, error: true, exitCode: result.code, stderr: result.stderr || undefined },
 					};
 				}
 
 				return {
 					content: [{ type: "text" as const, text: result.stdout }],
-					details: { profile: state.profile, context, question },
+					details: { ...baseDetails, streaming: false, stderr: result.stderr || undefined },
 				};
 			} catch (err: unknown) {
-				if (signal?.aborted) {
-					return {
-						content: [{ type: "text" as const, text: "Image QA call aborted." }],
-						details: { error: true, aborted: true },
-					};
-				}
 				const message = err instanceof Error ? err.message : String(err);
 				return {
 					content: [
@@ -228,7 +353,7 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 							text: `Error running pinocchio: ${message}`,
 						},
 					],
-					details: { error: true },
+					details: { ...baseDetails, error: true },
 				};
 			}
 		},
