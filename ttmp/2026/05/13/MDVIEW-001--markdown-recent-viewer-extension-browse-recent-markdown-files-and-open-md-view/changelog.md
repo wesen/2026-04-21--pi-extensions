@@ -24,3 +24,14 @@ Step 2: Corrected design to use session history edit/write tool calls instead of
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/13/MDVIEW-001--markdown-recent-viewer-extension-browse-recent-markdown-files-and-open-md-view/design/01-extension-design.md — Updated design with session-history extraction algorithm
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/13/MDVIEW-001--markdown-recent-viewer-extension-browse-recent-markdown-files-and-open-md-view/tasks.md — Updated task list to replace mtime scanner with session-history extractor
 
+
+## 2026-05-13
+
+Step 3: Implemented markdown-recent-viewer extension (commit c5c1ce7) and validated pi --list-models
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/markdown-recent-viewer/history.ts — Session-history extractor
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/markdown-recent-viewer/index.ts — Registration/settings/commands/md-view invocation
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/markdown-recent-viewer/ui.ts — TUI picker
+

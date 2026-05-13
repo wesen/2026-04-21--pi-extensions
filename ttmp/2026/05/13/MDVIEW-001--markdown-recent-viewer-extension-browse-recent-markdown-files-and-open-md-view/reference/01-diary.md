@@ -11,13 +11,22 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: extensions/markdown-recent-viewer/README.md
+      Note: User-facing docs (commit c5c1ce7)
+    - Path: extensions/markdown-recent-viewer/history.ts
+      Note: Session-history edit/write extractor for Markdown files (commit c5c1ce7)
+    - Path: extensions/markdown-recent-viewer/index.ts
+      Note: Extension registration
+    - Path: extensions/markdown-recent-viewer/ui.ts
+      Note: TUI picker overlay for recent Markdown files (commit c5c1ce7)
 ExternalSources: []
-Summary: "Implementation diary for the markdown recent viewer extension"
+Summary: Implementation diary for the markdown recent viewer extension
 LastUpdated: 2026-05-13T00:00:00-04:00
-WhatFor: "Track design and implementation of markdown-recent-viewer"
-WhenToUse: "Read before resuming MDVIEW-001"
+WhatFor: Track design and implementation of markdown-recent-viewer
+WhenToUse: Read before resuming MDVIEW-001
 ---
+
 
 # Diary
 
@@ -138,3 +147,62 @@ Filesystem `mtime` answers a different question: “what changed on disk recentl
 - Tool call source shape: `{ type: "toolCall", id, name, arguments }`
 - Tool result source shape: `{ role: "toolResult", toolCallId, toolName, isError, timestamp }`
 - Extension should resolve relative paths against `ctx.cwd`.
+
+## Step 3: Implement extension
+
+Implemented the `markdown-recent-viewer` extension using the corrected session-history design. The extension registers with the shared framework, extracts successful `edit`/`write` tool calls for Markdown files, shows them in a TUI picker, and opens the selected file with `md-view view`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Implement the MDVIEW-001 extension from the corrected design, validate, and keep ticket bookkeeping current.
+
+**Inferred user intent:** Move from design to working extension code.
+
+**Commit (code):** c5c1ce7 — "feat(markdown-recent-viewer): add session-history markdown picker"
+
+### What I did
+- Created `extensions/markdown-recent-viewer/history.ts` with session-history extraction.
+- Created `extensions/markdown-recent-viewer/ui.ts` with a keyboard-driven TUI picker.
+- Created `extensions/markdown-recent-viewer/index.ts` with shared framework registration, settings, commands, picker wiring, and `md-view view` invocation.
+- Created `extensions/markdown-recent-viewer/README.md`.
+- Validated with `timeout 20 pi --list-models` (exit code 0).
+- Checked off tasks 1-5.
+
+### Why
+The corrected requirement is session-history based. Implementation needed to join assistant tool-call arguments with successful tool-result messages so the picker lists only files the agent actually edited/wrote.
+
+### What worked
+- Load validation passed on first run.
+- TUI picker follows existing custom component patterns: stateful input handling, `render(width)`, `matchesKey`, `truncateToWidth`, and `tui.requestRender()`.
+- The extractor uses `getBranch()` by default, so it reflects the active conversation path.
+
+### What didn't work
+- No runtime failures yet; smoke test still pending.
+
+### What I learned
+- `write` and `edit` target paths live in assistant `toolCall.arguments.path`, while execution success lives in later `toolResult` messages. The extractor needs a pending map keyed by `toolCallId`.
+- `timeout 20 pi --list-models` is enough to catch TypeScript/import issues for the new multi-file extension.
+
+### What was tricky to build
+- The TUI result loop supports a `refresh` action by closing and reopening the picker with rebuilt items. This avoids trying to pass mutable item state into an already-open component.
+- The extractor de-duplicates by normalized absolute path, keeping the newest successful edit/write occurrence.
+
+### What warrants a second pair of eyes
+- Whether hidden missing files should be the default; it keeps Enter reliable but may hide useful history.
+- Whether current branch only should remain default for users who navigate/fork sessions.
+
+### What should be done in the future
+- Symlink into `~/.pi/agent/extensions` and smoke test with tmux.
+- Exercise the picker after creating/editing a Markdown file in the live session.
+
+### Code review instructions
+- Start with `history.ts:getRecentMarkdownItems()` and verify tool-call/tool-result correlation.
+- Review `ui.ts:RecentMarkdownPicker` for keyboard behavior and rendering bounds.
+- Review `index.ts:openWithMdView()` for argv construction and error notification.
+
+### Technical details
+- Commands: `/markdown-recent-viewer`, `/md-recent`
+- Default settings: max 50 results, `.md,.markdown`, current branch only, hide missing files, no dark/no-reload flags.
+- md-view command: `md-view view [--dark] [--no-reload] <absolute path>`
