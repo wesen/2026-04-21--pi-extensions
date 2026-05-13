@@ -12,7 +12,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: extensions/markdown-recent-viewer/ui.ts
-      Note: Implementation target for the future path elision algorithm
+      Note: |-
+        Implementation target for the future path elision algorithm
+        Implemented candidate-scored path elision in Step 5 (commit 8ac4db0836456d2e66d834abe17abbfdb57de172)
     - Path: ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/design/01-path-elision-algorithm-design-guide.md
       Note: Design guide created and uploaded in Step 1
     - Path: ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/playbooks/01-path-elision-playground.html
@@ -23,6 +25,7 @@ LastUpdated: 2026-05-13T08:47:19.269810642-04:00
 WhatFor: Use to resume the md-recent path elision design and implementation work.
 WhenToUse: Read before changing markdown-recent-viewer path rendering or the associated design guide.
 ---
+
 
 
 
@@ -346,3 +349,100 @@ I also repeated the score formula inside the `Scoring Weights` card. That keeps 
 - Added CSS classes: `mini-formula` and `example-table`.
 - Repeated formula location: `Scoring Weights` panel.
 - Worked example path: `foo/one/two/three/four/bar/bla.md`.
+
+## Step 5: Port Candidate-Scored Elision into the Picker
+
+The algorithm moved from design artifact into the actual `markdown-recent-viewer` picker. The code now treats path elision as a candidate selection problem: enumerate complete-segment middle-elision candidates, discard candidates wider than the row budget, score the remaining candidates with the suffix-biased policy, and render the winner.
+
+This step also separated the previous ticket artifacts from the implementation commit. The design guide, playground, and earlier diary were committed first, then the TypeScript implementation was committed as a focused code change.
+
+### Prompt Context
+
+**User prompt (verbatim):** "implement the new better algorithm. commit at appropriate intervals. keep a diary"
+
+**Assistant interpretation:** Replace the prototype path elision helper with the designed candidate-scoring algorithm, make sensible git commits during the work, and update the ticket diary.
+
+**Inferred user intent:** The user wants the reviewed design to become production extension code while preserving a clean development record.
+
+**Commit (docs):** 9470b5c — "docs: add md-recent path elision design ticket"
+
+**Commit (code):** 8ac4db0836456d2e66d834abe17abbfdb57de172 — "feat(md-recent): score path elision candidates"
+
+### What I did
+
+- Committed the previously created ticket artifacts before changing code:
+  - `ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/design/01-path-elision-algorithm-design-guide.md`
+  - `ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/playbooks/01-path-elision-playground.html`
+  - `ttmp/2026/05/13/PI-EXT-MD-RECENT-ELISION--improve-md-recent-path-elision/reference/01-diary.md`
+  - ticket index, README, tasks, and changelog
+- Replaced the greedy `elidePathForWidth()` prototype in `extensions/markdown-recent-viewer/ui.ts` with helper functions for:
+  - suffix-biased scoring weights,
+  - candidate rendering,
+  - segment character counting,
+  - filename-tail fallback,
+  - deterministic candidate tie-breaking,
+  - candidate enumeration and winner selection.
+- Kept `renderItem()` as the row-level budget boundary: it computes the fixed prefix width, gives the remaining width to `elidePathForWidth()`, and then applies final row truncation defensively.
+- Ran extension-load validation:
+  - `timeout 20 pi --list-models >/tmp/pi-list-models-md-recent.out && echo "pi load ok"`
+- Committed the code change as `8ac4db0836456d2e66d834abe17abbfdb57de172`.
+- Checked docmgr task 3, updated the changelog, and related `ui.ts` to this diary.
+
+### Why
+
+- The prototype encoded display policy through loop order. The new helper encodes display policy through a small scoring function, which is easier to inspect and tune.
+- Candidate enumeration considers every complete-segment rendering that fits, so the selected output is not an accident of greedy growth.
+- Keeping the row budget calculation outside the helper preserves the component boundary: row rendering knows about selection/time/tool prefixes, while path elision knows only about a path and a width.
+
+### What worked
+
+- The TypeScript extension loaded successfully under `timeout 20 pi --list-models`.
+- The code commit is focused on `extensions/markdown-recent-viewer/ui.ts`.
+- Docmgr task 3 is now checked.
+
+### What didn't work
+
+- N/A. No implementation or validation command failed during this step.
+
+### What I learned
+
+- The design-guide algorithm ports cleanly into the TUI helper because the core algorithm is pure and width-driven.
+- Candidate scoring needs only a few small helpers when the policy is explicit: render candidate, measure preserved segment characters, score candidate, compare candidate.
+- The existing `renderItem()` structure was already the right integration point; the main missing piece was the stronger `elidePathForWidth()` implementation.
+
+### What was tricky to build
+
+- The main tricky detail was avoiding misleading candidates that preserve all path segments with an ellipsis inserted between them. The enumeration loop uses `maxSuffixCount = segments.length - prefixCount - 1`, so every candidate actually omits at least one segment.
+- Another subtle detail was tie-breaking. Equal scores are possible, so the implementation now prefers more suffix segments, then more prefix segments, then shorter rendered width, then lexical order for deterministic output.
+- The filename fallback had to remain separate from normal candidate rendering. Normal candidates preserve complete segments; only the overlong filename fallback slices a string tail.
+
+### What warrants a second pair of eyes
+
+- The scoring constants are copied from the design guide and playground: suffix chars `4`, prefix chars `1`, suffix segments `8`, prefix segments `2`, prefix presence `12`. They should still be reviewed visually in `/md-recent` with real session paths.
+- The tie-breaker should be checked against the playground behavior. It intentionally follows the same general preference, but the final TypeScript helper is the source of truth now.
+- Interactive terminal rendering should still be smoke-tested at narrow widths; `pi --list-models` validates extension loading but not the visual picker output.
+
+### What should be done in the future
+
+- Smoke-test `/md-recent` at normal and narrow terminal widths and then check task 4.
+- If final scoring constants change after visual review, update the design guide, playground examples, and code together.
+- Consider extracting pure tests for `elidePathForWidth()` if this extension gains a test harness.
+
+### Code review instructions
+
+- Start in `extensions/markdown-recent-viewer/ui.ts` at `PATH_ELISION_WEIGHTS` and read through `elidePathForWidth()`.
+- Verify that `renderItem()` computes `pathWidth` from the fixed prefix and passes only that width into the helper.
+- Validate with `timeout 20 pi --list-models`.
+- Manually validate with `/md-recent`, especially on long paths from `ttmp/.../PI-EXT-MD-RECENT-ELISION...`.
+
+### Technical details
+
+- Candidate form: `prefix/.../suffix` or `.../suffix`.
+- Normal candidates use complete path segments only.
+- Scoring formula:
+  - `4 * suffixChars`
+  - `+ 1 * prefixChars`
+  - `+ 8 * suffixSegmentCount`
+  - `+ 2 * prefixSegmentCount`
+  - `+ 12` when at least one prefix segment is shown.
+- Fallback form for overlong filenames: `…` plus the filename tail that fits.
