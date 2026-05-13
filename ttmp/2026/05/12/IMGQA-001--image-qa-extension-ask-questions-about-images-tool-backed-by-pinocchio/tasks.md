@@ -4,6 +4,6 @@
 
 
 - [x] Create extensions/image-qa/README.md with user-facing docs
-- [ ] Validate: timeout 20 pi --list-models passes
+- [x] Validate: timeout 20 pi --list-models passes
 - [ ] Smoke test: /reload + /px shows image-qa + tool is registered
 - [x] Create extensions/image-qa/index.ts with registerPiExtension + pi.registerTool
