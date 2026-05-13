@@ -13,7 +13,7 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: "Design for a Pi extension that lists recently edited markdown files and opens them with md-view view"
+Summary: "Design for a Pi extension that lists Markdown files edited/written in the current session and opens them with md-view view"
 LastUpdated: 2026-05-13T00:00:00-04:00
 WhatFor: "Implementation reference for the markdown-recent-viewer extension"
 WhenToUse: "Read before implementing or modifying the recent markdown viewer extension"
@@ -23,13 +23,19 @@ WhenToUse: "Read before implementing or modifying the recent markdown viewer ext
 
 ## Goal
 
-Create a Pi extension using the shared extension framework that displays a selectable list of recently edited or written Markdown files. When the user selects one and presses Enter, the extension runs:
+Create a Pi extension using the shared extension framework that displays a selectable list of Markdown files recently edited or written by the agent in the **current Pi session history**. When the user selects one and presses Enter, the extension runs:
 
 ```bash
 md-view view /path/to/file.md
 ```
 
 `md-view view` starts the md-view daemon automatically if needed and opens the rendered Markdown file in a browser.
+
+## Key Correction: Use Session Tool History, Not Filesystem mtime
+
+“Recently edited / written” means: files that appear in successful `edit` or `write` tool calls in the current session history, sorted by the order in which those edits/writes happened.
+
+Do **not** scan the filesystem and sort by `mtime`. Filesystem mtime is noisy and can surface unrelated markdown files. The extension should show what the agent actually touched in this conversation/session.
 
 ## User Experience
 
@@ -47,45 +53,80 @@ The extension opens a centered TUI overlay:
 Markdown Recent Viewer
 Search: _
 
-> 2026-05-13 09:42  ttmp/.../reference/01-diary.md
-  2026-05-13 09:30  docs/pi-testing-guide.md
-  2026-05-12 22:10  extensions/image-qa/README.md
+> 09:42  write  ttmp/.../reference/01-diary.md
+  09:30  edit   docs/pi-testing-guide.md
+  22:10  write  extensions/image-qa/README.md
 
 Enter open  ↑/↓ select  / search  Esc close  r refresh
 ```
 
 Behavior:
 
-- Sort Markdown files by `mtime` descending.
+- Read the current branch/session history via `ctx.sessionManager.getBranch()` (preferred) or `getEntries()` if whole-session behavior is desired.
+- Extract successful `edit` and `write` tool calls targeting Markdown files.
+- Sort by edit/write occurrence order, newest first.
+- De-duplicate by normalized absolute path, keeping the most recent occurrence.
 - Show a bounded result list (default 50).
 - Support keyboard navigation: up/down, page up/down, home/end.
 - Press Enter to run `md-view view <selected-file>`.
-- Press `r` to rescan.
+- Press `r` to rebuild the list from session history.
 - Press `/` to filter by substring/fuzzy text.
 - Press Esc to close.
 
-## File Discovery
+## Session History Extraction
 
-Scanner should search from `ctx.cwd` by default.
+Pi session entries expose messages through `ctx.sessionManager`. Relevant shapes:
 
-Include:
+```ts
+// Assistant messages contain tool calls.
+interface ToolCall {
+  type: "toolCall";
+  id: string;
+  name: string;
+  arguments: Record<string, any>;
+}
 
-- `**/*.md`
-- `**/*.markdown`
+// Tool result messages confirm execution success/failure.
+interface ToolResultMessage {
+  role: "toolResult";
+  toolCallId: string;
+  toolName: string;
+  isError: boolean;
+  timestamp: number;
+}
+```
 
-Exclude common heavy/noisy directories:
+Extraction algorithm:
 
-- `.git/`
-- `node_modules/`
-- `dist/`, `build/`, `coverage/`
-- `.next/`, `.turbo/`, `.cache/`
+1. Get the current branch entries: `const entries = ctx.sessionManager.getBranch()`.
+2. Walk entries in chronological branch order.
+3. Collect assistant message content blocks where:
+   - `block.type === "toolCall"`
+   - `block.name === "edit" || block.name === "write"`
+   - `typeof block.arguments.path === "string"`
+   - path extension is `.md` or `.markdown`
+4. Build a `Map<toolCallId, PendingMarkdownWrite>`.
+5. When encountering a tool result message:
+   - `message.role === "toolResult"`
+   - `message.toolName === "edit" || message.toolName === "write"`
+   - `message.isError === false`
+   - `pendingById.has(message.toolCallId)`
+6. Add/update the item for that file, using the tool result timestamp/order as the edit/write occurrence.
+7. Return unique files sorted by latest occurrence descending.
 
-Implementation options:
+Why correlate tool calls with tool results?
 
-1. Use Node APIs (`fs/promises`, recursive directory walk) for portability and direct mtime access.
-2. Optionally use `find` via `pi.exec` later if performance becomes an issue.
+- Tool call arguments tell us the target path.
+- Tool result tells us whether the operation actually succeeded.
+- Sorting by tool result order/timestamp reflects when the file was really edited/written.
 
-Recommended v1: Node recursive walk with exclusions and a `maxScanFiles` safety limit.
+## Path Handling
+
+- Resolve relative tool paths against `ctx.cwd`.
+- Normalize absolute paths with `path.resolve(...)`.
+- Display paths relative to `ctx.cwd` when possible.
+- Only include `.md` and `.markdown` by default.
+- If a file no longer exists, either hide it by default or show it with a “missing” marker; v1 should hide missing files to keep Enter behavior reliable.
 
 ## Settings
 
@@ -93,12 +134,17 @@ Use schema settings:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `root` | string | `.` | Directory to scan, relative to cwd or absolute. |
 | `maxResults` | number | `50` | Maximum files shown in picker. |
-| `maxScanFiles` | number | `5000` | Safety limit for scanned markdown files. |
 | `includeExtensions` | string | `.md,.markdown` | Comma-separated extensions to include. |
+| `currentBranchOnly` | boolean | `true` | Use `getBranch()` rather than all session entries. |
 | `openDark` | boolean | `false` | Pass `--dark` to `md-view view`. |
 | `noReload` | boolean | `false` | Pass `--no-reload` to `md-view view`. |
+| `hideMissingFiles` | boolean | `true` | Hide files that no longer exist. |
+
+Removed from the earlier design:
+
+- `root` — not needed because source is session history, not filesystem scanning.
+- `maxScanFiles` — not needed because there is no filesystem scan.
 
 ## Extension Contributions
 
@@ -106,7 +152,7 @@ Use schema settings:
 - Default `run` action opens the picker.
 - Named actions:
   - `open` — open picker
-  - `refresh` — rescan and show status
+  - `list` — notify a compact text list of recent Markdown files
 - Docs: `extensions/markdown-recent-viewer/README.md`
 - Settings: schema settings above
 - Compatibility slash commands:
@@ -120,19 +166,22 @@ Files:
 ```text
 extensions/markdown-recent-viewer/
   index.ts       # registration, commands, settings, md-view invocation
-  scanner.ts     # recursive markdown scan and ranking
+  history.ts     # extract recent Markdown files from edit/write tool history
   ui.ts          # RecentMarkdownPicker component
   README.md      # user-facing docs
 ```
 
-Picker component contract:
+Picker item contract:
 
 ```ts
 interface RecentMarkdownItem {
-  path: string;
-  relativePath: string;
-  mtimeMs: number;
-  size: number;
+  path: string;              // absolute normalized path
+  relativePath: string;      // relative to ctx.cwd where possible
+  toolName: "edit" | "write";
+  toolCallId: string;
+  timestamp: number;         // tool result timestamp, when available
+  entryId: string;           // session entry id for the tool result
+  occurrence: number;        // monotonically increasing order in branch walk
 }
 
 interface PickerResult {
@@ -157,7 +206,7 @@ await pi.exec("md-view", args, { cwd: ctx.cwd, timeout: 15000 });
 Important:
 
 - Use `pi.exec("md-view", args, ...)`, not shell string interpolation.
-- Return/notify stderr if `code !== 0`.
+- Notify stderr/stdout if `code !== 0`.
 - `md-view view` opens a browser by default; do not block waiting for long-running daemon behavior beyond the command exit.
 
 ## Validation Plan
@@ -166,13 +215,15 @@ Important:
 2. Symlink extension into `~/.pi/agent/extensions/markdown-recent-viewer`.
 3. Start Pi in tmux.
 4. Verify startup `[Extensions]` includes `markdown-recent-viewer`.
-5. Run `/markdown-recent-viewer` and verify picker opens.
-6. Select a known `.md` file and press Enter.
-7. Verify `md-view view` opens/prints successfully.
-8. Verify settings load via `/px` → Markdown Recent Viewer → `s`.
+5. In the session, create or edit a known `.md` file using `write`/`edit` tool calls.
+6. Run `/markdown-recent-viewer` and verify the picker shows that file at/near the top.
+7. Select it and press Enter.
+8. Verify `md-view view` opens/prints successfully.
+9. Verify failed edit/write tool calls do not appear.
+10. Verify non-Markdown edit/write tool calls do not appear.
 
 ## Open Questions
 
-- Should the scanner include files outside `ctx.cwd` such as Obsidian vault notes? v1 should scan `ctx.cwd` only unless the `root` setting is changed.
-- Should “recently written” track files created by Pi in this session? v1 uses filesystem mtime, which is simpler and good enough.
-- Should the picker preview file contents? Not in v1; keep it fast and focused.
+- Should the picker include all session entries (`getEntries()`) or only the active branch (`getBranch()`)? v1 should default to current branch because it reflects the currently visible conversation path.
+- Should failed edit/write calls appear with an error marker? v1 should hide failed calls.
+- Should files edited by shell commands (e.g. `cat > file.md`) be included? v1 should not; the requirement is specifically edit/write tool calls.

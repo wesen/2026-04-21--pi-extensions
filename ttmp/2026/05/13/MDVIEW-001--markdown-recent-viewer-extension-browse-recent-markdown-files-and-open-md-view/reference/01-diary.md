@@ -81,3 +81,60 @@ The extension needs both framework registration and a custom TUI picker, so the 
 - Base invocation: `md-view view /path/to/file.md`
 - `md-view view` options confirmed: `--dark`, `--no-browser`, `--no-reload`, `--port`, `--browser`
 - Planned extension id: `markdown-recent-viewer`
+
+## Step 2: Correct source of recent files
+
+Updated the design after user correction: the extension should not scan the filesystem or sort by modification time. It should inspect the Pi session history for successful `edit` and `write` tool calls that targeted Markdown files, then sort those files by actual edit/write occurrence order.
+
+### Prompt Context
+
+**User prompt (verbatim):** "no, we should look for edit / write tool calls in the session history, and use that for recent files, sorted by order of editing."
+
+**Assistant interpretation:** Revise the ticket/design so “recent files” means Markdown files touched by Pi’s edit/write tools in this session, ordered by tool execution history, rather than files recently modified on disk.
+
+**Inferred user intent:** Make the extension reflect the agent’s actual work in the current session and avoid noisy filesystem scans.
+
+### What I did
+- Rewrote the design doc around session-history extraction.
+- Replaced the filesystem scanner task with a session-history extractor task.
+- Documented the extraction algorithm:
+  - read `ctx.sessionManager.getBranch()`
+  - collect assistant `toolCall` blocks for `edit`/`write`
+  - correlate with successful `toolResult` messages by `toolCallId`
+  - include only `.md`/`.markdown` paths
+  - de-duplicate by normalized absolute path, newest occurrence wins
+- Removed scanner settings (`root`, `maxScanFiles`) from the design.
+- Added session-history-specific settings (`currentBranchOnly`, `hideMissingFiles`).
+
+### Why
+Filesystem `mtime` answers a different question: “what changed on disk recently?” The requested UX is “what Markdown files did the agent edit/write recently in this session?” Session tool history is the precise source of truth for that.
+
+### What worked
+- Pi type docs confirm assistant messages contain `ToolCall` blocks with `name`, `id`, and `arguments`; tool result messages include `toolCallId`, `toolName`, `isError`, and `timestamp`.
+- The implementation can use `ctx.sessionManager.getBranch()` to reflect the active conversation branch.
+
+### What didn't work
+- The original design overreached with filesystem scanning and mtime sorting. That would surface unrelated docs and miss the semantic ordering the user wants.
+
+### What I learned
+- For “recent work done by Pi,” session history is usually a better data source than the filesystem.
+- To avoid listing failed writes, the extractor should correlate tool calls with successful tool results rather than trusting assistant tool-call intent alone.
+
+### What was tricky to build
+- The subtlety is that the target path lives in the assistant `toolCall.arguments`, while success/failure lives in a later `toolResult` message. The extractor must join those by `toolCallId`.
+
+### What warrants a second pair of eyes
+- Whether `getBranch()` should be the default instead of `getEntries()`. The design currently recommends current branch only.
+- Whether to hide missing files or display them with a marker.
+
+### What should be done in the future
+- Implement `history.ts` around this corrected algorithm.
+
+### Code review instructions
+- Review `design/01-extension-design.md`, especially “Session History Extraction,” before implementing.
+- Verify implementation tests successful edit/write correlation, failed tool result exclusion, markdown extension filtering, and de-duplication.
+
+### Technical details
+- Tool call source shape: `{ type: "toolCall", id, name, arguments }`
+- Tool result source shape: `{ role: "toolResult", toolCallId, toolName, isError, timestamp }`
+- Extension should resolve relative paths against `ctx.cwd`.
