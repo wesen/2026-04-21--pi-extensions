@@ -134,3 +134,57 @@ The tool should be available to the agent as a first-class Pi tool, not as ad-ho
 ### Technical details
 - Command built by tool: `surf kagi search --query <query> --max-results <N> --timeout-ms <timeoutMs>`
 - Tool returns `stdout.trim() || stderr.trim()` so browser/surf messages are not lost if stdout is empty.
+
+## Step 3: Symlink and smoke test
+
+Symlinked the extension into `~/.pi/agent/extensions`, started a fresh Pi session in tmux, and verified the command and tool end-to-end. The `kagi_web_search` tool successfully ran `surf kagi search` and returned Markdown search results.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Finish the extension by deploying it into the local Pi extension directory and proving it works in a live session.
+
+**Inferred user intent:** Make the new web search tool actually available to Pi, not just present in the repo.
+
+### What I did
+- Created symlink: `~/.pi/agent/extensions/kagi-web-search -> /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/kagi-web-search`
+- Re-ran load validation: `timeout 20 pi --list-models` exited 0
+- Started tmux session `kagi-smoke`
+- Verified startup `[Extensions]` list includes `kagi-web-search`
+- Tested `/kagi-web-search` command → `kagi-web-search: maxResults=10 timeoutMs=120000`
+- Asked the agent to use `kagi_web_search` for query `Kagi search test` with `max_results=1`
+- Verified tool output returned Kagi Markdown results and agent summarized the top result
+- Checked off all tasks
+
+### Why
+The implementation only matters if Pi loads it from the user extension directory and the LLM can call the tool successfully.
+
+### What worked
+- Direct surf check worked before tmux: `surf kagi search --query "Kagi search test" --max-results 1 --timeout-ms 30000`
+- The live Pi agent selected and executed `kagi_web_search` correctly
+- Result markdown included title, URL, display URL, and snippet
+
+### What didn't work
+- Trying `/px/Kagi Web Search` did not open launcher selection; it was submitted as a prompt and the agent asked for a search query. The command/autocomplete interaction is easy to misuse from tmux.
+
+### What I learned
+- For tmux smoke tests, direct slash command and explicit tool-use prompt are more reliable than trying to drive `/px` search purely via send-keys.
+- The live tool path is now proven: Pi → kagi_web_search → pi.exec → surf → Kagi markdown → agent response.
+
+### What was tricky to build
+- Driving `/px` through tmux remains fragile. The test guide should treat launcher testing as optional or manual when direct command/tool validation is enough.
+
+### What warrants a second pair of eyes
+- Whether we should improve the testing guide with the `/px` fragility observed here.
+
+### What should be done in the future
+- Consider adding a scripted non-LLM extension tool inspection command if Pi exposes one later.
+
+### Code review instructions
+- To validate manually: run `/kagi-web-search`, then ask the agent to use `kagi_web_search` with a known query and `max_results=1`.
+
+### Technical details
+- tmux session: `kagi-smoke`
+- Successful live query: `Kagi search test`
+- Top result returned: `Kagi - Reclaim the Web & Restore Your Privacy` at `https://kagi.com/`
