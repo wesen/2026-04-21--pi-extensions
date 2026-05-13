@@ -14,20 +14,13 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { Box, Text } from "@mariozechner/pi-tui";
-import { findTags, findDeletedTargetIds, DELETED_MARKER_TYPE, allTagNames, filterByTag, type TagDetails, type DeletedMarker } from "./find-tags";
+import { findTags, allTagNames, filterByTag, type TagDetails } from "./find-tags";
 import { parseTagArgs } from "./parse-args";
 import { tagColor } from "./tag-colors";
 import { registerPiExtension } from "../_shared/registry";
 
 const TAG_COMMAND = "tag";
 const TAGS_COMMAND = "tags";
-
-// Module-level soft-delete tracking (rebuilt on session_start, survives across the extension lifecycle)
-let deletedTargetIds = new Set<string>();
-
-function rebuildDeletedSet(entries: Array<{ type: string; [key: string]: unknown }>) {
-	deletedTargetIds = findDeletedTargetIds(entries);
-}
 
 export default function sessionTagger(pi: ExtensionAPI): void {
 	registerPiExtension({
@@ -54,11 +47,6 @@ export default function sessionTagger(pi: ExtensionAPI): void {
 		],
 	});
 
-	// ── Rebuild deleted set on session load ────────────────────
-	pi.on("session_start", (_event, ctx) => {
-		rebuildDeletedSet(ctx.sessionManager.getEntries());
-	});
-
 	// ── Custom message renderer ──────────────────────────────
 	pi.registerMessageRenderer(
 		"session-tagger",
@@ -66,11 +54,6 @@ export default function sessionTagger(pi: ExtensionAPI): void {
 			const details = message.details as TagDetails | undefined;
 			const tags = details?.tags ?? [];
 			const comment = details?.comment ?? "";
-
-			// Hide soft-deleted tags
-			if (details?.targetEntryId && deletedTargetIds.has(details.targetEntryId)) {
-				return undefined;
-			}
 
 			const tagParts = tags.map((t) => theme.fg(tagColor(t), t));
 			const tagLine = tagParts.join(theme.fg("dim", ", "));
@@ -132,7 +115,7 @@ export default function sessionTagger(pi: ExtensionAPI): void {
 
 async function quickTagDialog(pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
 	const known = allTagNames(
-		findTags(ctx.sessionManager.getEntries(), deletedTargetIds),
+		findTags(ctx.sessionManager.getEntries()),
 	);
 	const common = [
 		"struggle",
@@ -165,7 +148,7 @@ async function quickTagDialog(pi: ExtensionAPI, ctx: ExtensionCommandContext): P
 }
 
 async function browseTags(pi: ExtensionAPI, ctx: ExtensionCommandContext, args: string): Promise<void> {
-	const all = findTags(ctx.sessionManager.getEntries(), deletedTargetIds);
+	const all = findTags(ctx.sessionManager.getEntries());
 	if (all.length === 0) {
 		ctx.ui.notify("No tags in this session", "info");
 		return;
@@ -203,7 +186,6 @@ async function browseTags(pi: ExtensionAPI, ctx: ExtensionCommandContext, args: 
 
 	const action = await ctx.ui.select("Action:", [
 		"Fork from this point",
-		"Delete tag",
 		"Cancel",
 	]);
 
@@ -220,15 +202,6 @@ async function browseTags(pi: ExtensionAPI, ctx: ExtensionCommandContext, args: 
 		if (result.cancelled) {
 			ctx.ui.notify("Fork cancelled", "info");
 		}
-	} else if (action === "Delete tag") {
-		// Soft-delete: append a marker entry so it persists across reloads
-		pi.appendEntry(DELETED_MARKER_TYPE, {
-			entryId: tagEntry.entryId,
-			targetEntryId: tagEntry.targetEntryId,
-		} satisfies DeletedMarker);
-		pi.setLabel(tagEntry.targetEntryId, undefined);
-		deletedTargetIds.add(tagEntry.targetEntryId);
-		ctx.ui.notify(`Deleted tag: [${tagEntry.tags.join(", ")}]`, "info");
 	}
 }
 
