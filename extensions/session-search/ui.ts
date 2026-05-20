@@ -15,6 +15,7 @@ import {
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { ReadonlySessionManager } from "@mariozechner/pi-coding-agent";
 import type { ScanResult, SessionSearchResult, ToolCallMatch } from "./types";
+import { isValidRegex } from "./types";
 import { scanBranch } from "./scanner";
 import { matchSummaryLine } from "./scanner";
 
@@ -28,6 +29,8 @@ export interface SessionSearchOverlayOptions {
 	sessionManager: ReadonlySessionManager;
 	/** Pre-fill the search query. */
 	prefill?: string;
+	/** Initial search mode: plain substring or regex. Default: "plain". */
+	initialMode?: "plain" | "regex";
 }
 
 export class SessionSearchOverlay implements Component {
@@ -41,6 +44,8 @@ export class SessionSearchOverlay implements Component {
 	private detailLevel: DetailLevel = "compact";
 	private searchMode = true; // typing appends to query
 	private showHelp = false;
+	private searchQueryMode: "plain" | "regex"; // plain substring or regex
+	private regexError: string | null = null; // non-null when regex is invalid
 
 	// Cached render output
 	private cachedWidth?: number;
@@ -58,6 +63,7 @@ export class SessionSearchOverlay implements Component {
 		this.done = options.done;
 		this.sessionManager = options.sessionManager;
 		this.query = options.prefill ?? "";
+		this.searchQueryMode = options.initialMode ?? "plain";
 
 		// Run initial scan if query is pre-filled
 		if (this.query.length > 0) {
@@ -71,13 +77,33 @@ export class SessionSearchOverlay implements Component {
 		this.scanning = true;
 		this.invalidate();
 
+		// In regex mode, validate the pattern first
+		if (this.searchQueryMode === "regex" && this.query.length > 0) {
+			const validation = isValidRegex(this.query);
+			if (!validation.ok) {
+				this.regexError = validation.error;
+				this.matches = [];
+				this.scanResult = null;
+				this.scanning = false;
+				this.selected = 0;
+				this.scroll = 0;
+				this.invalidate();
+				return;
+			}
+			this.regexError = null;
+		}
+
 		// Scan synchronously (fast enough for typical sessions)
 		try {
-			this.scanResult = scanBranch(this.sessionManager, this.query);
+			this.scanResult = scanBranch(this.sessionManager, this.query, {
+				mode: this.searchQueryMode,
+			});
 			this.matches = this.scanResult.matches;
-		} catch {
+			this.regexError = null;
+		} catch (e) {
 			this.matches = [];
 			this.scanResult = null;
+			this.regexError = String(e);
 		}
 
 		this.scanning = false;
@@ -139,7 +165,17 @@ export class SessionSearchOverlay implements Component {
 			return;
 		}
 
-		// '/': enter search mode or clear query if already in search mode
+		// 'r': toggle regex/plain mode (always works, not typed as query)
+		if (data === "r") {
+			this.searchQueryMode = this.searchQueryMode === "plain" ? "regex" : "plain";
+			if (this.query.length > 0) {
+				this.runScan();
+			} else {
+				this.regexError = null;
+				this.invalidate();
+			}
+			return;
+		}
 		if (data === "/") {
 			if (this.searchMode) {
 				// Already in search mode — clear query
@@ -308,21 +344,32 @@ export class SessionSearchOverlay implements Component {
 				? this.query
 				: this.theme.fg("dim", "type to search tool calls…");
 
-		const searchLine = ` Search: ${queryDisplay}${this.searchMode ? cursor : ""}`;
-		const infoLine =
-			this.scanning
-				? " Scanning…"
-				: this.matches.length > 0
-					? ` ${this.matches.length} match${this.matches.length === 1 ? "" : "es"}${this.scanResult ? ` in ${this.scanResult.totalToolCallsScanned} tool calls` : ""} · ${this.scanResult ? `${this.scanResult.scanDurationMs.toFixed(1)}ms` : ""}`
-					: this.query.length > 0
-						? " No matches"
-						: " Enter a search query";
+		const modeLabel = this.searchQueryMode === "regex"
+			? this.theme.fg("warning", "[regex]")
+			: this.theme.fg("dim", "[plain]");
+
+		const searchLine = ` Search: ${queryDisplay}${this.searchMode ? cursor : ""} ${modeLabel}`;
+
+		let infoLine: string;
+		if (this.regexError) {
+			infoLine = ` Invalid regex: ${this.regexError.slice(0, 60)}`;
+		} else if (this.scanning) {
+			infoLine = " Scanning…";
+		} else if (this.matches.length > 0) {
+			infoLine = ` ${this.matches.length} match${this.matches.length === 1 ? "" : "es"}${this.scanResult ? ` in ${this.scanResult.totalToolCallsScanned} tool calls` : ""} · ${this.scanResult ? `${this.scanResult.scanDurationMs.toFixed(1)}ms` : ""}`;
+		} else if (this.query.length > 0) {
+			infoLine = " No matches";
+		} else {
+			infoLine = " Enter a search query";
+		}
 
 		return [
 			this.padLine(searchLine, inner),
 			this.padLine(this.theme.fg("dim", infoLine), inner),
 		];
 	}
+
+
 
 	private renderBody(inner: number): string[] {
 		if (this.matches.length === 0) {
@@ -471,8 +518,9 @@ export class SessionSearchOverlay implements Component {
 			"  ↑/↓           Move selection",
 			"  Enter         Navigate to match (rewind session)",
 			"  f             Fork from match (new session)",
+			"  r             Toggle regex/plain search mode",
 			"  Tab           Cycle detail: compact → expanded → full",
-			"  /             Enter search mode",
+			"  /             Enter search mode / clear query",
 			"  Ctrl+U        Clear search query",
 			"  Backspace     Delete last search character",
 			"  PageUp/Down   Scroll by page",
@@ -480,12 +528,14 @@ export class SessionSearchOverlay implements Component {
 			"  ?             Toggle this help",
 			"  Esc           Close overlay",
 			"",
-			"  Typing any printable char enters search mode automatically.",
+			"  In regex mode, the query is treated as a JavaScript regex.",
+			"  Matching is case-insensitive. Invalid regex shows an error.",
 		];
 		return lines.map((l) =>
 			this.theme.fg("dim", this.padLine(l, inner)),
 		);
 	}
+
 
 	private renderFooter(inner: number): string[] {
 		const parts: string[] = [];
@@ -495,6 +545,7 @@ export class SessionSearchOverlay implements Component {
 			parts.push("f:fork");
 			parts.push("Tab:detail");
 		}
+		parts.push("r:regex");
 		parts.push("?:help");
 		parts.push("Esc:close");
 
@@ -505,6 +556,7 @@ export class SessionSearchOverlay implements Component {
 		const footer = " " + parts.join(" · ");
 		return [this.theme.fg("dim", this.padLine(footer, inner))];
 	}
+
 
 	// ── Layout helpers ─────────────────────────────────────
 

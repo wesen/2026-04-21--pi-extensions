@@ -14,20 +14,34 @@ Search for strings in tool call arguments and results across your Pi session his
 - Shows chronological match list with turn numbers and timestamps
 - **Navigate** to match points to rewind the session
 - **Fork** from match points to create new sessions
+- **Regex mode** — toggle with `r` for JavaScript regex search
 
 ## Key bindings (in search overlay)
 
 | Key | Action |
 |-----|--------|
-| `↑`/`↓` | Move selection |
-| `Enter` | Navigate to match (rewind session) |
-| `f` | Fork from match (new session) |
-| `Tab` | Cycle detail: compact → expanded → full |
-| `/` | Enter search mode |
-| `Ctrl+U` | Clear query |
-| `Backspace` | Delete last search character |
-| `?` | Toggle help |
-| `Esc` | Close |
+| Up/Down | Move selection |
+| Enter | Navigate to match (rewind session) |
+| f | Fork from match (new session) |
+| r | Toggle regex/plain search mode |
+| Tab | Cycle detail: compact -> expanded -> full |
+| / | Enter search mode / clear query |
+| Ctrl+U | Clear query |
+| Backspace | Delete last search character |
+| ? | Toggle help |
+| Esc | Close |
+
+## Regex mode
+
+Press `r` to toggle between plain substring search and regex mode. In regex mode:
+
+- The query is treated as a JavaScript regular expression
+- Matching is case-insensitive (the `i` flag is used)
+- Invalid regex patterns show an error in the header
+- Examples:
+  - `function\s+\w+` — matches function declarations
+  - `import.*from` — matches import statements
+  - `TODO|FIXME|HACK` — matches multiple markers
 
 ## How navigation works
 

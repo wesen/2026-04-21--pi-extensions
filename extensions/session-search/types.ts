@@ -65,24 +65,55 @@ export interface ScannerOptions {
 
 	/** Maximum result text size to store (bytes). Default: 10KB. */
 	maxResultBytes?: number;
+
+	/** Search mode: plain substring or regex. Default: "plain". */
+	mode?: "plain" | "regex";
 }
 
 const DEFAULT_MAX_RESULT_BYTES = 10_000;
 
 /**
- * Recursively search for a query string in the string values of an object.
- * Returns true if any string value contains the query.
+ * Test whether `text` matches the query according to the search mode.
+ * In regex mode, throws from RegExp construction are caught and return false.
  */
-export function searchInObject(obj: unknown, query: string): boolean {
+export function matchesQuery(text: string, query: string, mode: "plain" | "regex"): boolean {
+	if (mode === "regex") {
+		try {
+			return new RegExp(query, "i").test(text);
+		} catch {
+			return false;
+		}
+	}
+	return text.includes(query);
+}
+
+/**
+ * Check whether a regex query is valid.
+ */
+export function isValidRegex(pattern: string): { ok: true } | { ok: false; error: string } {
+	try {
+		new RegExp(pattern);
+		return { ok: true };
+	} catch (e) {
+		return { ok: false, error: String(e) };
+	}
+}
+
+/**
+ * Recursively search for a query string in the string values of an object.
+ * In regex mode, tests each string value against the regex pattern.
+ * Returns true if any string value matches.
+ */
+export function searchInObject(obj: unknown, query: string, mode: "plain" | "regex" = "plain"): boolean {
 	if (typeof obj === "string") {
-		return obj.includes(query);
+		return matchesQuery(obj, query, mode);
 	}
 	if (Array.isArray(obj)) {
-		return obj.some((item) => searchInObject(item, query));
+		return obj.some((item) => searchInObject(item, query, mode));
 	}
 	if (typeof obj === "object" && obj !== null) {
 		return Object.values(obj as Record<string, unknown>).some((v) =>
-			searchInObject(v, query),
+			searchInObject(v, query, mode),
 		);
 	}
 	return false;
@@ -91,11 +122,11 @@ export function searchInObject(obj: unknown, query: string): boolean {
 /**
  * Find line numbers (1-based) where the query appears in a multi-line text.
  */
-export function findMatchLines(text: string, query: string): number[] {
+export function findMatchLines(text: string, query: string, mode: "plain" | "regex" = "plain"): number[] {
 	const lines = text.split("\n");
 	const matchLines: number[] = [];
 	for (let i = 0; i < lines.length; i++) {
-		if (lines[i]!.includes(query)) {
+		if (matchesQuery(lines[i]!, query, mode)) {
 			matchLines.push(i + 1);
 		}
 	}
@@ -110,9 +141,10 @@ export function buildSnippet(
 	query: string,
 	contextLines: number = 1,
 	maxWidth: number = 80,
+	mode: "plain" | "regex" = "plain",
 ): string {
 	const lines = text.split("\n");
-	const firstMatch = lines.findIndex((l) => l.includes(query));
+	const firstMatch = lines.findIndex((l) => matchesQuery(l, query, mode));
 	if (firstMatch === -1) return "";
 
 	const start = Math.max(0, firstMatch - contextLines);

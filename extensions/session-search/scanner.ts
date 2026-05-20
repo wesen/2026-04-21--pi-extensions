@@ -10,6 +10,7 @@ import {
 	buildSnippet,
 	concatTextContent,
 	findMatchLines,
+	matchesQuery,
 	searchInObject,
 	truncateResultText,
 } from "./types";
@@ -41,6 +42,7 @@ export function scanBranch(
 ): ScanResult {
 	const startTime = performance.now();
 	const maxResultBytes = options.maxResultBytes ?? DEFAULT_MAX_RESULT_BYTES;
+	const mode = options.mode ?? "plain";
 
 	// getBranch() returns root→leaf (chronological order)
 	const branch = sessionManager.getBranch();
@@ -106,8 +108,8 @@ export function scanBranch(
 			if (!pendingCall) continue; // orphaned result
 
 			const resultText = concatTextContent(tr.content);
-			const argMatch = searchInObject(pendingCall.arguments, query);
-			const resultMatch = resultText.includes(query);
+			const argMatch = searchInObject(pendingCall.arguments, query, mode);
+			const resultMatch = matchesQuery(resultText, query, mode);
 
 			if (argMatch || resultMatch) {
 				const matchLocation: ToolCallMatch["matchLocation"] =
@@ -122,11 +124,14 @@ export function scanBranch(
 				const argText = JSON.stringify(pendingCall.arguments, null, 2);
 				const matchText =
 					matchLocation === "result" ? resultText : argText;
-				const matchLines = findMatchLines(matchText, query);
+				const matchLines = findMatchLines(matchText, query, mode);
 
 				const snippet = buildSnippet(
 					matchLocation === "result" ? resultText : argText,
 					query,
+					1,
+					80,
+					mode,
 				);
 
 				const truncated = truncateResultText(
@@ -178,6 +183,7 @@ export function scanFullFile(
 ): ScanResult & { matches: (ToolCallMatch & { onCurrentBranch: boolean })[] } {
 	const startTime = performance.now();
 	const maxResultBytes = options.maxResultBytes ?? DEFAULT_MAX_RESULT_BYTES;
+	const mode = options.mode ?? "plain";
 
 	const content = readFileSync(sessionFilePath, "utf8");
 	const lines = content.trim().split("\n");
@@ -252,8 +258,8 @@ export function scanFullFile(
 			if (!pendingCall) continue;
 
 			const resultText = concatTextContent(tr.content);
-			const argMatch = searchInObject(pendingCall.arguments, query);
-			const resultMatch = resultText.includes(query);
+			const argMatch = searchInObject(pendingCall.arguments, query, mode);
+			const resultMatch = matchesQuery(resultText, query, mode);
 
 			if (argMatch || resultMatch) {
 				const matchLocation: ToolCallMatch["matchLocation"] =
@@ -266,10 +272,13 @@ export function scanFullFile(
 				const argText = JSON.stringify(pendingCall.arguments, null, 2);
 				const matchText =
 					matchLocation === "result" ? resultText : argText;
-				const matchLines = findMatchLines(matchText, query);
+				const matchLines = findMatchLines(matchText, query, mode);
 				const snippet = buildSnippet(
 					matchLocation === "result" ? resultText : argText,
 					query,
+					1,
+					80,
+					mode,
 				);
 				const truncated = truncateResultText(
 					resultText,
