@@ -112,8 +112,9 @@ export class SessionSearchOverlay implements Component {
 			return;
 		}
 
-		// Enter: select current match
-		if (matchesKey(data, Key.enter)) {
+		// Enter: select current match (works even in search mode when matches exist)
+		if (matchesKey(data, Key.enter) && this.matches.length > 0) {
+			this.searchMode = false;
 			const match = this.matches[this.selected];
 			if (match) {
 				this.done({ match, action: "navigate" });
@@ -121,8 +122,9 @@ export class SessionSearchOverlay implements Component {
 			return;
 		}
 
-		// 'f': fork from current match
-		if (data === "f" && !this.searchMode) {
+		// 'f': fork from current match (works even in search mode when matches exist)
+		if (data === "f" && this.matches.length > 0) {
+			this.searchMode = false;
 			const match = this.matches[this.selected];
 			if (match) {
 				this.done({ match, action: "fork" });
@@ -130,17 +132,24 @@ export class SessionSearchOverlay implements Component {
 			return;
 		}
 
-		// '?': toggle help
-		if (data === "?" && !this.searchMode) {
+		// '?': toggle help (works even in search mode)
+		if (data === "?") {
 			this.showHelp = !this.showHelp;
 			this.invalidate();
 			return;
 		}
 
-		// '/': enter search mode
-		if (data === "/" && !this.searchMode) {
-			this.searchMode = true;
-			this.invalidate();
+		// '/': enter search mode or clear query if already in search mode
+		if (data === "/") {
+			if (this.searchMode) {
+				// Already in search mode — clear query
+				this.query = "";
+				this.matches = [];
+				this.invalidate();
+			} else {
+				this.searchMode = true;
+				this.invalidate();
+			}
 			return;
 		}
 
@@ -155,15 +164,19 @@ export class SessionSearchOverlay implements Component {
 			return;
 		}
 
-		// Navigation (works when not in search mode or when no matches)
+		// Navigation (exits search mode)
 		if (matchesKey(data, Key.up)) {
-			this.searchMode = false;
-			this.moveSelection(-1);
+			if (this.matches.length > 0) {
+				this.searchMode = false;
+				this.moveSelection(-1);
+			}
 			return;
 		}
 		if (matchesKey(data, Key.down)) {
-			this.searchMode = false;
-			this.moveSelection(1);
+			if (this.matches.length > 0) {
+				this.searchMode = false;
+				this.moveSelection(1);
+			}
 			return;
 		}
 		if (matchesKey(data, Key.pageUp)) {
@@ -191,8 +204,9 @@ export class SessionSearchOverlay implements Component {
 			return;
 		}
 
-		// Tab: cycle detail level for selected match
-		if (data === "\t" && !this.searchMode) {
+		// Tab: cycle detail level for selected match (works even in search mode)
+		if (data === "\t" && this.matches.length > 0) {
+			this.searchMode = false;
 			const levels: DetailLevel[] = ["compact", "expanded", "full"];
 			const idx = levels.indexOf(this.detailLevel);
 			this.detailLevel = levels[(idx + 1) % levels.length]!;
