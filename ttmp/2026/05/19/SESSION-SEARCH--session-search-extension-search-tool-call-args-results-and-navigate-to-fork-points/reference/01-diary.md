@@ -92,3 +92,88 @@ The user wants a complete design artifact before implementation. The intern-read
 - Design doc: `ttmp/.../design/01-analysis-design-implementation-guide.md` (14 sections, ~44KB)
 - Key Pi APIs: `ctx.sessionManager.getBranch()`, `ctx.navigateTree()`, `ctx.fork()`
 - Extension pattern: `registerPiExtension()` from `extensions/_shared/registry.ts`
+
+## Step 2: Implementation and Testing
+
+Implemented the full session-search extension across 4 source files, tested end-to-end with tmux. The extension successfully searches tool call arguments/results, displays matches in a TUI overlay, and navigates to match points for forking.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Implement the session-search extension following the design doc, test with tmux, keep diary, commit at intervals.
+
+**Inferred user intent:** Get a working extension that can be invoked via `/session-search`, find matches in tool calls, and navigate/fork.
+
+**Commit (code):** 4ca3370 — "SESSION-SEARCH: implement session search extension"
+
+### What I did
+
+- Created `types.ts` with `ToolCallMatch`, `ScanResult`, `SessionSearchResult` interfaces and utility functions (`searchInObject`, `findMatchLines`, `buildSnippet`, `truncateResultText`, `concatTextContent`)
+- Created `scanner.ts` with `scanBranch()` (walks root→leaf tracking pending tool calls, matches results) and `scanFullFile()` (JSONL parser for future compacted-region support)
+- Created `ui.ts` with `SessionSearchOverlay` component (search input, match list, keyboard navigation, 3 detail levels, help overlay)
+- Created `index.ts` with `registerPiExtension()`, `/session-search` command, `openSearchOverlay()` flow with `ctx.navigateTree()` and `ctx.fork()`
+- Added extension to `.pi/settings.json`
+- Tested with tmux: search works, match display works, Enter navigates to parent user message, session rewinds correctly
+
+### Why
+
+The implementation follows the design document architecture exactly: scanner → overlay → command → navigation.
+
+### What worked
+
+- The TUI overlay renders correctly in the terminal with search input, match list, and keyboard handling
+- `ctx.navigateTree(targetId, { summarize: true })` works perfectly for rewinding the session to the match point
+- The `registerPiExtension()` integration gives us `/px` discoverability and dashboard widget
+- `searchInObject()` correctly handles nested argument objects like `edit` tool's `edits[].oldText`
+
+### What didn't work
+
+- **Critical bug: `getBranch()` order.** I initially assumed `getBranch()` returns leaf→root (as the Pi docs suggest: "Walk from entry to root"). I added `branch.reverse()` to get root→leaf. But testing showed `getBranch()` already returns root→leaf (chronological). The `reverse()` made the scanner process tool results BEFORE their tool calls, so the `pendingToolCalls` map was empty when results arrived — 0 matches. Debugging with tmux and writing branch order to `/tmp/session-search-debug.txt` revealed the actual order. **Fix: removed the `reverse()` call.**
+- JavaScript temporal dead zone error: I used `lines.push()` before `const lines: string[] = []` in the debug command. Fixed by reordering the declaration.
+- The overlay rendering can look messy when rendered on top of existing content in the terminal, but this is expected for overlay mode.
+
+### What I learned
+
+- **`getBranch()` returns root→leaf (chronological order), NOT leaf→root as I assumed from the docs.** The docs say "Walk from entry to root" which I interpreted as leaf→root, but the actual implementation returns the path in chronological order. This is the most important finding of this step.
+- Pi's `jiti` extension loading can sometimes cache old versions. A full restart (kill + new session) is more reliable than `/reload` for debugging.
+- The `ctx.ui.custom()` overlay API works well for modal search UIs.
+- Tool call IDs in Pi have the format `call_XXXXX` (not hex IDs like session entries).
+
+### What was tricky to build
+
+- **The getBranch() order bug was the hardest part.** The scanner was producing 0 matches because it processed tool results before tool calls. The root cause was a wrong assumption about the return order of `getBranch()`. I debugged this by:
+  1. Adding a debug command that dumped branch entry details to a file
+  2. Checking the first/last entry IDs in both raw and reversed arrays
+  3. Discovering that `getBranch()` already returns root→leaf
+  4. Removing the `reverse()` call
+- The overlay keyboard handling has two modes: search mode (typing appends to query) and browse mode (arrow keys navigate matches). Switching between modes automatically on key press required careful state management.
+
+### What warrants a second pair of eyes
+
+- The `scanBranch()` function assumes `getBranch()` returns entries in chronological order. If Pi changes this behavior, the scanner will break silently (0 matches). We should document this dependency.
+- The `visibleBodyLines()` method in the overlay uses a fixed body height of 15 lines. This might not work well on very small terminals.
+- The `openSearchOverlay()` function in `index.ts` casts the `ctx.ui.custom()` result type generically. The actual type should match `SessionSearchResult | null`.
+
+### What should be done in the future
+
+- Test edge cases: empty sessions, compaction, long results, multi-branch sessions
+- Add compacted-region search (JSONL file parsing)
+- Add regex search support
+- Improve the `matchSummaryLine()` display to show more context
+- Add `/px` "search current file" action that pre-fills the active file path
+
+### Code review instructions
+
+- Read `extensions/session-search/scanner.ts` — verify that `pending` map correctly matches toolCallIds between assistant and toolResult entries
+- Read `extensions/session-search/ui.ts` — verify keyboard handling (search mode vs browse mode)
+- Read `extensions/session-search/index.ts` — verify `navigateTree()` is called with `match.parentUserEntryId`
+- Test manually: `/session-search someString` → see matches → Enter to navigate
+
+### Technical details
+
+- Files: `types.ts` (147 lines), `scanner.ts` (290 lines), `ui.ts` (390 lines), `index.ts` (125 lines)
+- Key API: `ctx.sessionManager.getBranch()` returns root→leaf
+- Key API: `ctx.navigateTree(entryId, { summarize: true, label })` rewinds session
+- Key API: `ctx.fork(entryId, { withSession })` creates new session
+- Tool call ID format: `call_XXXXXXXXXXXX` (not hex session entry IDs)

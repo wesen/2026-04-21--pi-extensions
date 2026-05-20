@@ -18,3 +18,15 @@ Step 1: Created design document with full analysis, architecture, UI design, sca
 
 Uploaded design document and diary to reMarkable at /ai/2026/05/19/SESSION-SEARCH
 
+
+## 2026-05-19
+
+Step 2: Implemented session-search extension — types, scanner, UI overlay, command handler with navigateTree/fork. Fixed critical bug: getBranch() returns root→leaf, scanner must not reverse. Tested end-to-end: search → match → navigate works (commit 4ca3370)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-search/index.ts — Extension registration and command handler
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-search/scanner.ts — Branch scanning algorithm
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-search/types.ts — Data types and utility functions
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-search/ui.ts — TUI overlay component
+
