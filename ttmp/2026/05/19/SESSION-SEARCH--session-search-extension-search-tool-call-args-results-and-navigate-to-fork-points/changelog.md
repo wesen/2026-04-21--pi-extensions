@@ -30,3 +30,8 @@ Step 2: Implemented session-search extension — types, scanner, UI overlay, com
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-search/types.ts — Data types and utility functions
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-search/ui.ts — TUI overlay component
 
+
+## 2026-05-19
+
+Step 3: Fixed action key handling (f/Enter/Tab/arrows work in search mode). Updated design doc to correct getBranch() order. Tested fork action successfully. Edge cases verified: empty session, multiple matches, fork, navigate. (commits f38d43e, e6ba243)
+

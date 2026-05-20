@@ -177,3 +177,75 @@ The implementation follows the design document architecture exactly: scanner →
 - Key API: `ctx.navigateTree(entryId, { summarize: true, label })` rewinds session
 - Key API: `ctx.fork(entryId, { withSession })` creates new session
 - Tool call ID format: `call_XXXXXXXXXXXX` (not hex session entry IDs)
+
+## Step 3: UX Fixes and Edge Case Testing
+
+Fixed action key handling in the search overlay so that 'f' (fork), Enter (navigate), Tab (detail), '?' (help), and arrow keys work even when the overlay is in search mode. Tested edge cases: empty sessions, multiple matches, fork action, navigate action. Updated design doc to correct the getBranch() order (root→leaf, not leaf→root).
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue implementing, test with tmux, commit at intervals.
+
+**Inferred user intent:** Get a fully working, tested extension.
+
+**Commits:** f38d43e (action key fixes), e6ba243 (design doc corrections)
+
+### What I did
+
+- Fixed 'f' key to exit search mode and fork when matches exist
+- Fixed Enter to navigate even in search mode
+- Fixed Tab, '?', and arrow keys to exit search mode before acting
+- Changed '/' to clear query when already in search mode
+- Tested empty session ("No matches found" correctly)
+- Tested single match navigation (Enter rewinds session, user message in editor)
+- Tested fork action ('f' creates new session)
+- Tested multiple matches (search shows all, arrow keys navigate)
+- Updated design doc to correct getBranch() order in 4 places
+
+### Why
+
+The search mode / browse mode UX was confusing — users expected 'f' to fork, not to append 'f' to the query. The fix makes all action keys work regardless of the current mode.
+
+### What worked
+
+- The fix is simple: check for action keys before printable characters, and exit search mode when an action key is pressed with matches visible
+- Fork (`ctx.fork()`) works perfectly — creates a new session and notifies the user
+- Navigate (`ctx.navigateTree()`) places the user message in the editor for re-submission
+
+### What didn't work
+
+- 'f' in search mode appended to query instead of forking — fixed by checking for 'f' before printable char check
+
+### What I learned
+
+- In TUI overlays, action keys must take priority over text input. The order of checks in `handleInput()` matters — check action keys first, then fall through to printable character handling.
+- Pi's `ctx.fork()` creates a new session file and switches to it. The old session is preserved.
+
+### What was tricky to build
+
+- The search mode / browse mode toggle: search mode should be the default (so users can type immediately), but action keys should still work. The solution is to check action keys first and exit search mode when they're pressed.
+
+### What warrants a second pair of eyes
+
+- The `handleInput()` method now has a complex set of conditions. The order matters: Escape → Enter → f → ? → / → Ctrl+U → arrows → PageUp/Down → Home/End → Tab → Backspace → printable. Make sure no key is accidentally handled by two conditions.
+
+### What should be done in the future
+
+- Add compacted-region search (JSONL file parsing) — currently skipped
+- Add regex search support
+- Add cross-session search
+- Improve match display formatting
+- Add "search current file" action in /px
+
+### Code review instructions
+
+- Read `extensions/session-search/ui.ts` — verify `handleInput()` order of conditions
+- Test: `/session-search query` → type query → see matches → Enter to navigate → verify session rewinds → 'f' to fork → verify new session created
+
+### Technical details
+
+- Extension fully functional: search, match, navigate, fork all work end-to-end
+- 4 source files: types.ts, scanner.ts, ui.ts, index.ts + README.md
+- All tasks complete, extension registered in .pi/settings.json
