@@ -11,7 +11,7 @@
 - [x] Add dashboard widget, expanded match view, compacted-region search
 - [x] Test edge cases: empty sessions, compaction, long results, multi-branch
 - [x] Upload design document to remarkable
-- [ ] Add regex search mode to scanner (toggle regex/plain, validate regex, handle errors)
-- [ ] Update UI overlay to show regex mode indicator and toggle key (r)
-- [ ] Test regex mode with valid/invalid patterns, edge cases
-- [ ] Enable selective-compaction extension in .pi/settings.json
+- [x] Add regex search mode to scanner (toggle regex/plain, validate regex, handle errors)
+- [x] Update UI overlay to show regex mode indicator and toggle key (r)
+- [x] Test regex mode with valid/invalid patterns, edge cases
+- [x] Enable selective-compaction extension in .pi/settings.json

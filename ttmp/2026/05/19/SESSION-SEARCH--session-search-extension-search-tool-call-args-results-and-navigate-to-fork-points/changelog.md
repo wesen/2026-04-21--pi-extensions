@@ -35,3 +35,8 @@ Step 2: Implemented session-search extension — types, scanner, UI overlay, com
 
 Step 3: Fixed action key handling (f/Enter/Tab/arrows work in search mode). Updated design doc to correct getBranch() order. Tested fork action successfully. Edge cases verified: empty session, multiple matches, fork, navigate. (commits f38d43e, e6ba243)
 
+
+## 2026-05-19
+
+Step 4: Added regex search mode. 'r' toggles plain/regex, invalid regex shows error, case-insensitive matching. Also enabled selective-compaction extension in .pi/settings.json (it wasn't registered). (commit 81e676d)
+

@@ -249,3 +249,85 @@ The search mode / browse mode UX was confusing — users expected 'f' to fork, n
 - Extension fully functional: search, match, navigate, fork all work end-to-end
 - 4 source files: types.ts, scanner.ts, ui.ts, index.ts + README.md
 - All tasks complete, extension registered in .pi/settings.json
+
+## Step 4: Regex Search Mode and Selective Compaction Fix
+
+Added regex search mode to the session-search extension and identified why the selective-compaction extension wasn't working (it wasn't registered in .pi/settings.json).
+
+### Prompt Context
+
+**User prompt (verbatim):** "add regex support (tasks, then build, then commit, don't forget diary). Also, can you check if the selective compaction extension is enabled / what's wrong with it?"
+
+**Assistant interpretation:** Add regex search mode to session-search, and diagnose/fix the selective-compaction extension.
+
+**Inferred user intent:** Extend search capability with regex patterns, and fix the broken selective-compaction extension.
+
+**Commit (code):** 81e676d — "SESSION-SEARCH: add regex search mode, enable selective-compaction extension"
+
+### What I did
+
+- Added `matchesQuery()` to types.ts — handles both plain substring and regex matching (case-insensitive)
+- Added `isValidRegex()` to types.ts — validates regex patterns and returns error messages
+- Updated `searchInObject()`, `findMatchLines()`, `buildSnippet()` to accept a `mode` parameter
+- Updated `scanBranch()` and `scanFullFile()` to pass mode to all search calls
+- Added `mode` field to `ScannerOptions`
+- Added `searchQueryMode` and `regexError` state to `SessionSearchOverlay`
+- Added 'r' key toggle for regex/plain mode in the overlay
+- Updated search header to show `[plain]` or `[regex]` mode indicator
+- Updated search header to show "Invalid regex: ..." when pattern is invalid
+- Updated help overlay and footer with 'r:regex' key binding
+- Updated README with regex mode documentation
+- Diagnosed selective-compaction: extension code is fine, it just wasn't in `.pi/settings.json`. Added it.
+
+### Why
+
+Regex mode enables powerful pattern matching: `function\s+\w+` finds function declarations, `TODO|FIXME|HACK` finds multiple markers, `import.*from` matches import statements. Plain substring search can't do these.
+
+### What worked
+
+- The `matchesQuery()` abstraction cleanly separates plain vs regex matching
+- Case-insensitive regex (the `i` flag) is the right default for search
+- Invalid regex validation in `runScan()` prevents crashes from bad patterns
+- The `[plain]`/`[regex]` indicator in the header is immediately visible
+- Testing with tmux confirmed: toggling modes, invalid regex errors, valid regex matching all work
+
+### What didn't work
+
+- tmux send-keys with backslash characters for regex patterns (e.g., `\s+`) is tricky — the terminal interprets escape sequences. Worked around by using simpler patterns like `function` or `interface` for testing.
+
+### What I learned
+
+- The 'r' key must be checked before printable character handling, otherwise it gets typed into the query. This is the same pattern as 'f' for fork.
+- `new RegExp(pattern, "i")` is the correct way to do case-insensitive regex matching in JS.
+- The selective-compaction extension wasn't broken — it was just never added to `.pi/settings.json`. The code itself loads and runs fine.
+
+### What was tricky to build
+
+- The `matchesQuery()` function needs to handle regex errors gracefully. If a user types an incomplete regex like `[`, the `new RegExp("[")` throws. The `try/catch` in `matchesQuery()` returns false on error, and `isValidRegex()` provides the error message for display.
+- The `searchInObject()` function is recursive and now needs to pass the `mode` parameter through every level. I updated its signature to accept `mode` as a third parameter with default `"plain"` for backward compatibility.
+
+### What warrants a second pair of eyes
+
+- The 'r' key now always toggles mode, even when in search mode with a query. This means you can't type 'r' as part of a search query anymore. This is acceptable for a search tool, but worth noting.
+- The `matchesQuery()` function in types.ts uses `try/catch` around `new RegExp()`. This is called frequently during scanning (once per string value per tool call). The performance impact of try/catch in a hot path is minimal in V8 but worth profiling for very large sessions.
+
+### What should be done in the future
+
+- Add compacted-region search (JSONL file parsing)
+- Add cross-session search
+- Consider adding regex flags display (case-sensitive toggle?)
+- Add 'search current file' action that pre-fills the active file path
+
+### Code review instructions
+
+- Read `extensions/session-search/types.ts` — verify `matchesQuery()` and `isValidRegex()` handle edge cases
+- Read `extensions/session-search/scanner.ts` — verify `mode` is passed through to all search calls
+- Read `extensions/session-search/ui.ts` — verify 'r' key handling and mode indicator rendering
+
+### Technical details
+
+- `matchesQuery(text, query, mode)`: plain mode uses `includes()`, regex mode uses `new RegExp(query, "i").test()`
+- `isValidRegex(pattern)`: returns `{ ok: true }` or `{ ok: false, error: string }`
+- Mode indicator: `[plain]` in dim, `[regex]` in warning color
+- Invalid regex: shown in error color in the search header
+- selective-compaction fix: added `"../extensions/selective-compaction/index.ts"` to .pi/settings.json
