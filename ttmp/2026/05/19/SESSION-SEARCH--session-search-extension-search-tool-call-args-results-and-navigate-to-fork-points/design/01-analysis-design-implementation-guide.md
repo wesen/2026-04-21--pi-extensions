@@ -158,7 +158,7 @@ ctx.sessionManager.getTree(): SessionTreeNode[]
 ctx.sessionManager.getSessionFile(): string | undefined
 ```
 
-**Important distinction:** `getEntries()` returns all entries across all branches. `getBranch()` returns only the entries on the current active path (from leaf to root). For this extension, we want to search the **current branch** by default, because that's the conversation the user is actually in. We might add a "search all branches" option later.
+**Important distinction:** `getEntries()` returns all entries across all branches. `getBranch()` returns only the entries on the current active path in **root→leaf (chronological) order**. For this extension, we want to search the **current branch** by default, because that's the conversation the user is actually in. We might add a "search all branches" option later.
 
 ### 2.4 Tree Navigation and Forking
 
@@ -330,8 +330,8 @@ interface ScanResult {
 
 ```
 FUNCTION scanBranch(sessionManager, query, options):
-  branch = sessionManager.getBranch()  // entries from leaf to root
-  branch.reverse()                     // now root to leaf (chronological)
+  branch = sessionManager.getBranch()  // entries root→leaf (chronological)
+  // branch is already root→leaf (chronological)
 
   matches = []
   turnIndex = 0
@@ -439,7 +439,7 @@ function searchInObject(obj: Record<string, any>, query: string): boolean {
 
 Compaction entries summarize older messages. The original entries still exist in the JSONL file but are no longer on the current branch path. After compaction:
 
-- `getBranch()` returns entries from `firstKeptEntryId` to the leaf, plus the compaction entry itself
+- `getBranch()` returns entries in **root→leaf (chronological) order** from `firstKeptEntryId` to the leaf, plus the compaction entry itself
 - The compacted entries are NOT in the branch (they were replaced by the compaction summary)
 
 **For search purposes:** If we only scan `getBranch()`, we miss all tool calls that were compacted. To search the full history, we need to read the raw JSONL file. The approach:
