@@ -1,4 +1,4 @@
-import type { AssistantMessage, ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +11,7 @@ export interface CapturedResponse {
 	turnIndex: number;
 	capturedAt: string;
 	sessionId: string;
+	entryId: string;
 	modelProvider: string | undefined;
 	modelId: string | undefined;
 	modelName: string | undefined;
@@ -26,7 +27,6 @@ export interface ResponseViewerSettings {
 }
 
 export interface ResponseViewerState {
-	responses: CapturedResponse[];
 	lastSavedPath: string | undefined;
 	lastSavedTurnIndex: number | undefined;
 	settings: ResponseViewerSettings;
@@ -38,7 +38,6 @@ export interface ResponseViewerState {
 
 export function createState(): ResponseViewerState {
 	return {
-		responses: [],
 		lastSavedPath: undefined,
 		lastSavedTurnIndex: undefined,
 		settings: {
@@ -51,44 +50,53 @@ export function createState(): ResponseViewerState {
 }
 
 // ---------------------------------------------------------------------------
-// Response list helpers
+// Extract responses from session history (survives /reload)
 // ---------------------------------------------------------------------------
 
-export function lastResponse(state: ResponseViewerState): CapturedResponse | undefined {
-	return state.responses.length > 0 ? state.responses[state.responses.length - 1] : undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Response extraction & capture
-// ---------------------------------------------------------------------------
-
-export function extractAssistantText(message: AssistantMessage): string {
+function extractTextFromContent(content: unknown[]): string {
 	const parts: string[] = [];
-	for (const block of message.content) {
-		if (block.type === "text") {
-			parts.push(block.text);
+	for (const block of content) {
+		if (block && typeof block === "object" && "type" in block && (block as any).type === "text") {
+			parts.push((block as any).text ?? "");
 		}
 	}
 	return parts.join("\n\n").trim();
 }
 
-export function captureResponse(
-	ctx: ExtensionContext,
-	turnIndex: number,
-	message: AssistantMessage,
-): CapturedResponse | undefined {
-	const text = extractAssistantText(message);
-	if (!text) return undefined;
-	return {
-		turnIndex,
-		capturedAt: new Date().toISOString(),
-		sessionId: ctx.sessionManager.getSessionId(),
-		modelProvider: ctx.model?.provider,
-		modelId: ctx.model?.id,
-		modelName: ctx.model?.name,
-		text,
-		textLength: text.length,
-	};
+export function getResponsesFromSession(ctx: ExtensionContext): CapturedResponse[] {
+	const entries = ctx.sessionManager.getBranch();
+	const sessionId = ctx.sessionManager.getSessionId();
+	const responses: CapturedResponse[] = [];
+	let turnIndex = 0;
+
+	for (const entry of entries) {
+		if (entry.type !== "message") continue;
+		const message = (entry as any).message;
+		if (!message || message.role !== "assistant") continue;
+		if (!Array.isArray(message.content)) continue;
+
+		const text = extractTextFromContent(message.content);
+		if (!text) continue;
+
+		responses.push({
+			turnIndex,
+			capturedAt: entry.timestamp,
+			sessionId,
+			entryId: entry.id,
+			modelProvider: ctx.model?.provider,
+			modelId: ctx.model?.id,
+			modelName: ctx.model?.name,
+			text,
+			textLength: text.length,
+		});
+		turnIndex++;
+	}
+
+	return responses;
+}
+
+export function lastResponse(responses: CapturedResponse[]): CapturedResponse | undefined {
+	return responses.length > 0 ? responses[responses.length - 1] : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,12 +204,12 @@ export function previewResponse(response: CapturedResponse, maxChars = 1000): st
 // Status bar formatting
 // ---------------------------------------------------------------------------
 
-export function formatStatusShort(state: ResponseViewerState): string {
-	const count = state.responses.length;
+export function formatStatusShort(ctx: ExtensionContext): string {
+	const responses = getResponsesFromSession(ctx);
+	const count = responses.length;
 	if (count === 0) return "rv:no-responses";
-	const last = state.responses[count - 1];
+	const last = lastResponse(responses)!;
 	const turn = String(last.turnIndex + 1);
 	const chars = last.textLength.toLocaleString();
-	const saved = state.lastSavedTurnIndex === last.turnIndex ? "saved" : "unsaved";
-	return `rv:${count}turns/last:${turn}/chars:${chars}/${saved}`;
+	return `rv:${count}turns/last:${turn}/chars:${chars}`;
 }

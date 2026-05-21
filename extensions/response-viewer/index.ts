@@ -1,9 +1,9 @@
 import type { AssistantMessage, ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { existsSync } from "node:fs";
 import {
-	captureResponse,
 	createState,
 	formatStatusShort,
+	getResponsesFromSession,
 	lastResponse,
 	openWithMdView,
 	previewResponse,
@@ -16,21 +16,13 @@ import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "response-viewer";
 
-function requireResponses(ctx: ExtensionCommandContext, state: ResponseViewerState): CapturedResponse[] | undefined {
-	if (state.responses.length === 0) {
-		ctx.ui.notify("No assistant responses captured yet. Ask Pi for a response first.", "warning");
+function requireResponses(ctx: ExtensionCommandContext): CapturedResponse[] | undefined {
+	const responses = getResponsesFromSession(ctx);
+	if (responses.length === 0) {
+		ctx.ui.notify("No assistant responses found in this session. Ask Pi for a response first.", "warning");
 		return undefined;
 	}
-	return state.responses;
-}
-
-function setStatus(ctx: ExtensionCommandContext, state: ResponseViewerState): void {
-	if (!ctx.hasUI) return;
-	if (state.responses.length === 0) {
-		ctx.ui.setStatus(STATUS_KEY, undefined);
-		return;
-	}
-	ctx.ui.setStatus(STATUS_KEY, formatStatusShort(state));
+	return responses;
 }
 
 async function saveAndOpenResponse(
@@ -43,7 +35,6 @@ async function saveAndOpenResponse(
 		const path = saveToTempFile(response);
 		state.lastSavedPath = path;
 		state.lastSavedTurnIndex = response.turnIndex;
-		setStatus(ctx, state);
 		await openWithMdView(pi, ctx, state, path);
 	} catch (error) {
 		ctx.ui.notify(
@@ -54,44 +45,42 @@ async function saveAndOpenResponse(
 }
 
 async function openPicker(pi: ExtensionAPI, ctx: ExtensionCommandContext, state: ResponseViewerState): Promise<void> {
-	const responses = requireResponses(ctx, state);
+	const responses = requireResponses(ctx);
 	if (!responses) return;
 
 	// Show most recent first in the picker
 	const reversed = [...responses].reverse();
 
-	while (true) {
-		const result = await ctx.ui.custom<ResponsePickerResult>(
-			(tui, theme, _keybindings, done) =>
-				new ResponsePicker({
-					responses: reversed,
-					theme,
-					tui,
-					done,
-				}),
-			{
-				overlay: true,
-				overlayOptions: {
-					anchor: "center",
-					width: "90%",
-					maxHeight: "85%",
-					margin: 1,
-				},
+	const result = await ctx.ui.custom<ResponsePickerResult>(
+		(tui, theme, _keybindings, done) =>
+			new ResponsePicker({
+				responses: reversed,
+				theme,
+				tui,
+				done,
+			}),
+		{
+			overlay: true,
+			overlayOptions: {
+				anchor: "center",
+				width: "90%",
+				maxHeight: "85%",
+				margin: 1,
 			},
-		);
+		},
+	);
 
-		if (result.action === "cancel") return;
-		if (result.action === "open") {
-			await saveAndOpenResponse(pi, ctx, state, result.response);
-			return;
-		}
+	if (result.action === "cancel") return;
+	if (result.action === "open") {
+		await saveAndOpenResponse(pi, ctx, state, result.response);
 	}
 }
 
 async function saveAndOpenLast(pi: ExtensionAPI, ctx: ExtensionCommandContext, state: ResponseViewerState): Promise<void> {
-	const response = lastResponse(state);
+	const responses = getResponsesFromSession(ctx);
+	const response = lastResponse(responses);
 	if (!response) {
-		ctx.ui.notify("No assistant response captured yet. Ask Pi for a response first.", "warning");
+		ctx.ui.notify("No assistant responses found in this session. Ask Pi for a response first.", "warning");
 		return;
 	}
 	await saveAndOpenResponse(pi, ctx, state, response);
@@ -136,9 +125,10 @@ export default function responseViewerExtension(pi: ExtensionAPI): void {
 				title: "Preview last response",
 				description: "Show a text preview of the most recent assistant response in the terminal.",
 				run: async (ctx) => {
-					const response = lastResponse(state);
+					const responses = getResponsesFromSession(ctx);
+					const response = lastResponse(responses);
 					if (!response) {
-						ctx.ui.notify("No assistant response captured yet.", "warning");
+						ctx.ui.notify("No assistant responses found in this session.", "warning");
 						return;
 					}
 					ctx.ui.notify(previewResponse(response), "info");
@@ -221,38 +211,27 @@ export default function responseViewerExtension(pi: ExtensionAPI): void {
 				defaultZone: "statusBar",
 				defaultVariant: "short",
 				priority: 70,
-				render: () => formatStatusShort(state),
+				render: ({ ctx }) => formatStatusShort(ctx),
 			},
 		],
 	});
 
-	// Capture assistant responses on turn_end
+	// Auto-open on turn_end if setting is enabled
 	pi.on("turn_end", async (event, ctx) => {
 		if (event.message.role !== "assistant") return;
-		const captured = captureResponse(ctx, event.turnIndex, event.message as AssistantMessage);
-		if (!captured) return;
+		if (!state.settings.autoOpen) return;
 
-		// Replace existing entry for the same turn index (e.g. after tree navigation)
-		const existing = state.responses.findIndex((r) => r.turnIndex === captured.turnIndex);
-		if (existing >= 0) {
-			state.responses[existing] = captured;
-		} else {
-			state.responses.push(captured);
-		}
+		const responses = getResponsesFromSession(ctx);
+		const response = lastResponse(responses);
+		if (!response) return;
 
-		setStatus(ctx as ExtensionCommandContext, state);
-
-		// Auto-open if enabled
-		if (state.settings.autoOpen) {
-			try {
-				const path = saveToTempFile(captured);
-				state.lastSavedPath = path;
-				state.lastSavedTurnIndex = captured.turnIndex;
-				setStatus(ctx as ExtensionCommandContext, state);
-				await openWithMdView(pi, ctx as ExtensionCommandContext, state, path);
-			} catch {
-				// Silent fail for auto-open — user can manually trigger
-			}
+		try {
+			const path = saveToTempFile(response);
+			state.lastSavedPath = path;
+			state.lastSavedTurnIndex = response.turnIndex;
+			await openWithMdView(pi, ctx as ExtensionCommandContext, state, path);
+		} catch {
+			// Silent fail for auto-open — user can manually trigger
 		}
 	});
 
@@ -275,9 +254,10 @@ export default function responseViewerExtension(pi: ExtensionAPI): void {
 	pi.registerCommand("rv-preview", {
 		description: "Preview the most recent captured assistant response in the terminal",
 		handler: async (_args, ctx) => {
-			const response = lastResponse(state);
+			const responses = getResponsesFromSession(ctx);
+			const response = lastResponse(responses);
 			if (!response) {
-				ctx.ui.notify("No assistant response captured yet.", "warning");
+				ctx.ui.notify("No assistant responses found in this session.", "warning");
 				return;
 			}
 			ctx.ui.notify(previewResponse(response), "info");
