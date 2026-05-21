@@ -33,3 +33,13 @@ Tasks 5-6: Added README.md, cleaned up unused export, validated with pi --list-m
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/README.md — User-facing docs
 
+
+## 2026-05-21
+
+Fix: Read responses from session history (getResponsesFromSession) instead of in-memory accumulator — responses survive /reload and are available before extension loaded (commit e359eae)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/index.ts — Simplified
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/response.ts — Session history reader replacing turn_end accumulator
+

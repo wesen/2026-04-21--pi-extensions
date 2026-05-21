@@ -12,6 +12,8 @@
     "../extensions/session-summary/index.ts",
     "../extensions/tui-showcase/index.ts",
     "../extensions/session-search/index.ts",
-    "../extensions/selective-compaction/index.ts"
+    "../extensions/selective-compaction/index.ts",
+    "../extensions/response-viewer/index.ts",
+    "../extensions/markdown-recent-viewer/index.ts"
   ]
 }

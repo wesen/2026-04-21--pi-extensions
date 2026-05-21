@@ -135,3 +135,55 @@ Wrote user-facing docs, cleaned up unused exports, validated load.
 
 ### What should be done in the future
 - N/A
+
+## Step 4: Fix — read responses from session history instead of in-memory accumulator
+
+The user pointed out that responses disappear after `/reload` because the `turn_end` accumulator pattern stores data in a JS array that gets wiped when extensions reload. The fix: read from `ctx.sessionManager.getBranch()` directly, which has the full session timeline.
+
+### Prompt Context
+
+**User prompt (verbatim):** "aren't we using the session timeline to get the last responses? why would they be gone after /reload?"
+
+**Assistant interpretation:** The in-memory accumulator is wrong — we should read from the session history like markdown-recent-viewer does.
+
+**Inferred user intent:** Responses should survive /reload and be available from before the extension was loaded.
+
+**Commit (code):** e359eae — "fix(response-viewer): read responses from session history instead of in-memory accumulator"
+
+### What I did
+- Replaced `state.responses` accumulator with `getResponsesFromSession(ctx)` that reads `ctx.sessionManager.getBranch()`
+- `CapturedResponse` now includes `entryId` from the session entry
+- Removed `state.responses` array entirely; state only tracks `lastSavedPath` and `lastSavedTurnIndex`
+- `formatStatusShort()` reads from session history too
+- `turn_end` handler kept only for the `autoOpen` feature
+- Tested in tmux: `/rv` picker showed all 5 responses from the session (including pre-reload ones), `Enter` opened in md-view, `/rv-preview` and `/rv-reopen` work
+
+### Why
+- Session history is the authoritative source — it survives /reload, persists across extension loads, and requires zero state management
+- The `markdown-recent-viewer` extension already proved this pattern works
+
+### What worked
+- After `/reload`, the status bar immediately showed `rv:5turns/last:5/…` — all responses visible
+- The picker rendered correctly with all 5 responses (most recent first)
+- `Enter` on the selected response saved to `/tmp/pi-response-viewer/last-response.md` and opened with md-view
+- `/rv-preview` showed the terminal preview correctly
+- `/rv-reopen` re-opened the last saved file
+
+### What didn't work
+- Arrow keys in the tmux picker didn't seem to register (tmux warning: `extended-keys is off`), but this is a tmux configuration issue, not an extension bug
+- `/px` was sent to the LLM instead of being parsed as a slash command (possibly timing issue with tmux)
+
+### What I learned
+- Always prefer reading from `sessionManager.getBranch()` over accumulating state in memory — it's the canonical source and survives extension lifecycle events
+- The `getBranch()` returns `SessionEntry[]` where type `"message"` entries have `message: AgentMessage` with `role`, `content`, etc.
+
+### What was tricky to build
+- The `extractTextFromContent` function needs to handle `content` blocks generically (using `as any`) because the session entry message type is `AgentMessage` not the more specific `AssistantMessage` from the turn_end event
+
+### What warrants a second pair of eyes
+- The `getResponsesFromSession` function iterates all entries and filters for `role === "assistant"` with text content. If a session has very many entries, this could be slow. Consider caching the result and invalidating on session change events.
+- The `formatStatusShort` in the widget render callback calls `getResponsesFromSession` on every render — this is a potential perf concern per the framework guide's "keep render cheap" rule. Should cache the response count.
+
+### What should be done in the future
+- Cache the response count in the widget (invalidate on turn_end or message_end events)
+- Add keyboard shortcut for quick open-last
