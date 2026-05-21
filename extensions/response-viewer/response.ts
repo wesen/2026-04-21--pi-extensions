@@ -53,6 +53,11 @@ export function createState(): ResponseViewerState {
 // Extract responses from session history (survives /reload)
 // ---------------------------------------------------------------------------
 
+function stripSummary(text: string): string {
+	// Remove <summary>...</summary> blocks (including newlines inside)
+	return text.replace(/\n?<summary>[\s\S]*?<\/summary>\n?/g, "").trim();
+}
+
 function extractTextFromContent(content: unknown[]): string {
 	const parts: string[] = [];
 	for (const block of content) {
@@ -60,7 +65,7 @@ function extractTextFromContent(content: unknown[]): string {
 			parts.push((block as any).text ?? "");
 		}
 	}
-	return parts.join("\n\n").trim();
+	return stripSummary(parts.join("\n\n").trim());
 }
 
 export function getResponsesFromSession(ctx: ExtensionContext): CapturedResponse[] {
