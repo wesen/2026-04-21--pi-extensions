@@ -8,7 +8,7 @@ Use it when an old part of the conversation is no longer needed verbatim, but la
 
 ```text
 Input:
-  system prompt + A + [compact start] + B + [compact end] + C
+  system prompt + A + [compact start] + B + [compact end, included] + C
 
 Output in a new session:
   system prompt + A + B' + B'' + C
@@ -17,7 +17,7 @@ Output in a new session:
 Where:
 
 - `A` is copied before-context.
-- `B` is the selected middle range.
+- `B` is the selected middle range, from the chosen start turn up to and including the chosen end turn.
 - `B'` is a selective compaction summary.
 - `B''` is a linkage message that bridges into the preserved following context.
 - `C` is copied after-context.
@@ -32,6 +32,8 @@ The extension is also registered with the shared `/px` launcher as **Selective C
 ## MVP safety rule
 
 The first implementation selects whole turns rather than arbitrary individual messages. This avoids splitting assistant tool calls from their tool results, which can create invalid provider context after the middle range is removed.
+
+When the flow asks for the end turn, that turn is included in the compaction. In other words, selecting an end turn means "compact up to and including this turn"; the next turn after it is the first preserved turn in `C`.
 
 ## Prompt intent
 

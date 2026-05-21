@@ -105,7 +105,8 @@ export function formatPartitionPreview(partition: SelectivePartition, validation
 		`After range (C): ${partition.after.length} messages`,
 		"",
 		`Start: ${partition.startTurn.label}`,
-		`End: ${partition.endTurn.label}`,
+		`End (included): ${partition.endTurn.label}`,
+		"Range semantics: compacts from the start turn up to and including the end turn; later turns stay verbatim in C.",
 		"",
 		validation.errors.length ? `Errors:\n${validation.errors.map((e) => `- ${e}`).join("\n")}` : "Validation: OK, whole-turn boundary safe",
 		validation.warnings.length ? `Warnings:\n${validation.warnings.map((w) => `- ${w}`).join("\n")}` : undefined,
@@ -142,7 +143,7 @@ export async function choosePartition(ctx: ExtensionCommandContext): Promise<Sel
 
 	const endCandidates = turns.filter((turn) => turn.startIndex >= startTurn.startIndex);
 	const endOption = await ctx.ui.select(
-		"Select compact end turn",
+		"Select last turn to compact (included)",
 		endCandidates.map((turn) => formatTurnOption(turn)),
 	);
 	if (!endOption) return undefined;

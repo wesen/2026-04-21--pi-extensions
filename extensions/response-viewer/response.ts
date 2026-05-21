@@ -58,10 +58,6 @@ export function lastResponse(state: ResponseViewerState): CapturedResponse | und
 	return state.responses.length > 0 ? state.responses[state.responses.length - 1] : undefined;
 }
 
-export function responseByTurn(state: ResponseViewerState, turnIndex: number): CapturedResponse | undefined {
-	return state.responses.find((r) => r.turnIndex === turnIndex);
-}
-
 // ---------------------------------------------------------------------------
 // Response extraction & capture
 // ---------------------------------------------------------------------------
