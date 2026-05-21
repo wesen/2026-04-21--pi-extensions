@@ -24,3 +24,12 @@ Tasks 3-4: Added response picker UI, schema settings, dashboard widget. Redesign
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/index.ts — Settings
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/ui.ts — ResponsePicker TUI component
 
+
+## 2026-05-21
+
+Tasks 5-6: Added README.md, cleaned up unused export, validated with pi --list-models (commit 5384d4d, 3c0d7e5)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/README.md — User-facing docs
+

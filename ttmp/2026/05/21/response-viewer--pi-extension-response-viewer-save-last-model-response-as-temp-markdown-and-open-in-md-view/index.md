@@ -10,13 +10,22 @@ Topics:
 DocType: index
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: extensions/response-viewer/README.md
+      Note: User-facing docs
+    - Path: extensions/response-viewer/index.ts
+      Note: Extension registration
+    - Path: extensions/response-viewer/response.ts
+      Note: Capture logic
+    - Path: extensions/response-viewer/ui.ts
+      Note: ResponsePicker TUI component
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-05-21T15:22:29.791496678-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Pi extension: response-viewer — save last model response as temp markdown and open in md-view
 

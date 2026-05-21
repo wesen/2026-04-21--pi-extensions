@@ -63,4 +63,4 @@ Write user-facing documentation explaining:
 - [x] Task 6: Validate and final commit
 - [x] Task 1: Scaffold extension directory and create response.ts with capture/save/open logic
 - [x] Task 2: Create index.ts with registration, event handler, commands, and actions
-- [ ] Task 5: Create README.md with usage docs
+- [x] Task 5: Create README.md with usage docs
