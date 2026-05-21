@@ -26,8 +26,9 @@ export interface ResponseViewerSettings {
 }
 
 export interface ResponseViewerState {
-	lastResponse: CapturedResponse | undefined;
+	responses: CapturedResponse[];
 	lastSavedPath: string | undefined;
+	lastSavedTurnIndex: number | undefined;
 	settings: ResponseViewerSettings;
 }
 
@@ -37,8 +38,9 @@ export interface ResponseViewerState {
 
 export function createState(): ResponseViewerState {
 	return {
-		lastResponse: undefined,
+		responses: [],
 		lastSavedPath: undefined,
+		lastSavedTurnIndex: undefined,
 		settings: {
 			openDark: false,
 			noReload: false,
@@ -46,6 +48,18 @@ export function createState(): ResponseViewerState {
 			browser: "",
 		},
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Response list helpers
+// ---------------------------------------------------------------------------
+
+export function lastResponse(state: ResponseViewerState): CapturedResponse | undefined {
+	return state.responses.length > 0 ? state.responses[state.responses.length - 1] : undefined;
+}
+
+export function responseByTurn(state: ResponseViewerState, turnIndex: number): CapturedResponse | undefined {
+	return state.responses.find((r) => r.turnIndex === turnIndex);
 }
 
 // ---------------------------------------------------------------------------
@@ -180,4 +194,18 @@ export function previewResponse(response: CapturedResponse, maxChars = 1000): st
 		"",
 		prefix,
 	].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Status bar formatting
+// ---------------------------------------------------------------------------
+
+export function formatStatusShort(state: ResponseViewerState): string {
+	const count = state.responses.length;
+	if (count === 0) return "rv:no-responses";
+	const last = state.responses[count - 1];
+	const turn = String(last.turnIndex + 1);
+	const chars = last.textLength.toLocaleString();
+	const saved = state.lastSavedTurnIndex === last.turnIndex ? "saved" : "unsaved";
+	return `rv:${count}turns/last:${turn}/chars:${chars}/${saved}`;
 }
