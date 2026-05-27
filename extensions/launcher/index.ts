@@ -253,18 +253,18 @@ async function openPaletteFromLauncher(ctx: ExtensionCommandContext): Promise<vo
 	}
 	const rootItems = buildRootPaletteItems(paletteItems);
 	const result = await ctx.ui.custom<PaletteResult>(
-		(tui, theme, _keybindings, done) => {
-			const overlay = new CommandPaletteOverlay(rootItems, {
+		(tui, theme, _keybindings, done) =>
+			new CommandPaletteOverlay(rootItems, {
 				theme,
 				done,
 				requestRender: () => tui.requestRender(),
-			});
-			tui.requestRender();
-			return overlay;
-		},
+			}),
 		{
 			overlay: true,
 			overlayOptions: { anchor: "center", width: "90%", maxHeight: "50%", minWidth: 60, margin: 0 },
+			onHandle: (handle) => {
+				handle.focus();
+			},
 		},
 	);
 	if (result.kind === "execute" && result.item.run) {

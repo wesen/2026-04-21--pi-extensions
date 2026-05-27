@@ -66,17 +66,12 @@ async function openPalette(ctx: ExtensionCommandContext): Promise<void> {
 	const rootItems = buildRootPaletteItems(paletteItems);
 
 	const result = await ctx.ui.custom<PaletteResult>(
-		(tui, theme, _keybindings, done) => {
-			const overlay = new CommandPaletteOverlay(rootItems, {
+		(tui, theme, _keybindings, done) =>
+			new CommandPaletteOverlay(rootItems, {
 				theme,
 				done,
 				requestRender: () => tui.requestRender(),
-			});
-			// Force initial render — without this, the overlay may not paint until
-			// the next keystroke, which is especially noticeable when opened via shortcut.
-			tui.requestRender();
-			return overlay;
-		},
+			}),
 		{
 			overlay: true,
 			overlayOptions: {
@@ -85,6 +80,9 @@ async function openPalette(ctx: ExtensionCommandContext): Promise<void> {
 				maxHeight: "50%",
 				minWidth: 60,
 				margin: 0,
+			},
+			onHandle: (handle) => {
+				handle.focus();
 			},
 		},
 	);
