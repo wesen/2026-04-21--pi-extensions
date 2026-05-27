@@ -360,3 +360,60 @@ The raw listener fixed the shortcut delivery layer, but it still let the first n
 
 ### Technical details
 - Commit: 330d267
+
+## Step 7: Scheduled Open Outside Raw Input Callback
+
+The user's next log showed that `Ctrl+Shift+P` was recognized and `custom.factory` ran, but `custom.onHandle` did not fire until the user pressed Space. This proved that even the buffered-input fix still opened `ctx.ui.custom()` too early: from inside the raw terminal input callback.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok but i still need to press a key for th emodal to appear, so something's off there."
+
+**User prompt (verbatim):** "Look at the log now, I recorded Ctrlshiftp, but then had to press \"space\" for the modal to appear."
+
+**Assistant interpretation:** Inspect the fresh debug log and fix the remaining modal mount delay where Ctrl+Shift+P is recognized but the overlay does not mount until later input.
+
+**Inferred user intent:** Make Ctrl+Shift+P alone show the modal immediately, without requiring Space or any other follow-up key.
+
+**Commit (code):** f281c73 — "fix(palette): schedule shortcut open outside raw input callback"
+
+### What I did
+- Read the new debug log and observed `Ctrl+Shift+P` matched, `openPaletteOnce.start` ran, and `custom.factory` ran.
+- Observed that `custom.onHandle` happened only after the Space input arrived.
+- Changed the raw input listener so it no longer calls `openPalette()` directly inside the raw terminal callback.
+- Added `paletteOpenScheduled` state.
+- Added `scheduleOpenPalette()` that consumes the shortcut and opens the palette from `setImmediate()`.
+- Extended buffering to cover both `paletteOpenScheduled` and `paletteOpen && !paletteInputReady`.
+- Tested exact kitty CSI-u sequence with no follow-up key; modal appeared immediately.
+- Tested exact CSI-u plus immediate `r`; `r` was buffered while scheduled and replayed into the overlay after mount.
+
+### Why
+Pi's `ctx.ui.custom()` ultimately mounts the overlay via a promise continuation. Calling it directly inside the raw terminal input listener can leave the mount continuation pending until another input event. Scheduling the open outside the input callback gives Pi/TUI a clean event-loop boundary before mounting the custom overlay.
+
+### What worked
+- Raw sequence `ESC[112:80;6u` alone now opens the palette without Space.
+- Raw sequence `ESC[112:80;6u` followed immediately by `r` opens directly into Response Viewer.
+- The debug log now shows `scheduleOpenPalette.fire`, then `custom.onHandle` without requiring a later Space key.
+
+### What didn't work
+- Buffering keys during mount was necessary but not sufficient. The overlay still needed to be scheduled outside the raw input callback.
+
+### What I learned
+- There are two distinct races: shortcut delivery and overlay mount scheduling. The final design handles both.
+- Inputs can arrive while `paletteOpenScheduled` is true but `paletteOpen` is still false; this state must also consume/buffer keys.
+
+### What was tricky to build
+- The scheduled-open state must preserve buffered keys across the transition from scheduled to open. `openPalette()` must not clear `pendingOpeningInputs` when it starts, because keys may have already been buffered while scheduled.
+
+### What warrants a second pair of eyes
+- The interaction between `paletteOpenScheduled`, fallback `pi.registerShortcut`, and `/palette` command calls. The guards should prevent duplicate opens, but this is now the most stateful part of the extension.
+
+### What should be done in the future
+- If this pattern is needed elsewhere, promote it to a shared helper for raw global shortcuts that open `ctx.ui.custom()` overlays.
+
+### Code review instructions
+- Review `scheduleOpenPalette()`, the `paletteOpenScheduled` branch in `registerTerminalShortcut()`, and the preservation of `pendingOpeningInputs` in `openPalette()`.
+- Test raw kitty CSI-u sequence and fast `Ctrl+Shift+P r` path.
+
+### Technical details
+- Commit: f281c73

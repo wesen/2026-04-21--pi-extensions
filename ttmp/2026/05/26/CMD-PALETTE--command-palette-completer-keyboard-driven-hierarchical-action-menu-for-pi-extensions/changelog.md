@@ -65,3 +65,12 @@ Step 6: Buffered first navigation keys during palette overlay mount to fix kitty
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Buffers replayable input while paletteOpen && !paletteInputReady and replays after onHandle focus
 
+
+## 2026-05-27
+
+Step 7: Fixed remaining Ctrl+Shift+P mount delay by scheduling palette open outside raw input callback (commit f281c73)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Added paletteOpenScheduled and setImmediate scheduleOpenPalette()
+
