@@ -56,3 +56,12 @@ Step 5: Fixed Ctrl+Shift+P shortcut race by moving primary handling to raw termi
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/.pi/settings.json — Removed project command-palette entry because palette is globally enabled
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Raw terminal listener consumes Ctrl+Shift+P before editor input handling
 
+
+## 2026-05-27
+
+Step 6: Buffered first navigation keys during palette overlay mount to fix kitty/tmux Ctrl+Shift+P race (commit 330d267)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Buffers replayable input while paletteOpen && !paletteInputReady and replays after onHandle focus
+

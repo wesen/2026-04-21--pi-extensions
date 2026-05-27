@@ -308,3 +308,55 @@ The previous fix called `handle.focus()` via `onHandle`, which helps once an ove
 
 ### Technical details
 - Commit: 26470fa
+
+## Step 6: Buffered Input During Overlay Mount
+
+Used the new debug log from the user's real reproduction and found that the first navigation key can arrive in the tiny interval between `custom.factory` and `custom.onHandle`. During that interval, `paletteOpen` is true but the overlay is not mounted/focused yet, so the raw listener previously returned `undefined` for non-shortcut keys and the key went to the editor path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, i did it, and reprod"
+
+**Assistant interpretation:** Inspect the debug log from the user's live reproduction and apply a targeted fix.
+
+**Inferred user intent:** Make rapid `Ctrl+Shift+P → r → v` navigation robust in kitty/tmux without key leakage.
+
+**Commit (code):** 330d267 — "fix(palette): buffer keys typed while shortcut overlay is mounting"
+
+### What I did
+- Read `/tmp/pi-command-palette-debug.log` from the user's reproduction.
+- Observed `Ctrl+Shift+P` matched and `custom.factory` ran, then raw `r` arrived before `custom.onHandle`.
+- Added `paletteInputReady` and `pendingOpeningInputs` state.
+- While `paletteOpen && !paletteInputReady`, the raw listener now consumes replayable keys and buffers them.
+- In `onHandle`, after focus, the buffered keys are replayed into `CommandPaletteOverlay.handleInput()` and a render is requested.
+- Tested in tmux by sending `Ctrl+Shift+P` and `r` in the same command; the palette opened directly into Response Viewer.
+
+### Why
+The raw listener fixed the shortcut delivery layer, but it still let the first non-shortcut key pass through during the overlay mount window. Buffering closes that race.
+
+### What worked
+- The debug log clearly showed `terminalInput "r"` before `custom.onHandle`.
+- After the fix, the log shows `terminalInput.bufferWhileOpening`, `custom.replayBufferedInput`, and then `overlay.activate` for Response Viewer.
+- `Ctrl+Shift+P r v` works even when `r` is sent immediately after the shortcut.
+
+### What didn't work
+- Treating the bug as render-only or focus-only missed the pre-mount input window.
+
+### What I learned
+- In kitty/tmux, a key press can generate both press and release CSI-u sequences. The press (`"r"`) must be buffered/replayed; release CSI-u sequences should be consumed but not replayed while opening.
+
+### What was tricky to build
+- The listener must consume input before the overlay is ready, but stop consuming normal input after the overlay is focused so the overlay can receive keys through the normal TUI focus path.
+
+### What warrants a second pair of eyes
+- `shouldReplayOpeningInput()` decides what to buffer. It currently buffers printable single-character keys and standard navigation keys, while consuming but not replaying CSI-u release sequences.
+
+### What should be done in the future
+- Keep `/palette-debug` around until the shortcut path is stable across terminal emulators.
+
+### Code review instructions
+- Review `registerTerminalShortcut()`, `paletteInputReady`, `pendingOpeningInputs`, and `shouldReplayOpeningInput()` in `extensions/command-palette/index.ts`.
+- Test with `Ctrl+Shift+P r v` in kitty/tmux.
+
+### Technical details
+- Commit: 330d267
