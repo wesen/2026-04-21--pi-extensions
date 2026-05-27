@@ -11,6 +11,7 @@ const DEBUG_LOG_PATH = path.join(os.tmpdir(), "pi-command-palette-debug.log");
 
 let terminalShortcutUnsubscribe: (() => void) | undefined;
 let paletteOpen = false;
+let paletteOpenScheduled = false;
 let paletteInputReady = false;
 let pendingOpeningInputs: string[] = [];
 let debugEnabled = process.env.PI_COMMAND_PALETTE_DEBUG === "1";
@@ -97,22 +98,38 @@ function registerTerminalShortcut(ctx: ExtensionContext): void {
 			data: describeInput(data),
 			matchesDefaultShortcut: matched,
 			paletteOpen,
+			paletteOpenScheduled,
 			paletteInputReady,
 		});
 		if (matched) {
-			void openPalette(ctx as ExtensionCommandContext, "raw-terminal-shortcut");
+			scheduleOpenPalette(ctx as ExtensionCommandContext, "raw-terminal-shortcut");
 			return { consume: true };
 		}
-		if (paletteOpen && !paletteInputReady) {
+		if (paletteOpenScheduled || (paletteOpen && !paletteInputReady)) {
 			if (shouldReplayOpeningInput(data)) {
 				pendingOpeningInputs.push(data);
-				debugLog("terminalInput.bufferWhileOpening", { data: describeInput(data), pendingCount: pendingOpeningInputs.length });
+				debugLog("terminalInput.bufferBeforeReady", { data: describeInput(data), pendingCount: pendingOpeningInputs.length, paletteOpenScheduled, paletteOpen, paletteInputReady });
 			} else {
-				debugLog("terminalInput.consumeWhileOpening", { data: describeInput(data), reason: "not replayable" });
+				debugLog("terminalInput.consumeBeforeReady", { data: describeInput(data), reason: "not replayable", paletteOpenScheduled, paletteOpen, paletteInputReady });
 			}
 			return { consume: true };
 		}
 		return undefined;
+	});
+}
+
+function scheduleOpenPalette(ctx: ExtensionCommandContext, source: string): void {
+	debugLog("scheduleOpenPalette.request", { source, paletteOpen, paletteOpenScheduled });
+	if (paletteOpen || paletteOpenScheduled) {
+		debugLog("scheduleOpenPalette.skip", { source, paletteOpen, paletteOpenScheduled });
+		return;
+	}
+	pendingOpeningInputs = [];
+	paletteOpenScheduled = true;
+	setImmediate(() => {
+		paletteOpenScheduled = false;
+		debugLog("scheduleOpenPalette.fire", { source, paletteOpen });
+		void openPalette(ctx, source);
 	});
 }
 
@@ -124,7 +141,6 @@ async function openPalette(ctx: ExtensionCommandContext, source = "unknown"): Pr
 	}
 	paletteOpen = true;
 	paletteInputReady = false;
-	pendingOpeningInputs = [];
 	try {
 		await openPaletteOnce(ctx, source);
 	} finally {
