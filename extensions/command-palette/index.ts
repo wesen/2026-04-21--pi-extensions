@@ -266,14 +266,15 @@ function forceRenderBurst(source: string, requestRender: ((force?: boolean) => v
 }
 
 function shouldReplayOpeningInput(data: string): boolean {
+	// Replay literal printable keys typed immediately after Ctrl+Shift+P, e.g. "r"
+	// in "Ctrl+Shift+P r". Do not replay kitty CSI-u release/alternate events such
+	// as ESC[27u: matchesKey() may classify those as Escape and instantly cancel
+	// the freshly mounted palette.
 	if (data.length === 1 && data >= " " && data !== "\x7f") return true;
-	if (matchesKey(data, Key.escape)) return true;
-	if (matchesKey(data, Key.enter)) return true;
-	if (matchesKey(data, Key.backspace)) return true;
-	if (matchesKey(data, Key.left)) return true;
-	if (matchesKey(data, Key.right)) return true;
-	if (matchesKey(data, Key.up)) return true;
-	if (matchesKey(data, Key.down)) return true;
+	if (data === "\x1b") return true;
+	if (data === "\r" || data === "\n") return true;
+	if (data === "\x7f" || data === "\b") return true;
+	if (data === "\x1b[A" || data === "\x1b[B" || data === "\x1b[C" || data === "\x1b[D") return true;
 	return false;
 }
 
