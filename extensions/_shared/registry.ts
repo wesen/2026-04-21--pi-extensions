@@ -153,6 +153,39 @@ export interface PiDashboardWidget {
 	render(renderContext: PiDashboardRenderContext): PiDashboardRendered | Promise<PiDashboardRendered>;
 }
 
+// ── Command Palette types ──
+
+export type PaletteActionHandler = (
+	ctx: ExtensionCommandContext,
+	paletteContext: PaletteActionContext,
+) => Promise<void> | void;
+
+export interface PaletteActionContext {
+	/** The extension that owns this palette item. */
+	extension: PiExtensionRegistration;
+	/** The full path of IDs from root to the selected leaf. */
+	path: string[];
+	/** Close the palette overlay (if still open). */
+	close(): void;
+}
+
+export interface PaletteItem {
+	/** Machine-readable ID. Must be unique within its sibling array. */
+	id: string;
+	/** Human-readable label shown in the palette row. */
+	title: string;
+	/** Optional one-paragraph description shown in a details area. */
+	description?: string;
+	/** Explicit key override (single printable a–z, 0–9). If omitted, auto-assigned from title. */
+	key?: string;
+	/** Tags for search/filter within the palette. */
+	tags?: string[];
+	/** Child items — makes this a submenu. */
+	children?: PaletteItem[];
+	/** Action handler for leaf items. */
+	run?: PaletteActionHandler;
+}
+
 export interface PiExtensionRegistration {
 	id: string;
 	name: string;
@@ -164,6 +197,8 @@ export interface PiExtensionRegistration {
 	docs?: PiExtensionDoc[];
 	settings?: PiExtensionSettingsContribution;
 	widgets?: PiDashboardWidget[];
+	/** Command palette contribution — hierarchical keyboard-driven action items. */
+	palette?: PaletteItem[];
 }
 
 interface RegistryState {
@@ -204,6 +239,12 @@ export function listPiDashboardWidgets(): Array<{ extension: PiExtensionRegistra
 
 export function dashboardWidgetKey(extensionId: string, widgetId: string): string {
 	return `${extensionId}.${widgetId}`;
+}
+
+export function collectPaletteItems(): Array<{ extension: PiExtensionRegistration; item: PaletteItem }> {
+	return listPiExtensions().flatMap((ext) =>
+		(ext.palette ?? []).map((item) => ({ extension: ext, item })),
+	);
 }
 
 export function clearPiExtensionRegistry(): void {
