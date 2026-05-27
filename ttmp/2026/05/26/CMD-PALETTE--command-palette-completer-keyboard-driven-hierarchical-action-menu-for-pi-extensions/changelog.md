@@ -26,3 +26,12 @@ Step 2: Implemented phases 1–4 — registry types, TUI overlay, extension wiri
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/palette-keys.ts — New — key assignment algorithm
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — New — extension entry point with Ctrl+Shift+P
 
+
+## 2026-05-27
+
+Step 3: Interactive testing in tmux, fixed root-level grouping bug (commit 9910469)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/command-palette.ts — Fixed root level to group by extension with auto-keys from names
+

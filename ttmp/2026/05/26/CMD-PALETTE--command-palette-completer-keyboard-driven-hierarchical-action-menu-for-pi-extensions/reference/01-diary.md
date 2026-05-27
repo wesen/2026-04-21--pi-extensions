@@ -136,3 +136,66 @@ Each phase was a self-contained, load-check-passing unit that could be tested in
 - New files: `extensions/_shared/ui/palette-keys.ts`, `extensions/_shared/ui/command-palette.ts`, `extensions/command-palette/index.ts`
 - Modified: `registry.ts` (types + helper), 7 extension files (palette field)
 - Load check: all pass
+
+## Step 3: Testing and Bug Fixes
+
+Tested the command palette interactively in tmux and found two issues that needed fixing.
+
+### Prompt Context
+
+**User prompt (verbatim):** "test in tmux"
+
+**Assistant interpretation:** Test the command palette extension interactively in a live Pi session.
+
+**Inferred user intent:** Verify the implementation works end-to-end with real keyboard input.
+
+**Commit (code):** 9910469 — "fix(palette): root level groups by extension, not flat actions"
+
+### What I did
+- Started Pi in tmux, tested `/palette` command
+- Found duplicate key error: both compaction-meter and pinned-skills wanted `c` at root level
+- Fixed `buildRootPaletteItems` to group items by extension and create one submenu per extension (instead of a flat list of all actions)
+- Removed inline descriptions from item rows (were too wide for terminal)
+- Added `→` marker for submenu items
+- Added command-palette and session-tagger to `.pi/settings.json`
+- Retested: all flows work
+
+### Why
+The original design had the root level as a flat list of all extension actions, which caused key conflicts and didn't match the user's mental model of navigating "extension → action".
+
+### What worked
+- `/palette` opens the overlay correctly
+- Drilling into extensions works (e.g., `d` → Docmgr shows 4 actions)
+- Going back with `←` works
+- Executing leaf actions works (e.g., `a` → `e` toggles agent-env)
+- `Ctrl+Shift+P` shortcut works
+- Breadcrumb titles update correctly
+
+### What didn't work
+- First attempt: root-level items had duplicate explicit keys (both compaction-meter `c` and pinned-skills `c`) — `assignKeys` threw an error at registration time
+- First design: flat root level showed 15 items instead of 7 grouped extensions
+- Descriptions in item rows overflowed the overlay width
+
+### What I learned
+- The root level should always be extension-grouped, not a flat action list
+- `assignKeys` is correct to throw on duplicate explicit keys, but the root level needs a different strategy: auto-assign from extension names, not from item keys
+- Pi overlays in tmux can be tricky to test because keystrokes may leak to the underlying Pi session
+
+### What was tricky to build
+- The `buildRootPaletteItems` function needed to restructure the flat `collectPaletteItems()` output into per-extension submenus. The key insight was that root-level keys should come from extension names, not from the items' own `key` fields.
+
+### What warrants a second pair of eyes
+- The `assignKeys` call in `activate()` for child items — it still throws on duplicate explicit keys. This is fine for extension authors (they control their own items), but the error message could be more helpful.
+
+### What should be done in the future
+- Phase 5 polish: settings for configurable shortcut, framework guide update, `/px` integration
+- Add search mode testing
+- Test with more extensions and edge cases
+
+### Code review instructions
+- Focus on `buildRootPaletteItems` in `command-palette.ts` — the grouping logic
+- Test: `/palette`, drill into an extension, go back, execute a leaf action
+
+### Technical details
+- Commit: 9910469
+- `.pi/settings.json` now includes `command-palette` and `session-tagger` extensions
