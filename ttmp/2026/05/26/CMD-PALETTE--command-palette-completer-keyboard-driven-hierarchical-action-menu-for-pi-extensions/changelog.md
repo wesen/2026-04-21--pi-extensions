@@ -35,3 +35,14 @@ Step 3: Interactive testing in tmux, fixed root-level grouping bug (commit 99104
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/command-palette.ts — Fixed root level to group by extension with auto-keys from names
 
+
+## 2026-05-27
+
+Step 4: Phase 5 polish — /px integration (p key), framework guide Section 8, global extension enable, kanban/hello-world removal (commits 83d0982, f2ac6b2)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/docs/pi-shared-extension-framework-guide.md — Added Section 8 Command Palette
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Added palette result kind and p key handler
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Added openPaletteFromLauncher function
+

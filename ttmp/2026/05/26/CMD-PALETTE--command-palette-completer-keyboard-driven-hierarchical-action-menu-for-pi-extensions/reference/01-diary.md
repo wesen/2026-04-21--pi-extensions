@@ -199,3 +199,57 @@ The original design had the root level as a flat list of all extension actions, 
 ### Technical details
 - Commit: 9910469
 - `.pi/settings.json` now includes `command-palette` and `session-tagger` extensions
+
+## Step 4: Phase 5 Polish
+
+Completed all remaining polish tasks: /px integration, framework guide update, final smoke test.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with Phase 5 polish — settings, /px integration, guide update.
+
+**Inferred user intent:** Finish the implementation to a shippable state.
+
+**Commit (code):** 83d0982 — "feat(palette): add 'p' key to /px launcher to open command palette"
+**Commit (docs):** f2ac6b2 — "docs: add command palette section to extension framework guide"
+
+### What I did
+- Added `palette` result kind to ExtensionLauncherResult, `p` key handler in /px
+- Added `openPaletteFromLauncher` function to launcher/index.ts
+- Updated help line in /px to show `p palette`
+- Added Section 8 (Command Palette) to the framework guide with full documentation
+- Updated registry table, checklist, reading list, and central diagram
+- Renumbered sections 9–15
+- Enabled command-palette globally in ~/.pi/agent/settings.json
+- Removed kanban-demo and hello-world-thinking.ts
+
+### Why
+The /px launcher is the discovery surface and should have a quick path to the palette.
+
+### What worked
+- /px `p` key wiring was straightforward following the existing pattern
+- The guide update fit naturally as Section 8
+
+### What didn't work
+- N/A
+
+### What I learned
+- The /px help line wraps at narrow widths; the `p palette` entry fits
+
+### What was tricky to build
+- Keeping section renumbering consistent in the guide
+
+### What warrants a second pair of eyes
+- The guide's palette section could use a screenshot-style example
+
+### What should be done in the future
+- Upload updated design doc to reMarkable
+
+### Code review instructions
+- Check /px `p` key in extension-launcher.ts and launcher/index.ts
+- Read Section 8 of the framework guide
+
+### Technical details
+- Commits: 83d0982, f2ac6b2
