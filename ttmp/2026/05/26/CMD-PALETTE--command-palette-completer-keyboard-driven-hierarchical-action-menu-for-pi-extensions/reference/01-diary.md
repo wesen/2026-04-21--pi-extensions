@@ -468,3 +468,54 @@ Normal `requestRender()` can be throttled and scheduled. In this shortcut path t
 
 ### Technical details
 - Commit: 54ebee2
+
+## Step 9: Do Not Replay Kitty CSI-u Escape During Mount
+
+The latest debug log showed a different failure mode. The overlay rendered correctly when opened, but in one repro the terminal sent `ESC[27u` while the open was still scheduled. `shouldReplayOpeningInput()` used `matchesKey(data, Key.escape)`, which classified `ESC[27u` as Escape. The buffered replay then cancelled the palette immediately after mount.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, reload the log."
+
+**Assistant interpretation:** Inspect the latest debug log and identify why the modal still disappears or appears to require another key.
+
+**Inferred user intent:** Finish diagnosing the terminal-specific behavior by reading the new render and input logs.
+
+**Commit (code):** 508d316 — "fix(palette): do not replay kitty CSI-u Esc during overlay mount"
+
+### What I did
+- Read the fresh log and found `ESC[27u` buffered while `paletteOpenScheduled` was true.
+- Observed that it was replayed after `onHandle`, immediately triggering `custom.result cancel`.
+- Changed `shouldReplayOpeningInput()` so it no longer uses broad `matchesKey()` checks for Escape and navigation during mount.
+- It now replays only literal printable single characters, literal `ESC`, literal Enter/Backspace, and classic arrow escape sequences.
+- CSI-u sequences such as `ESC[27u` are consumed during mount but not replayed.
+
+### Why
+Kitty/tmux can emit CSI-u key events that `matchesKey()` maps to Escape or releases. Replaying those during the mount window can cancel the overlay before it becomes visible.
+
+### What worked
+- Simulated `ESC[112:80;6u ESC[27u` now opens the palette and consumes `ESC[27u` without replaying it.
+- Render logs show `overlay.render.done` after the fix.
+
+### What didn't work
+- The previous `shouldReplayOpeningInput()` was too permissive. It replayed semantically classified Escape instead of only literal Escape.
+
+### What I learned
+- Buffering during mount must distinguish between user-intended input and terminal protocol side-channel/release events.
+- `matchesKey()` is useful for focused component input, but too broad for deciding which pre-mount events should be replayed.
+
+### What was tricky to build
+- A real user pressing Escape immediately during mount should still be supported if the terminal sends literal `\x1b`. CSI-u encoded Escape is treated as protocol noise during the mount window.
+
+### What warrants a second pair of eyes
+- The whitelist in `shouldReplayOpeningInput()` should stay narrow. Add only sequences that are confirmed to represent intended user input in the mount window.
+
+### What should be done in the future
+- Consider logging whether an event is classified as press/release by the TUI key parser if that API becomes available.
+
+### Code review instructions
+- Review `shouldReplayOpeningInput()` in `extensions/command-palette/index.ts`.
+- Verify that `ESC[27u` is consumed but not replayed in `/tmp/pi-command-palette-debug.log`.
+
+### Technical details
+- Commit: 508d316

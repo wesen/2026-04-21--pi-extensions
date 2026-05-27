@@ -84,3 +84,12 @@ Step 8: Forced full redraw after shortcut overlay mount so Ctrl+Shift+P alone pa
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/command-palette.ts — requestRender callback now accepts force flag
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Calls requestRender(true) after onHandle focus and buffered input replay
 
+
+## 2026-05-27
+
+Step 9: Prevented buffered CSI-u Escape (ESC[27u) from cancelling palette immediately after mount (commit 508d316)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — shouldReplayOpeningInput now uses narrow literal-key whitelist
+
