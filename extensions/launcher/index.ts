@@ -3,6 +3,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-cod
 import {
 	listPiExtensions,
 	registerPiExtension,
+	collectPaletteItems,
 	type PiExtensionAction,
 	type PiExtensionDoc,
 	type PiExtensionRegistration,
@@ -11,6 +12,7 @@ import {
 import { readDashboardConfig, writeProjectDashboardConfig } from "../_shared/dashboard/config";
 import { clearDashboard, refreshDashboard } from "../_shared/dashboard/manager";
 import { ActionPicker } from "../_shared/ui/action-picker";
+import { CommandPaletteOverlay, buildRootPaletteItems, type PaletteResult } from "../_shared/ui/command-palette";
 import { DashboardOverlay } from "../_shared/ui/dashboard-overlay";
 import { DocViewer } from "../_shared/ui/doc-viewer";
 import { ExtensionLauncher, type ExtensionLauncherResult } from "../_shared/ui/extension-launcher";
@@ -119,6 +121,7 @@ async function openLauncher(ctx: ExtensionCommandContext): Promise<void> {
 async function handleLauncherResult(result: ExtensionLauncherResult, ctx: ExtensionCommandContext): Promise<void> {
 	if (result.kind === "cancel") return;
 	if (result.kind === "dashboard") return openDashboard(ctx);
+	if (result.kind === "palette") return openPaletteFromLauncher(ctx);
 	if (result.kind === "docs") {
 		await openDocs(ctx, result.extension);
 		return openLauncher(ctx);
@@ -240,4 +243,32 @@ async function loadDoc(ctx: ExtensionCommandContext, doc: PiExtensionDoc): Promi
 	if (doc.markdown !== undefined) return doc.markdown;
 	if (doc.path) return fs.readFileSync(doc.path, "utf8");
 	return `# ${doc.title}\n\nNo documentation content registered.`;
+}
+
+async function openPaletteFromLauncher(ctx: ExtensionCommandContext): Promise<void> {
+	const paletteItems = collectPaletteItems();
+	if (paletteItems.length === 0) {
+		ctx.ui.notify("No extensions have registered palette items yet.", "warning");
+		return;
+	}
+	const rootItems = buildRootPaletteItems(paletteItems);
+	const result = await ctx.ui.custom<PaletteResult>(
+		(tui, theme, _keybindings, done) =>
+			new CommandPaletteOverlay(rootItems, {
+				theme,
+				done,
+				requestRender: () => tui.requestRender(),
+			}),
+		{
+			overlay: true,
+			overlayOptions: { anchor: "center", width: "90%", maxHeight: "50%", minWidth: 60, margin: 0 },
+		},
+	);
+	if (result.kind === "execute" && result.item.run) {
+		await result.item.run(ctx, {
+			extension: result.extension,
+			path: result.path,
+			close: () => {},
+		});
+	}
 }

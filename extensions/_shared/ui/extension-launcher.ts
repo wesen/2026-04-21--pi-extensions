@@ -7,6 +7,7 @@ export type ExtensionLauncherResult =
 	| { kind: "docs"; extension: PiExtensionRegistration }
 	| { kind: "settings"; extension: PiExtensionRegistration }
 	| { kind: "dashboard" }
+	| { kind: "palette" }
 	| { kind: "cancel" };
 
 export interface ExtensionLauncherOptions {
@@ -128,6 +129,10 @@ export class ExtensionLauncher implements Component {
 			this.done({ kind: "dashboard" });
 			return;
 		}
+		if (data === "p") {
+			this.done({ kind: "palette" });
+			return;
+		}
 		if (matchesKey(data, Key.up)) {
 			this.move(-1);
 			return;
@@ -245,7 +250,7 @@ export class ExtensionLauncher implements Component {
 		const prefix = `${matchCount} extensions`;
 		const shortcuts = this.searchActive
 			? ["search active", "Enter accept", "Esc leave search", "Ctrl+U clear"]
-			: ["/ search", "Enter run", "a actions", "? docs", "s settings", "d dashboard"];
+			: ["/ search", "Enter run", "a actions", "? docs", "s settings", "p palette", "d dashboard"];
 		return wrapHelpLine(prefix, shortcuts, width).map((line, index) => {
 			if (index === 0) return ` ${this.theme.fg("accent", this.theme.bold(prefix))}${this.theme.fg("dim", line.slice(prefix.length))}`;
 			return this.theme.fg("dim", ` ${line}`);
