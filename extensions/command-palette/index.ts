@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { matchesKey } from "@mariozechner/pi-tui";
+import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { registerPiExtension, collectPaletteItems } from "../_shared/registry";
 import { CommandPaletteOverlay, buildRootPaletteItems, type PaletteResult } from "../_shared/ui/command-palette";
 
@@ -11,6 +11,8 @@ const DEBUG_LOG_PATH = path.join(os.tmpdir(), "pi-command-palette-debug.log");
 
 let terminalShortcutUnsubscribe: (() => void) | undefined;
 let paletteOpen = false;
+let paletteInputReady = false;
+let pendingOpeningInputs: string[] = [];
 let debugEnabled = process.env.PI_COMMAND_PALETTE_DEBUG === "1";
 
 export default function commandPaletteExtension(pi: ExtensionAPI): void {
@@ -95,10 +97,22 @@ function registerTerminalShortcut(ctx: ExtensionContext): void {
 			data: describeInput(data),
 			matchesDefaultShortcut: matched,
 			paletteOpen,
+			paletteInputReady,
 		});
-		if (!matched) return undefined;
-		void openPalette(ctx as ExtensionCommandContext, "raw-terminal-shortcut");
-		return { consume: true };
+		if (matched) {
+			void openPalette(ctx as ExtensionCommandContext, "raw-terminal-shortcut");
+			return { consume: true };
+		}
+		if (paletteOpen && !paletteInputReady) {
+			if (shouldReplayOpeningInput(data)) {
+				pendingOpeningInputs.push(data);
+				debugLog("terminalInput.bufferWhileOpening", { data: describeInput(data), pendingCount: pendingOpeningInputs.length });
+			} else {
+				debugLog("terminalInput.consumeWhileOpening", { data: describeInput(data), reason: "not replayable" });
+			}
+			return { consume: true };
+		}
+		return undefined;
 	});
 }
 
@@ -109,10 +123,14 @@ async function openPalette(ctx: ExtensionCommandContext, source = "unknown"): Pr
 		return;
 	}
 	paletteOpen = true;
+	paletteInputReady = false;
+	pendingOpeningInputs = [];
 	try {
 		await openPaletteOnce(ctx, source);
 	} finally {
 		paletteOpen = false;
+		paletteInputReady = false;
+		pendingOpeningInputs = [];
 		debugLog("openPalette.done", { source });
 	}
 }
@@ -132,15 +150,19 @@ async function openPaletteOnce(ctx: ExtensionCommandContext, source: string): Pr
 		rootItems: rootItems.map((entry) => ({ key: entry.key, title: entry.item.title })),
 	});
 
+	let overlay: CommandPaletteOverlay | undefined;
+	let requestRender: (() => void) | undefined;
 	const result = await ctx.ui.custom<PaletteResult>(
 		(tui, theme, _keybindings, done) => {
 			debugLog("custom.factory", { source });
-			return new CommandPaletteOverlay(rootItems, {
+			requestRender = () => tui.requestRender();
+			overlay = new CommandPaletteOverlay(rootItems, {
 				theme,
 				done,
-				requestRender: () => tui.requestRender(),
+				requestRender,
 				debug: (event, details) => debugLog(event, { source, ...details }),
 			});
+			return overlay;
 		},
 		{
 			overlay: true,
@@ -152,9 +174,16 @@ async function openPaletteOnce(ctx: ExtensionCommandContext, source: string): Pr
 				margin: 0,
 			},
 			onHandle: (handle) => {
-				debugLog("custom.onHandle", { source, isFocusedBefore: handle.isFocused() });
+				debugLog("custom.onHandle", { source, isFocusedBefore: handle.isFocused(), pendingOpeningInputs: pendingOpeningInputs.map(describeInput) });
 				handle.focus();
-				debugLog("custom.onHandle.afterFocus", { source, isFocusedAfter: handle.isFocused() });
+				paletteInputReady = true;
+				const buffered = pendingOpeningInputs.splice(0);
+				debugLog("custom.onHandle.afterFocus", { source, isFocusedAfter: handle.isFocused(), replayCount: buffered.length });
+				for (const data of buffered) {
+					debugLog("custom.replayBufferedInput", { source, data: describeInput(data) });
+					overlay?.handleInput?.(data);
+				}
+				requestRender?.();
 			},
 		},
 	);
@@ -205,6 +234,18 @@ function debugLog(event: string, details: Record<string, unknown> = {}): void {
 	} catch {
 		// Logging must never break palette behavior.
 	}
+}
+
+function shouldReplayOpeningInput(data: string): boolean {
+	if (data.length === 1 && data >= " " && data !== "\x7f") return true;
+	if (matchesKey(data, Key.escape)) return true;
+	if (matchesKey(data, Key.enter)) return true;
+	if (matchesKey(data, Key.backspace)) return true;
+	if (matchesKey(data, Key.left)) return true;
+	if (matchesKey(data, Key.right)) return true;
+	if (matchesKey(data, Key.up)) return true;
+	if (matchesKey(data, Key.down)) return true;
+	return false;
 }
 
 function readDebugTail(maxLines = 40): string {
