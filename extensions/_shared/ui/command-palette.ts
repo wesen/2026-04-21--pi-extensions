@@ -36,6 +36,7 @@ export class CommandPaletteOverlay implements Component {
 	private pathIds: string[] = [];
 	private cachedWidth: number | undefined;
 	private cachedLines: string[] | undefined;
+	private renderCount = 0;
 
 	constructor(
 		private rootItems: RootKeyedItem[],
@@ -140,7 +141,29 @@ export class CommandPaletteOverlay implements Component {
 	}
 
 	render(width: number): string[] {
-		if (this.cachedWidth === width && this.cachedLines) return this.cachedLines;
+		this.renderCount++;
+		if (this.cachedWidth === width && this.cachedLines) {
+			this.options.debug?.("overlay.render", {
+				width,
+				renderCount: this.renderCount,
+				cached: true,
+				stack: this.stack.map((l) => l.title),
+				cursor: this.cursor,
+				searchActive: this.searchActive,
+				query: this.query,
+			});
+			return this.cachedLines;
+		}
+
+		this.options.debug?.("overlay.render", {
+			width,
+			renderCount: this.renderCount,
+			cached: false,
+			stack: this.stack.map((l) => l.title),
+			cursor: this.cursor,
+			searchActive: this.searchActive,
+			query: this.query,
+		});
 
 		const theme = this.options.theme;
 		const modalWidth = Math.max(60, Math.min(width, 120));
@@ -189,6 +212,12 @@ export class CommandPaletteOverlay implements Component {
 
 		this.cachedWidth = width;
 		this.cachedLines = lines.map((line) => truncateToWidth(line, modalWidth, ""));
+		this.options.debug?.("overlay.render.done", {
+			width,
+			renderCount: this.renderCount,
+			lineCount: this.cachedLines.length,
+			firstLine: this.cachedLines[0],
+		});
 		return this.cachedLines;
 	}
 

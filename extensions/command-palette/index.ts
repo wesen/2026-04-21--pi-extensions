@@ -8,6 +8,7 @@ import { CommandPaletteOverlay, buildRootPaletteItems, type PaletteResult } from
 
 const DEFAULT_SHORTCUT = "ctrl+shift+p";
 const DEBUG_LOG_PATH = path.join(os.tmpdir(), "pi-command-palette-debug.log");
+const DEBUG_BUILD = "render-burst-2026-05-27T21:05";
 
 let terminalShortcutUnsubscribe: (() => void) | undefined;
 let paletteOpen = false;
@@ -91,7 +92,7 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 
 function registerTerminalShortcut(ctx: ExtensionContext): void {
 	terminalShortcutUnsubscribe?.();
-	debugLog("terminalShortcut.register", { cwd: ctx.cwd });
+	debugLog("terminalShortcut.register", { cwd: ctx.cwd, build: DEBUG_BUILD });
 	terminalShortcutUnsubscribe = ctx.ui.onTerminalInput((data) => {
 		const matched = matchesKey(data, DEFAULT_SHORTCUT);
 		debugLog("terminalInput", {
@@ -152,7 +153,7 @@ async function openPalette(ctx: ExtensionCommandContext, source = "unknown"): Pr
 }
 
 async function openPaletteOnce(ctx: ExtensionCommandContext, source: string): Promise<void> {
-	debugLog("openPaletteOnce.start", { source });
+	debugLog("openPaletteOnce.start", { source, build: DEBUG_BUILD });
 	const paletteItems = collectPaletteItems();
 	if (paletteItems.length === 0) {
 		ctx.ui.notify("No extensions have registered palette items yet.", "warning");
@@ -199,10 +200,7 @@ async function openPaletteOnce(ctx: ExtensionCommandContext, source: string): Pr
 					debugLog("custom.replayBufferedInput", { source, data: describeInput(data) });
 					overlay?.handleInput?.(data);
 				}
-				// Force a full redraw after the overlay is mounted. Normal requestRender()
-				// can be throttled and, in kitty/tmux shortcut paths, may not repaint
-				// until the next terminal input event.
-				requestRender?.(true);
+				forceRenderBurst(source, requestRender);
 			},
 		},
 	);
@@ -253,6 +251,18 @@ function debugLog(event: string, details: Record<string, unknown> = {}): void {
 	} catch {
 		// Logging must never break palette behavior.
 	}
+}
+
+function forceRenderBurst(source: string, requestRender: ((force?: boolean) => void) | undefined): void {
+	const kick = (phase: string) => {
+		debugLog("renderKick", { source, phase });
+		requestRender?.(true);
+	};
+	kick("immediate");
+	process.nextTick(() => kick("nextTick"));
+	setImmediate(() => kick("setImmediate"));
+	setTimeout(() => kick("timeout0"), 0);
+	setTimeout(() => kick("timeout25"), 25);
 }
 
 function shouldReplayOpeningInput(data: string): boolean {
