@@ -1,8 +1,12 @@
-import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { matchesKey } from "@mariozechner/pi-tui";
 import { registerPiExtension, collectPaletteItems } from "../_shared/registry";
 import { CommandPaletteOverlay, buildRootPaletteItems, type PaletteResult } from "../_shared/ui/command-palette";
 
 const DEFAULT_SHORTCUT = "ctrl+shift+p";
+
+let terminalShortcutUnsubscribe: (() => void) | undefined;
+let paletteOpen = false;
 
 export default function commandPaletteExtension(pi: ExtensionAPI): void {
 	registerPiExtension({
@@ -43,7 +47,20 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 		widgets: [],
 	});
 
-	// Global shortcut
+	// Raw terminal listener. This catches Ctrl+Shift+P before the editor sees it,
+	// consumes the key, and avoids the "next key goes to the REPL" race that can
+	// happen with editor-scoped extension shortcuts after focus-changing actions.
+	pi.on("session_start", async (_event, ctx) => {
+		registerTerminalShortcut(ctx);
+	});
+	pi.on("session_shutdown", async () => {
+		terminalShortcutUnsubscribe?.();
+		terminalShortcutUnsubscribe = undefined;
+	});
+
+	// Keep the official extension shortcut as a fallback for sessions where a raw
+	// terminal listener has not been registered yet (for example immediately after
+	// /reload before the next session_start lifecycle event).
 	pi.registerShortcut(DEFAULT_SHORTCUT, {
 		description: "Open command palette",
 		handler: async (ctx) => openPalette(ctx as ExtensionCommandContext),
@@ -56,7 +73,26 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 	});
 }
 
+function registerTerminalShortcut(ctx: ExtensionContext): void {
+	terminalShortcutUnsubscribe?.();
+	terminalShortcutUnsubscribe = ctx.ui.onTerminalInput((data) => {
+		if (!matchesKey(data, DEFAULT_SHORTCUT)) return undefined;
+		void openPalette(ctx as ExtensionCommandContext);
+		return { consume: true };
+	});
+}
+
 async function openPalette(ctx: ExtensionCommandContext): Promise<void> {
+	if (paletteOpen) return;
+	paletteOpen = true;
+	try {
+		await openPaletteOnce(ctx);
+	} finally {
+		paletteOpen = false;
+	}
+}
+
+async function openPaletteOnce(ctx: ExtensionCommandContext): Promise<void> {
 	const paletteItems = collectPaletteItems();
 	if (paletteItems.length === 0) {
 		ctx.ui.notify("No extensions have registered palette items yet.", "warning");
