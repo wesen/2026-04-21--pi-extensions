@@ -11,7 +11,7 @@ export type PaletteResult =
 export interface CommandPaletteOptions {
 	theme: { fg(color: string, text: string): string; bold(text: string): string };
 	done(result: PaletteResult): void;
-	requestRender?: () => void;
+	requestRender?: (force?: boolean) => void;
 	debug?: (event: string, details?: Record<string, unknown>) => void;
 }
 

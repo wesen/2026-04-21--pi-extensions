@@ -257,7 +257,7 @@ async function openPaletteFromLauncher(ctx: ExtensionCommandContext): Promise<vo
 			new CommandPaletteOverlay(rootItems, {
 				theme,
 				done,
-				requestRender: () => tui.requestRender(),
+				requestRender: (force = false) => tui.requestRender(force),
 			}),
 		{
 			overlay: true,

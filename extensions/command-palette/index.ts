@@ -167,11 +167,11 @@ async function openPaletteOnce(ctx: ExtensionCommandContext, source: string): Pr
 	});
 
 	let overlay: CommandPaletteOverlay | undefined;
-	let requestRender: (() => void) | undefined;
+	let requestRender: ((force?: boolean) => void) | undefined;
 	const result = await ctx.ui.custom<PaletteResult>(
 		(tui, theme, _keybindings, done) => {
 			debugLog("custom.factory", { source });
-			requestRender = () => tui.requestRender();
+			requestRender = (force = false) => tui.requestRender(force);
 			overlay = new CommandPaletteOverlay(rootItems, {
 				theme,
 				done,
@@ -199,7 +199,10 @@ async function openPaletteOnce(ctx: ExtensionCommandContext, source: string): Pr
 					debugLog("custom.replayBufferedInput", { source, data: describeInput(data) });
 					overlay?.handleInput?.(data);
 				}
-				requestRender?.();
+				// Force a full redraw after the overlay is mounted. Normal requestRender()
+				// can be throttled and, in kitty/tmux shortcut paths, may not repaint
+				// until the next terminal input event.
+				requestRender?.(true);
 			},
 		},
 	);
