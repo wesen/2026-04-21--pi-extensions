@@ -156,10 +156,8 @@ export class CommandPaletteOverlay implements Component {
 			const marker = isSelected ? theme.fg("accent", "▸") : " ";
 			const keyHint = theme.fg("accent", theme.bold(entry.key));
 			const title = isSelected ? theme.bold(entry.item.title) : entry.item.title;
-			const desc = entry.item.description
-				? theme.fg("dim", "  " + truncateToWidth(entry.item.description, innerWidth - 8 - visibleWidth(entry.item.title), "…"))
-				: "";
-			const row = `${marker} ${keyHint}  ${title}${desc}`;
+			const childMarker = entry.item.children ? theme.fg("dim", " →") : "";
+			const row = `${marker} ${keyHint}  ${title}${childMarker}`;
 			lines.push(frameRow(truncateToWidth(row, innerWidth, "…"), innerWidth, theme));
 		}
 
@@ -260,13 +258,50 @@ export class CommandPaletteOverlay implements Component {
 export function buildRootPaletteItems(
 	paletteItems: Array<{ extension: PiExtensionRegistration; item: PaletteItem }>,
 ): RootKeyedItem[] {
-	// Wrap each root PaletteItem with key assignment
-	const items = paletteItems.map((pi) => pi.item);
-	const keyed = assignKeys(items);
-	return keyed.map((k, i) => ({
-		...k,
-		extension: paletteItems[i]!.extension,
-	}));
+	// Group all palette items by extension, then create one root-level submenu per extension.
+	// Root-level keys are auto-assigned from extension names.
+	const byExtension = new Map<string, { extension: PiExtensionRegistration; items: PaletteItem[] }>();
+	for (const { extension, item } of paletteItems) {
+		const group = byExtension.get(extension.id) ?? { extension, items: [] };
+		group.items.push(item);
+		byExtension.set(extension.id, group);
+	}
+
+	const taken = new Set<string>();
+	const fallbackChars = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+	const result: RootKeyedItem[] = [];
+	for (const [, { extension, items }] of byExtension) {
+		// Each extension becomes a submenu at the root level
+		const rootItem: PaletteItem = {
+			id: extension.id,
+			title: extension.name,
+			description: extension.description,
+			children: items,
+		};
+
+		// Auto-assign key from extension name
+		let key = "";
+		for (const char of extension.name.toLowerCase()) {
+			if (/[a-z0-9]/.test(char) && !taken.has(char)) {
+				taken.add(char);
+				key = char;
+				break;
+			}
+		}
+		if (!key) {
+			for (const char of fallbackChars) {
+				if (!taken.has(char)) {
+					taken.add(char);
+					key = char;
+					break;
+				}
+			}
+		}
+		if (key) result.push({ item: rootItem, key, extension });
+	}
+
+	return result;
 }
 
 // ── Border helpers (same style as extension-launcher.ts) ──
