@@ -214,6 +214,38 @@ export default function responseViewerExtension(pi: ExtensionAPI): void {
 				render: ({ ctx }) => formatStatusShort(ctx),
 			},
 		],
+
+		palette: [
+			{
+				id: "view-last",
+				title: "View last response",
+				key: "v",
+				description: "Save and open the most recent assistant response in md-view.",
+				run: async (ctx) => saveAndOpenLast(pi, ctx, state),
+			},
+			{
+				id: "browse",
+				title: "Browse responses",
+				key: "b",
+				description: "Open a picker showing all assistant responses from this session.",
+				run: async (ctx) => openPicker(pi, ctx, state),
+			},
+			{
+				id: "preview",
+				title: "Preview last response",
+				key: "p",
+				description: "Show a text preview of the most recent response in the terminal.",
+				run: async (ctx) => {
+					const responses = getResponsesFromSession(ctx);
+					const response = lastResponse(responses);
+					if (!response) {
+						ctx.ui.notify("No assistant responses found in this session.", "warning");
+						return;
+					}
+					ctx.ui.notify(previewResponse(response), "info");
+				},
+			},
+		],
 	});
 
 	// Auto-open on turn_end if setting is enabled

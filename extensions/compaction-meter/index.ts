@@ -43,6 +43,16 @@ export default function compactionMeter(pi: ExtensionAPI): void {
 		description: "Shows remaining context tokens before automatic compaction and exposes compact-meter status commands.",
 		commands: ["compact-meter", "cm"],
 		tags: ["compaction", "status"],
+
+		palette: [
+			{
+				id: "status",
+				title: "Show context remaining",
+				key: "c",
+				description: "Display remaining context tokens before compaction.",
+				run: async (ctx) => showCompactionMeter(ctx),
+			},
+		],
 		run: async (ctx) => showCompactionMeter(ctx),
 		actions: [
 			{ id: "status", title: "Show status", description: "Show current context and compaction threshold details.", default: true, run: async (ctx) => showCompactionMeter(ctx) },

@@ -244,6 +244,30 @@ export default function pinnedSkillsExtension(pi: ExtensionAPI): void {
 				render: ({ variant }) => renderPinnedSkillsDashboard(state, lastRender, variant),
 			},
 		],
+
+		palette: [
+			{
+				id: "menu",
+				title: "Open checklist",
+				key: "c",
+				description: "Select pinned skills in a TUI checklist.",
+				run: async (ctx) => openPinnedSkillsMenu(ctx),
+			},
+			{
+				id: "preview",
+				title: "Preview prompt block",
+				key: "p",
+				description: "Show the prompt block that will be injected.",
+				run: async (ctx) => previewPinnedSkills(ctx),
+			},
+			{
+				id: "list",
+				title: "List available skills",
+				key: "l",
+				description: "List all currently available skills.",
+				run: async (ctx) => openAvailableSkillsList(ctx),
+			},
+		],
 	});
 	let state: PinnedSkillsState = {};
 	let lastSkills: Skill[] = [];

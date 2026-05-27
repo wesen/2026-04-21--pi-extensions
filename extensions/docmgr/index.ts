@@ -439,6 +439,37 @@ export default function docmgrExtension(pi: ExtensionAPI): void {
 		description: "Interactive ticket, document, and task browser for docmgr workspaces.",
 		commands: ["docmgr", "docmgr-refresh", "docmgr-debug", "docmgr-tickets", "docmgr-docs", "docmgr-tasks", "docmgr-close"],
 		tags: ["docmgr", "tickets", "docs", "tasks"],
+
+		palette: [
+			{
+				id: "tickets",
+				title: "Browse tickets",
+				key: "t",
+				description: "Open the docmgr ticket browser.",
+				run: async (ctx) => showTicketBrowser(ctx),
+			},
+			{
+				id: "docs",
+				title: "Browse docs",
+				key: "d",
+				description: "Open docs for the active docmgr ticket.",
+				run: async (ctx) => showDocsBrowser(ctx),
+			},
+			{
+				id: "tasks",
+				title: "Browse tasks",
+				key: "k",
+				description: "Open tasks for the active docmgr ticket.",
+				run: async (ctx) => showTasksBrowser(ctx),
+			},
+			{
+				id: "refresh",
+				title: "Refresh snapshot",
+				key: "r",
+				description: "Refresh the docmgr workspace snapshot and status.",
+				run: async (ctx) => refreshAndNotify(ctx),
+			},
+		],
 	});
 	pi.on("session_start", async (_event, ctx) => {
 		sessionState = restoreDocmgrState(ctx.sessionManager);

@@ -112,6 +112,20 @@ export default function compactionTitleExtension(pi: ExtensionAPI): void {
 		description: "Customizes compaction so summaries can propose concise session titles and update the Pi session name.",
 		commands: ["compaction-title", "ctitle", "compaction-title-self-test"],
 		tags: ["compaction", "session", "title"],
+
+		palette: [
+			{
+				id: "toggle",
+				title: "Toggle auto-title",
+				key: "o",
+				description: "Toggle automatic title generation on compaction.",
+				run: async (ctx) => {
+					state.enabled = !state.enabled;
+					setStatus(ctx, state);
+					ctx.ui.notify(`compaction-title: ${state.enabled ? "enabled" : "disabled"}`, "info");
+				},
+			},
+		],
 	});
 	const state = createState();
 

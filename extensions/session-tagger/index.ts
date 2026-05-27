@@ -45,6 +45,23 @@ export default function sessionTagger(pi: ExtensionAPI): void {
 				run: async (ctx) => browseTags(pi, ctx, ""),
 			},
 		],
+
+		palette: [
+			{
+				id: "quick-tag",
+				title: "Quick tag",
+				key: "t",
+				description: "Tag the current conversation moment.",
+				run: async (ctx) => quickTagDialog(pi, ctx),
+			},
+			{
+				id: "browse-tags",
+				title: "Browse tags",
+				key: "b",
+				description: "Browse and act on tags in this session.",
+				run: async (ctx) => browseTags(pi, ctx, ""),
+			},
+		],
 	});
 
 	// ── Custom message renderer ──────────────────────────────

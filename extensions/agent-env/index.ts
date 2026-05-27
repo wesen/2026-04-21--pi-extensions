@@ -120,6 +120,27 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 		description: "Injects Pi session metadata environment variables into bash tool calls for scripts and debugging.",
 		commands: ["agent-env", "ae", "agent-env-toggle", "ae-toggle", "agent-env-self-test"],
 		tags: ["bash", "environment", "metadata"],
+
+		palette: [
+			{
+				id: "toggle",
+				title: "Toggle env injection",
+				key: "e",
+				description: "Enable or disable PI_AGENT_* environment injection.",
+				run: async (ctx) => {
+					state.enabled = !state.enabled;
+					setStatus(ctx, state);
+					ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info");
+				},
+			},
+			{
+				id: "preview",
+				title: "Preview environment",
+				key: "p",
+				description: "Show PI_AGENT_* variables that will be injected.",
+				run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info"),
+			},
+		],
 		run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info"),
 		actions: [
 			{ id: "preview", title: "Preview environment", description: "Show PI_AGENT_* variables that will be injected.", default: true, run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info") },
