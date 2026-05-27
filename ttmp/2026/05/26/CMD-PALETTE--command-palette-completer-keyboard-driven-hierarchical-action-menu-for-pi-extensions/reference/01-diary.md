@@ -417,3 +417,54 @@ Pi's `ctx.ui.custom()` ultimately mounts the overlay via a promise continuation.
 
 ### Technical details
 - Commit: f281c73
+
+## Step 8: Forced Redraw After Overlay Mount
+
+The user's follow-up showed that the input path was now correct: `Ctrl+Shift+P r` opened the Response Viewer submenu, meaning shortcut recognition, scheduling, buffering, mount, and replay all worked. But `Ctrl+Shift+P` alone still required another key before the modal was visible. That narrowed the remaining bug to the render flush path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, it's still the same behavior, but ctrl-shift-p and then r does indeed properly open the submenu. So it's a matter of scheduling the graphic update?"
+
+**Assistant interpretation:** Since buffered input works but the modal is not visible until another key, inspect and fix the TUI render scheduling path.
+
+**Inferred user intent:** Make the graphic overlay appear immediately on Ctrl+Shift+P alone, not just process follow-up keys correctly.
+
+**Commit (code):** 54ebee2 — "fix(palette): force full redraw after shortcut overlay mount"
+
+### What I did
+- Confirmed Pi TUI supports `requestRender(force?: boolean)`.
+- Changed the palette overlay requestRender callback type to accept `force?: boolean`.
+- Changed command-palette's onHandle path to call `requestRender(true)` after focus and buffered-input replay.
+- Tested exact kitty CSI-u shortcut sequence with no follow-up key; the modal was visible within 150ms in tmux.
+
+### Why
+Normal `requestRender()` can be throttled and scheduled. In this shortcut path the overlay state existed, but the screen did not repaint until a later terminal input event. `requestRender(true)` resets prior render state and schedules a next-tick full redraw.
+
+### What worked
+- Synthetic kitty CSI-u `ESC[112:80;6u` alone opens the palette without Space in tmux.
+- Synthetic kitty CSI-u plus immediate `r` still opens directly into Response Viewer.
+- Load check passes.
+
+### What didn't work
+- Scheduling the open outside the raw callback fixed mount timing, but not necessarily immediate screen repaint in the user's terminal path.
+
+### What I learned
+- The shortcut bug had three layers: raw shortcut delivery, overlay mount scheduling, and graphic redraw flushing.
+- A full redraw is appropriate after shortcut-mounted overlays because it happens at user-visible modal boundaries, not every keystroke.
+
+### What was tricky to build
+- Avoid forcing redraw on every normal palette keypress. The force redraw is only used once, after `onHandle` focuses the overlay.
+
+### What warrants a second pair of eyes
+- Whether `/px` → `p` should also force redraw. It does not use the raw terminal shortcut path, but it now accepts the same `requestRender(force)` callback type.
+
+### What should be done in the future
+- If any other overlay opened by raw terminal shortcuts shows delayed paint, use the same scheduled-open + forced-redraw pattern.
+
+### Code review instructions
+- Review `requestRender?.(true)` in `extensions/command-palette/index.ts`.
+- Review the `CommandPaletteOptions.requestRender` type change in `extensions/_shared/ui/command-palette.ts`.
+
+### Technical details
+- Commit: 54ebee2

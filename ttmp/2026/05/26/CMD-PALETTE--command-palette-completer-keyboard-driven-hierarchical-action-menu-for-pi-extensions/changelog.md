@@ -74,3 +74,13 @@ Step 7: Fixed remaining Ctrl+Shift+P mount delay by scheduling palette open outs
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Added paletteOpenScheduled and setImmediate scheduleOpenPalette()
 
+
+## 2026-05-27
+
+Step 8: Forced full redraw after shortcut overlay mount so Ctrl+Shift+P alone paints immediately (commit 54ebee2)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/command-palette.ts — requestRender callback now accepts force flag
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Calls requestRender(true) after onHandle focus and buffered input replay
+
