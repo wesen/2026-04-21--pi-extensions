@@ -71,3 +71,68 @@ The user wants a command palette similar to VS Code's `Ctrl+Shift+P` that allows
 - Ticket path: `ttmp/2026/05/26/CMD-PALETTE--command-palette-completer-keyboard-driven-hierarchical-action-menu-for-pi-extensions/`
 - Design doc: `design/01-analysis-and-design-command-palette-completer.md`
 - Related files: 9 source files from the extension framework
+
+## Step 2: Implement Phases 1–4 (Core types, TUI overlay, extension wiring, migration)
+
+Implemented the command palette in four focused commits, one per design phase. All phases pass `pi --list-models` load checks.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Build the command palette following the design document, committing at each phase.
+
+**Inferred user intent:** Working implementation that can be tested interactively via Ctrl+Shift+P.
+
+**Commit (code):** c60af37 — "feat(palette): add PaletteItem types to registry and key-assignment algorithm"
+**Commit (code):** 4c9423d — "feat(palette): add CommandPaletteOverlay TUI component"
+**Commit (code):** 81e37d1 — "feat(palette): add command-palette extension entry point"
+**Commit (code):** 9b8a6ef — "feat(palette): add palette contributions to 7 existing extensions"
+**Commit (docs):** 4e3a3fc — "docs(CMD-PALETTE): add design guide and diary"
+
+### What I did
+- Phase 1: Added `PaletteItem`, `PaletteActionHandler`, `PaletteActionContext` to registry.ts; added `palette?` field to `PiExtensionRegistration`; added `collectPaletteItems()`; created `palette-keys.ts` with `assignKeys()` and `filterKeyedItems()`
+- Phase 2: Created `CommandPaletteOverlay` component with stack-based navigation, key-driven drill-down, search mode, breadcrumb borders
+- Phase 3: Created `extensions/command-palette/index.ts` — registers Ctrl+Shift+P shortcut, `/palette` command, extension metadata
+- Phase 4: Added `palette` fields to 7 extensions: response-viewer, session-tagger, pinned-skills, docmgr, compaction-meter, compaction-title, agent-env
+
+### Why
+Each phase was a self-contained, load-check-passing unit that could be tested independently before building on top of it.
+
+### What worked
+- The design doc's phased approach translated cleanly to commits
+- `pi --list-models` caught no issues at any phase boundary
+- Key assignment algorithm handles conflicts gracefully (compaction-title got `o` since `c` was taken by compaction-meter)
+- docmgr uses `k` for tasks (not `t`, which was taken by tickets)
+
+### What didn't work
+- N/A — all phases loaded and compiled without errors
+
+### What I learned
+- agent-env uses `e` for its key (env injection toggle) which is clean
+- The docmgr tasks key `k` (not `t`) avoids root-level conflict with session-tagger's `t` (quick tag)
+
+### What was tricky to build
+- The `RootKeyedItem` extending `KeyedPaletteItem` with an `extension` field — needed because `assignKeys()` returns bare items but the overlay needs to know which extension owns each item
+- Scroll clamping in the overlay — simplified to a basic version for now
+
+### What warrants a second pair of eyes
+- The overlay `anchor: "center"` — the design says "top-center" but Pi may not support that anchor value; should test interactively
+- Search mode interaction with key-matching — if search is active and a key matches, the key match wins; is that the right priority?
+
+### What should be done in the future
+- Interactive smoke testing with `/reload` and Ctrl+Shift+P
+- Phase 5 polish: settings for configurable shortcut, framework guide update, add `p` key to `/px` launcher
+- Upload updated design doc to reMarkable
+
+### Code review instructions
+- Start at `extensions/_shared/registry.ts` — new types after the widget types
+- Then `extensions/_shared/ui/palette-keys.ts` — pure algorithm
+- Then `extensions/_shared/ui/command-palette.ts` — TUI component
+- Then `extensions/command-palette/index.ts` — extension wiring
+- Spot-check the `palette` additions in the 7 migrated extensions
+
+### Technical details
+- New files: `extensions/_shared/ui/palette-keys.ts`, `extensions/_shared/ui/command-palette.ts`, `extensions/command-palette/index.ts`
+- Modified: `registry.ts` (types + helper), 7 extension files (palette field)
+- Load check: all pass
