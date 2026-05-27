@@ -6,10 +6,11 @@ The central idea is simple: an extension should register what it contributes. It
 
 ```text
 extension module
-  └─ registerPiExtension({ metadata, actions, docs, settings, widgets })
+  └─ registerPiExtension({ metadata, actions, docs, settings, widgets, palette })
        └─ shared registry
             ├─ /px launcher
             ├─ action picker
+            ├─ command palette (Ctrl+Shift+P)
             ├─ docs viewer
             ├─ settings views
             └─ dashboard/status widgets
@@ -93,6 +94,7 @@ Each field has a different purpose:
 | `docs` | Help pages. | Yes | Yes |
 | `settings` | Schema or custom settings view. | Yes | Yes |
 | `widgets` | Dashboard/status cards. | Dashboard | Yes |
+| `palette` | Command palette items. | Yes (via `p` key) | Yes |
 
 The `id` must be stable. If you rename it, user dashboard config and saved layout entries may no longer match. Treat it like a database primary key.
 
@@ -136,7 +138,7 @@ The key points to internalize:
 
 ## 5. Documentation: the help layer
 
-Docs let the launcher answer “what is this?” without sending the user to a README. Pressing `?` on an extension opens its registered documentation.
+Docs let the launcher answer "what is this?" without sending the user to a README. Pressing `?` on an extension opens its registered documentation.
 
 ```ts
 registerPiExtension({
@@ -174,7 +176,7 @@ export interface PiExtensionDoc {
 
 Use inline markdown for short help. Use `path` for longer docs that already live in `docs/`. Use `load` when the documentation depends on runtime state.
 
-A good extension doc starts with the user’s question. It does not begin with implementation details. For example:
+A good extension doc starts with the user's question. It does not begin with implementation details. For example:
 
 ```markdown
 # Pinned Skills
@@ -309,9 +311,92 @@ The most common zones are:
 
 A good widget render function is cheap. It should read current in-memory state and format it. It should not scan large directories or run shell commands on every render.
 
-## 8. The launcher interaction model
+## 8. Command Palette: the speed layer
 
-The `/px` launcher is the user’s main doorway into the shared framework. Its keys are intentionally modal.
+Actions are explicit, but the `/px` launcher requires multiple steps to reach them. The command palette is a **keyboard-driven hierarchical menu** for fast invocation of known actions. It opens with `Ctrl+Shift+P` (or `/palette`) and lets the user drill down with single-key presses.
+
+```text
+Ctrl+Shift+P
+  │
+  ▸ a  Agent Env →
+    c  Compaction Meter →
+    o  Compaction Title →
+    d  Docmgr →
+    p  Pinned Skills →
+    r  Response Viewer →
+    s  Session Tagger →
+```
+
+Press `r` to enter Response Viewer, then `v` to view the last response. Total: three keystrokes from anywhere.
+
+### 8.1 The palette contribution
+
+Add a `palette` array to your `registerPiExtension()` call. Each `PaletteItem` is either a leaf (with `run`) or a submenu (with `children`):
+
+```ts
+registerPiExtension({
+  id: "my-extension",
+  name: "My Extension",
+  // ...
+  palette: [
+    {
+      id: "open",
+      title: "Open dashboard",
+      key: "o",
+      run: async (ctx) => openDashboard(ctx),
+    },
+    {
+      id: "config",
+      title: "Configuration",
+      key: "c",
+      children: [
+        { id: "edit", title: "Edit settings", key: "e", run: async (ctx) => editSettings(ctx) },
+        { id: "reset", title: "Reset defaults", key: "r", run: async (ctx) => resetSettings(ctx) },
+      ],
+    },
+  ],
+});
+```
+
+### 8.2 Key assignment
+
+At the root level, keys are auto-assigned from extension names (not from the item's `key` field) to avoid cross-extension conflicts. Within a submenu, each item's `key` field is used. If omitted, the framework assigns the first unique alphanumeric character from the title.
+
+### 8.3 Palette vs actions
+
+| Aspect | Actions | Palette |
+|--------|---------|---------|
+| Purpose | Discovery via `/px` | Speed via `Ctrl+Shift+P` |
+| Structure | Flat list | Hierarchical tree |
+| Keys | No key hints | Single-character key hints |
+| Depth | One level | Multiple levels |
+
+Use both. Share handler functions between them:
+
+```ts
+const handleOpen = async (ctx) => openDashboard(ctx);
+
+actions: [{ id: "open", title: "Open", run: handleOpen }],
+palette: [{ id: "open", title: "Open dashboard", key: "o", run: handleOpen }],
+```
+
+### 8.4 Palette interaction model
+
+```text
+Ctrl+Shift+P   open palette
+a–z, 0–9      activate matching item (drill into submenu or execute leaf)
+← / Backspace  go back one level
+Esc            close palette
+/              toggle search within current level
+↑ / ↓          move cursor (fallback navigation)
+Enter          activate item at cursor
+```
+
+The palette is for **speed**. The launcher (`/px`) is for **discovery**. They coexist.
+
+## 9. The launcher interaction model
+
+The `/px` launcher is the user's main doorway into the shared framework. Its keys are intentionally modal.
 
 ```text
 normal mode:
@@ -320,6 +405,7 @@ normal mode:
   a       open selected extension actions
   ?       open selected extension docs
   s       open selected extension settings
+  p       open command palette
   d       open dashboard
   Esc     close launcher
 
@@ -330,7 +416,7 @@ search mode:
   Ctrl+U  clear query
 ```
 
-Search is activated with `/` because normal letters now have meaning. If typing immediately searched, pressing `a` could either mean “search for a” or “open actions.” A mode switch removes that ambiguity.
+Search is activated with `/` because normal letters now have meaning. If typing immediately searched, pressing `a` could either mean "search for a" or "open actions." A mode switch removes that ambiguity.
 
 When you add an extension, think about what each launcher key should reveal:
 
@@ -338,9 +424,10 @@ When you add an extension, think about what each launcher key should reveal:
 - `a`: all meaningful commands as named actions.
 - `?`: docs that explain the extension and its gotchas.
 - `s`: settings if the user can configure it.
+- `p`: command palette for fast keyboard-driven access.
 - `d`: dashboard state if it contributes widgets.
 
-## 9. A complete worked example
+## 10. A complete worked example
 
 This example extension has state, actions, docs, schema settings, and a dashboard widget. It is small enough to read in one sitting, but includes every major contribution type.
 
@@ -460,7 +547,7 @@ export default function counterExtension(pi: ExtensionAPI): void {
 
 This example shows the pattern: the command remains as a direct entrypoint, while the richer contribution metadata makes the extension discoverable from `/px`.
 
-## 10. File layout for a real extension
+## 11. File layout for a real extension
 
 Small extensions can live entirely in `index.ts`. Once an extension has a custom UI, split it.
 
@@ -486,9 +573,9 @@ extensions/_shared/
   dashboard/manager.ts        # status/widget bridge
 ```
 
-Do not import from another extension’s private files unless you are deliberately sharing code. Shared utilities should move into `_shared/`.
+Do not import from another extension's private files unless you are deliberately sharing code. Shared utilities should move into `_shared/`.
 
-## 11. Validation workflow
+## 12. Validation workflow
 
 After changing an extension, run the load check:
 
@@ -521,7 +608,7 @@ If your extension has a direct command, test that too:
 /my-extension
 ```
 
-## 12. Common mistakes
+## 13. Common mistakes
 
 ### Mistake: doing expensive work in a dashboard render
 
@@ -589,7 +676,7 @@ Better:
 { id: "open", title: "Open dashboard", default: true, run: openDashboard }
 ```
 
-## 13. Checklist for a new extension
+## 14. Checklist for a new extension
 
 Before handing off a new extension, verify these items:
 
@@ -598,23 +685,28 @@ Before handing off a new extension, verify these items:
 - [ ] The `name` and `description` are clear in `/px`.
 - [ ] The default `run` action is safe.
 - [ ] Named actions have stable IDs and user-facing titles.
-- [ ] Docs answer the user’s first questions.
+- [ ] Docs answer the user's first questions.
 - [ ] Settings use schema for simple fields or custom UI for rich controls.
 - [ ] Dashboard widgets are cheap to render.
+- [ ] Palette items have stable IDs and sensible key hints.
+- [ ] Palette leaf actions are safe and non-destructive where possible.
 - [ ] Existing slash commands still work if they are part of the public interface.
 - [ ] `timeout 20 pi --list-models` passes.
 - [ ] `/reload` and `/px` manual smoke tests pass.
 
-## 14. Where to learn from existing code
+## 15. Where to learn from existing code
 
 Read these files in this order:
 
 1. `extensions/_shared/registry.ts` — the contracts.
 2. `extensions/launcher/index.ts` — how `/px` invokes contributions.
 3. `extensions/_shared/ui/extension-launcher.ts` — the main picker UI.
-4. `extensions/pinned-skills/index.ts` — actions, docs, custom settings, widgets, and lifecycle state.
-5. `extensions/agent-env/index.ts` — schema settings example.
-6. `extensions/kanban-demo/index.ts` — rich dashboard card example.
-7. `docs/pi-tui-ui-authoring-guide.md` — how to build custom TUI components.
+4. `extensions/_shared/ui/command-palette.ts` — the command palette overlay.
+5. `extensions/_shared/ui/palette-keys.ts` — key assignment algorithm.
+6. `extensions/command-palette/index.ts` — palette extension wiring.
+7. `extensions/pinned-skills/index.ts` — actions, docs, custom settings, widgets, palette, and lifecycle state.
+8. `extensions/agent-env/index.ts` — schema settings example.
+9. `extensions/compaction-meter/index.ts` — simple palette example.
+10. `docs/pi-tui-ui-authoring-guide.md` — how to build custom TUI components.
 
 The framework is intentionally small. Most of its power comes from a convention: extensions describe what they provide, and the shared UI decides how to present it. Follow that convention and your extension will feel like part of the same system.
