@@ -253,3 +253,58 @@ The /px launcher is the discovery surface and should have a quick path to the pa
 
 ### Technical details
 - Commits: 83d0982, f2ac6b2
+
+## Step 5: Shortcut Race Root-Cause Fix
+
+Investigated the lingering Ctrl+Shift+P bug where the palette did not reliably appear until the next keystroke after certain palette actions. The earlier render-only fixes were incomplete because the real failure mode was not only initial paint; it was the editor-scoped shortcut path racing with focus restoration and input delivery.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, your little brother has lost th sauce, the bug is still there, you should be able to repeat it in tmux? FIgure out where you brother went wrong"
+
+**Assistant interpretation:** Reproduce the shortcut bug more accurately, identify why the prior fix was insufficient, and repair the actual input/focus race.
+
+**Inferred user intent:** Make Ctrl+Shift+P robust after executing palette actions, especially `response-viewer → view`, without the next key leaking into the REPL.
+
+**Commit (code):** 26470fa — "fix(palette): catch Ctrl+Shift+P at raw terminal input layer"
+
+### What I did
+- Inspected Pi's interactive shortcut implementation and found extension shortcuts are attached to the default editor (`defaultEditor.onExtensionShortcut`).
+- Inspected Pi TUI's raw input listener order and found `ctx.ui.onTerminalInput()` runs before input is sent to the focused component.
+- Added a session-level raw terminal input listener for `Ctrl+Shift+P` in `command-palette/index.ts`.
+- The raw listener consumes the shortcut and calls `openPalette()` directly, avoiding editor focus races.
+- Kept `pi.registerShortcut("ctrl+shift+p")` as a fallback for cases where the raw listener has not registered yet.
+- Added a `paletteOpen` guard to prevent duplicate overlays if multiple paths fire.
+- Removed `command-palette` from project `.pi/settings.json` now that it is enabled globally.
+
+### Why
+The previous fix called `handle.focus()` via `onHandle`, which helps once an overlay exists. It does not solve cases where the editor-scoped shortcut path itself is delayed or focus restoration causes the next key to reach the editor before the overlay captures input. A raw terminal listener consumes the key before the editor sees it.
+
+### What worked
+- Fresh tmux session: `Ctrl+Shift+P` opens the palette immediately.
+- Palette action path: `r → v`, then `Ctrl+Shift+P`, then immediate `a` enters Agent Env submenu instead of leaking `a` to the REPL.
+- Load check passes.
+
+### What didn't work
+- The earlier requestRender/focus-only fixes were insufficient because they addressed rendering after overlay creation, not shortcut delivery before overlay creation.
+
+### What I learned
+- Pi's `registerShortcut()` extension shortcuts are editor-scoped, not terminal-global.
+- `ctx.ui.onTerminalInput()` is the correct hook for shortcuts that must be consumed before editor input handling.
+- Tmux tests need to exercise a full action cycle and then the next shortcut, not only the first overlay paint.
+
+### What was tricky to build
+- The raw terminal listener has to coexist with the official extension shortcut. The `paletteOpen` guard prevents double-open if both paths ever fire.
+
+### What warrants a second pair of eyes
+- Whether `session_start` is always fired after `/reload`; the official shortcut remains as fallback for that case.
+
+### What should be done in the future
+- Consider moving this pattern into a shared helper for any extension that needs global keyboard shortcuts independent of editor focus.
+
+### Code review instructions
+- Review `registerTerminalShortcut()` and `openPalette()` in `extensions/command-palette/index.ts`.
+- Verify that raw terminal input consumes only `Ctrl+Shift+P` and leaves all other keys unchanged.
+
+### Technical details
+- Commit: 26470fa

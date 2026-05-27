@@ -46,3 +46,13 @@ Step 4: Phase 5 polish — /px integration (p key), framework guide Section 8, g
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Added palette result kind and p key handler
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Added openPaletteFromLauncher function
 
+
+## 2026-05-27
+
+Step 5: Fixed Ctrl+Shift+P shortcut race by moving primary handling to raw terminal input listener (commit 26470fa)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/.pi/settings.json — Removed project command-palette entry because palette is globally enabled
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/command-palette/index.ts — Raw terminal listener consumes Ctrl+Shift+P before editor input handling
+
