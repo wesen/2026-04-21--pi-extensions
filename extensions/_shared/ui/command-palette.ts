@@ -12,6 +12,7 @@ export interface CommandPaletteOptions {
 	theme: { fg(color: string, text: string): string; bold(text: string): string };
 	done(result: PaletteResult): void;
 	requestRender?: () => void;
+	debug?: (event: string, details?: Record<string, unknown>) => void;
 }
 
 // ── Internal types ──
@@ -44,6 +45,14 @@ export class CommandPaletteOverlay implements Component {
 	}
 
 	handleInput(data: string): void {
+		this.options.debug?.("overlay.handleInput", {
+			data: describeInput(data),
+			level: this.currentLevel().title,
+			stack: this.stack.map((l) => l.title),
+			searchActive: this.searchActive,
+			query: this.query,
+		});
+
 		// Escape: close or exit search
 		if (matchesKey(data, Key.escape)) {
 			if (this.searchActive) {
@@ -201,6 +210,14 @@ export class CommandPaletteOverlay implements Component {
 	}
 
 	private activate(entry: RootKeyedItem): void {
+		this.options.debug?.("overlay.activate", {
+			key: entry.key,
+			itemId: entry.item.id,
+			title: entry.item.title,
+			hasChildren: Boolean(entry.item.children),
+			hasRun: Boolean(entry.item.run),
+			path: [...this.pathIds, entry.item.id],
+		});
 		if (entry.item.children) {
 			// Submenu: push new level
 			const childKeyed = assignKeys(entry.item.children);
@@ -325,4 +342,15 @@ function borderBottom(width: number, theme: CommandPaletteOptions["theme"]): str
 function frameRow(content: string, width: number, theme: CommandPaletteOptions["theme"]): string {
 	const padding = Math.max(0, width - visibleWidth(content));
 	return `${theme.fg("border", "│")} ${content}${" ".repeat(padding)} ${theme.fg("border", "│")}`;
+}
+
+function describeInput(data: string): Record<string, unknown> {
+	return {
+		json: JSON.stringify(data),
+		length: data.length,
+		chars: [...data].map((char) => {
+			const code = char.codePointAt(0) ?? 0;
+			return `U+${code.toString(16).toUpperCase().padStart(4, "0")}`;
+		}),
+	};
 }
