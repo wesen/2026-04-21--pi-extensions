@@ -70,12 +70,36 @@ workflow, or several photos of the same object from different angles.
 
 ## Settings
 
-| Setting   | Default      | Description                                        |
-|-----------|--------------|----------------------------------------------------|
-| `profile` | `gpt-5-low` | Pinocchio profile (controls model, temperature, etc.) |
-| `timeout` | `120`       | Maximum seconds to wait for a response             |
+Access settings via `/px` → select Image QA → press `s`.
 
-Access settings via `/px` → select Image QA → `s`.
+### Profile
+
+A dropdown of vision-capable pinocchio profiles, in order:
+
+| Profile | Label | Description |
+|---------|-------|-------------|
+| `gpt-5-nano-low` | GPT-5 Nano Low | GPT-5 Nano, low reasoning effort (fastest, cheapest) |
+| `gpt-5-low` | GPT-5 Low | GPT-5, low reasoning effort |
+| `gpt-5-mini-low` | GPT-5 Mini Low | GPT-5 Mini, low reasoning effort |
+| `gpt-5-mini` | GPT-5 Mini | GPT-5 Mini |
+| `gpt-5-nano` | GPT-5 Nano | GPT-5 Nano |
+| `haiku` | Claude Haiku 4.5 | Anthropic Claude Haiku 4.5 |
+| `sonnet` | Claude Sonnet | Anthropic Claude Sonnet 4.6 |
+| `sonnet-low` | Claude Sonnet Low | Anthropic Claude Sonnet 4.6, low reasoning |
+
+Non-curated pinocchio profiles with a chat engine also appear after the curated
+list. Select **Custom...** and type any profile name to use a profile not in the
+list. The extension validates that the profile exists in pinocchio before
+applying.
+
+On startup, the extension reads pinocchio's selected/default profile. If
+pinocchio is unavailable, it falls back to `gpt-5-low`.
+
+### Timeout
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `timeout` | `120` | Maximum seconds to wait for a pinocchio response (10–600, step 10) |
 
 ## Commands
 

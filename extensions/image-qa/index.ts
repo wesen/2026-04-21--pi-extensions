@@ -2,9 +2,11 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@mariozechner/pi-ai";
 import { Text } from "@mariozechner/pi-tui";
 import { registerPiExtension } from "../_shared/registry";
+import type { PiSettingsOption } from "../_shared/registry";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { resolve } from "path";
+import { CURATED_PROFILES, discoverPinocchioProfiles, getSelectedProfile, validateProfile } from "./profiles";
 
 interface ImageQaState {
 	profile: string;
@@ -24,6 +26,14 @@ interface StreamingProcessOptions {
 	signal?: AbortSignal;
 	timeoutMs: number;
 	onOutput: (stdout: string, stderr: string) => void;
+}
+
+const CUSTOM_VALUE = "(custom)";
+
+function resolveProfile(values: Record<string, unknown>): string {
+	const profile = String(values.profile ?? "");
+	if (profile === CUSTOM_VALUE) return String(values.customProfile ?? "").trim();
+	return profile;
 }
 
 function promptSection(title: string, value: string): string {
@@ -47,9 +57,9 @@ function argImages(args: Record<string, unknown>): string[] {
 }
 
 function runStreamingProcess(command: string, args: string[], options: StreamingProcessOptions): Promise<StreamingProcessResult> {
-	return new Promise((resolve, reject) => {
+	return new Promise((resolvePromise, reject) => {
 		if (options.signal?.aborted) {
-			resolve({ code: -1, stdout: "", stderr: "", aborted: true, timedOut: false });
+			resolvePromise({ code: -1, stdout: "", stderr: "", aborted: true, timedOut: false });
 			return;
 		}
 
@@ -126,13 +136,14 @@ function runStreamingProcess(command: string, args: string[], options: Streaming
 			settled = true;
 			cleanup();
 			options.onOutput(stdout, stderr);
-			resolve({ code: code ?? -1, stdout, stderr, aborted, timedOut });
+			resolvePromise({ code: code ?? -1, stdout, stderr, aborted, timedOut });
 		});
 	});
 }
 
 export default function imageQaExtension(pi: ExtensionAPI): void {
-	const state: ImageQaState = { profile: "gpt-5-low", timeout: 120 };
+	const pinocchioDefault = getSelectedProfile();
+	const state: ImageQaState = { profile: pinocchioDefault ?? "gpt-5-low", timeout: 120 };
 
 	registerPiExtension({
 		id: "image-qa",
@@ -166,36 +177,90 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 
 		settings: {
 			kind: "schema",
-			schema: {
-				version: 1,
-				title: "Image QA Settings",
-				description: "Configure the pinocchio profile and timeout for image QA calls.",
-				sections: [
-					{
-						id: "main",
-						title: "Main",
-						fields: [
-							{
-								id: "profile",
-								label: "Profile",
-								type: "string",
-								description:
-									"Pinocchio profile to use (e.g. gpt-5-low, claude-sonnet).",
-							},
-							{
-								id: "timeout",
-								label: "Timeout (seconds)",
-								type: "number",
-								description:
-									"Maximum seconds to wait for a pinocchio response.",
-							},
-						],
-					},
-				],
+			schema: () => {
+				const options: PiSettingsOption[] = [
+					...CURATED_PROFILES.map((c) => ({
+						value: c.value,
+						label: c.label,
+						description: c.desc,
+					})),
+					// Append non-curated discovered profiles that have a chat engine
+					...discoverPinocchioProfiles()
+						.filter((p) => p.effective_chat_engine && !CURATED_PROFILES.find((c) => c.value === p.profile))
+						.map((p) => ({
+							value: p.profile,
+							label: p.display_name || p.profile,
+							description: p.effective_chat_engine,
+						})),
+					{ value: CUSTOM_VALUE, label: "Custom...", description: "Type a custom pinocchio profile name" },
+				];
+
+				return {
+					version: 1,
+					title: "Image QA Settings",
+					description: "Configure the pinocchio profile and timeout for image QA calls.",
+					sections: [
+						{
+							id: "main",
+							title: "Main",
+							fields: [
+								{
+									id: "profile",
+									label: "Profile",
+									type: "select" as const,
+									options,
+									description: "Pinocchio profile for vision calls. Select 'Custom...' to type a name.",
+								},
+								{
+									id: "customProfile",
+									label: "Custom profile",
+									type: "string" as const,
+									description: "Profile name (used when Profile is set to 'Custom...').",
+								},
+								{
+									id: "timeout",
+									label: "Timeout (seconds)",
+									type: "number" as const,
+									description: "Maximum seconds to wait for a pinocchio response.",
+									min: 10,
+									max: 600,
+									step: 10,
+								},
+							],
+						},
+					],
+				};
 			},
-			load: () => ({ profile: state.profile, timeout: state.timeout }),
+			load: () => {
+				const isInDropdown =
+					CURATED_PROFILES.some((c) => c.value === state.profile) ||
+					discoverPinocchioProfiles().some((p) => p.profile === state.profile && !CURATED_PROFILES.find((c) => c.value === p.profile));
+				return {
+					profile: isInDropdown ? state.profile : CUSTOM_VALUE,
+					customProfile: isInDropdown ? "" : state.profile,
+					timeout: state.timeout,
+				};
+			},
+			validate: (values) => {
+				const errors: Array<{ fieldId?: string; message: string }> = [];
+				const warnings: Array<{ fieldId?: string; message: string }> = [];
+
+				const resolved = resolveProfile(values);
+				if (!resolved) {
+					errors.push({ fieldId: "profile", message: "Profile must not be empty." });
+					return { ok: false, errors, warnings };
+				}
+
+				const result = validateProfile(resolved);
+				if (!result.valid) {
+					errors.push({ fieldId: "profile", message: result.warning! });
+					return { ok: false, errors, warnings };
+				}
+
+				return { ok: true, warnings };
+			},
 			onApply: (values, ctx) => {
-				if (values.profile) state.profile = String(values.profile);
+				state.profile = resolveProfile(values);
 				if (values.timeout) state.timeout = Number(values.timeout);
 				ctx.ui.notify(
 					`image-qa: profile=${state.profile} timeout=${state.timeout}s`,
@@ -265,8 +330,8 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 			const pinocchioPrompt = composePinocchioPrompt(context, question);
 
 			// Resolve and validate image paths
-			const resolved = images.map((p) => resolve(ctx.cwd, p));
-			const missing = resolved.filter((p) => !existsSync(p));
+			const resolvedPaths = images.map((p) => resolve(ctx.cwd, p));
+			const missing = resolvedPaths.filter((p) => !existsSync(p));
 			if (missing.length > 0) {
 				return {
 					content: [
@@ -280,7 +345,7 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 			}
 
 			// Build pinocchio args
-			const imagesFlag = resolved.join(",");
+			const imagesFlag = resolvedPaths.join(",");
 			const args = [
 				"code",
 				"professional",
@@ -303,11 +368,11 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 					cwd: ctx.cwd,
 					signal,
 					timeoutMs: state.timeout * 1000,
-					onOutput: (stdout, stderr) => {
-						const text = stdout || (stderr ? `pinocchio stderr:\n${stderr}` : "Waiting for pinocchio output...");
+					onOutput: (out, err) => {
+						const text = out || (err ? `pinocchio stderr:\n${err}` : "Waiting for pinocchio output...");
 						onUpdate?.({
 							content: [{ type: "text" as const, text }],
-							details: { ...baseDetails, streaming: true, stderr: stderr || undefined },
+							details: { ...baseDetails, streaming: true, stderr: err || undefined },
 						});
 					},
 				});
@@ -362,7 +427,7 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 			const context = argString(args, "context").trim();
 			const question = argString(args, "question").trim();
 			const text = [
-				`${theme.fg("toolTitle", theme.bold("ask_questions_about_images"))} ${theme.fg("dim", `${images.length} image(s)`)}`,
+				`${theme.fg("toolTitle", theme.bold("ask_questions_about_images"))} ${theme.fg("dim", `${images.length} image(s) · profile: ${state.profile}`)}`,
 				`${theme.fg("accent", "Context:")} ${context || theme.fg("warning", "(empty)")}`,
 				`${theme.fg("accent", "Question:")} ${question || theme.fg("warning", "(empty)")}`,
 			].join("\n");
