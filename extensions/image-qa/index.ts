@@ -6,7 +6,7 @@ import type { PiSettingsOption } from "../_shared/registry";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { CURATED_PROFILES, discoverPinocchioProfiles, getSelectedProfile, validateProfile } from "./profiles";
+import { CURATED_PROFILES, discoverPinocchioProfiles, getSelectedProfile } from "./profiles";
 
 interface ImageQaState {
 	profile: string;
@@ -26,14 +26,6 @@ interface StreamingProcessOptions {
 	signal?: AbortSignal;
 	timeoutMs: number;
 	onOutput: (stdout: string, stderr: string) => void;
-}
-
-const CUSTOM_VALUE = "(custom)";
-
-function resolveProfile(values: Record<string, unknown>): string {
-	const profile = String(values.profile ?? "");
-	if (profile === CUSTOM_VALUE) return String(values.customProfile ?? "").trim();
-	return profile;
 }
 
 function promptSection(title: string, value: string): string {
@@ -192,7 +184,6 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 							label: p.display_name || p.profile,
 							description: p.effective_chat_engine,
 						})),
-					{ value: CUSTOM_VALUE, label: "Custom...", description: "Type a custom pinocchio profile name" },
 				];
 
 				return {
@@ -209,13 +200,7 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 									label: "Profile",
 									type: "select" as const,
 									options,
-									description: "Pinocchio profile for vision calls. Select 'Custom...' to type a name.",
-								},
-								{
-									id: "customProfile",
-									label: "Custom profile",
-									type: "string" as const,
-									description: "Profile name (used when Profile is set to 'Custom...').",
+									description: "Pinocchio profile for vision calls.",
 								},
 								{
 									id: "timeout",
@@ -231,36 +216,9 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 					],
 				};
 			},
-			load: () => {
-				const isInDropdown =
-					CURATED_PROFILES.some((c) => c.value === state.profile) ||
-					discoverPinocchioProfiles().some((p) => p.profile === state.profile && !CURATED_PROFILES.find((c) => c.value === p.profile));
-				return {
-					profile: isInDropdown ? state.profile : CUSTOM_VALUE,
-					customProfile: isInDropdown ? "" : state.profile,
-					timeout: state.timeout,
-				};
-			},
-			validate: (values) => {
-				const errors: Array<{ fieldId?: string; message: string }> = [];
-				const warnings: Array<{ fieldId?: string; message: string }> = [];
-
-				const resolved = resolveProfile(values);
-				if (!resolved) {
-					errors.push({ fieldId: "profile", message: "Profile must not be empty." });
-					return { ok: false, errors, warnings };
-				}
-
-				const result = validateProfile(resolved);
-				if (!result.valid) {
-					errors.push({ fieldId: "profile", message: result.warning! });
-					return { ok: false, errors, warnings };
-				}
-
-				return { ok: true, warnings };
-			},
+			load: () => ({ profile: state.profile, timeout: state.timeout }),
 			onApply: (values, ctx) => {
-				state.profile = resolveProfile(values);
+				if (values.profile) state.profile = String(values.profile);
 				if (values.timeout) state.timeout = Number(values.timeout);
 				ctx.ui.notify(
 					`image-qa: profile=${state.profile} timeout=${state.timeout}s`,

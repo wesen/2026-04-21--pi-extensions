@@ -50,18 +50,6 @@ export function discoverPinocchioProfiles(): PinocchioProfile[] {
 	}
 }
 
-export function validateProfile(profile: string): { valid: boolean; warning?: string } {
-	const all = discoverPinocchioProfiles();
-	const match = all.find((p) => p.profile === profile);
-	if (!match) {
-		return { valid: false, warning: `Profile "${profile}" not found in pinocchio.` };
-	}
-	if (!match.effective_chat_engine) {
-		return { valid: false, warning: `Profile "${profile}" has no chat engine (likely a base/API-key profile).` };
-	}
-	return { valid: true };
-}
-
 export function getSelectedProfile(): string | undefined {
 	const all = discoverPinocchioProfiles();
 	return all.find((p) => p.selected)?.profile ?? all.find((p) => p.default)?.profile;
