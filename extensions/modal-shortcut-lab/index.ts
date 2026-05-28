@@ -6,8 +6,10 @@ import { Key, matchesKey, truncateToWidth, visibleWidth, type Component } from "
 import { registerPiExtension } from "../_shared/registry";
 
 const LOG_PATH = path.join(os.tmpdir(), "pi-modal-shortcut-lab.log");
-const BUILD_ID = "modal-shortcut-lab-2026-05-27T22:10";
+const BUILD_ID = "modal-shortcut-lab-2026-05-28T13:20";
 const TARGET_SHORTCUT = "ctrl+shift+p";
+const SAFE_CANDIDATE_SHORTCUT = "ctrl+shift+alt+n";
+const CTRL_SPACE_SHORTCUT = "ctrl+space";
 const ALT_SHORTCUT = "ctrl+shift+m";
 
 type OpenMode = "replace" | "overlay";
@@ -18,7 +20,9 @@ type OpenSource =
 	| "registered-shortcut-direct"
 	| "registered-shortcut-scheduled"
 	| "raw-terminal-direct"
-	| "raw-terminal-scheduled";
+	| "raw-terminal-scheduled"
+	| "raw-terminal-safe-candidate"
+	| "raw-terminal-ctrl-space";
 
 type LabResult = { kind: "ok"; source: OpenSource; inputCount: number } | { kind: "cancel"; source: OpenSource; inputCount: number };
 
@@ -108,19 +112,33 @@ export default function modalShortcutLab(pi: ExtensionAPI): void {
 
 function registerRawTerminalListener(ctx: ExtensionContext): void {
 	terminalUnsubscribe?.();
-	debugLog("raw.register", { build: BUILD_ID, targetShortcut: TARGET_SHORTCUT });
+	debugLog("raw.register", { build: BUILD_ID, targetShortcut: TARGET_SHORTCUT, safeCandidate: SAFE_CANDIDATE_SHORTCUT, ctrlSpace: CTRL_SPACE_SHORTCUT });
 	terminalUnsubscribe = ctx.ui.onTerminalInput((data) => {
 		const matchesTarget = matchesKey(data, TARGET_SHORTCUT);
 		const matchesAlt = matchesKey(data, "ctrl+shift+o");
+		const matchesSafeCandidate = matchesKey(data, SAFE_CANDIDATE_SHORTCUT);
+		const matchesCtrlSpace = matchesKey(data, CTRL_SPACE_SHORTCUT);
 		debugLog("raw.input", {
 			data: describeInput(data),
 			matchesTarget,
 			matchesAlt,
+			matchesSafeCandidate,
+			matchesCtrlSpace,
 			rawOpenScheduled,
 		});
 
 		if (matchesTarget) {
 			scheduleOpen(ctx, "raw-terminal-scheduled", "overlay");
+			return { consume: true };
+		}
+
+		if (matchesSafeCandidate) {
+			scheduleOpen(ctx, "raw-terminal-safe-candidate", "overlay");
+			return { consume: true };
+		}
+
+		if (matchesCtrlSpace) {
+			scheduleOpen(ctx, "raw-terminal-ctrl-space", "overlay");
 			return { consume: true };
 		}
 
@@ -317,7 +335,18 @@ async function handleDebugCommand(args: string, ctx: ExtensionContext): Promise<
 }
 
 function statusText(): string {
-	return [`Modal Shortcut Lab`, `build: ${BUILD_ID}`, `debug: ${debugEnabled ? "on" : "off"}`, `log: ${LOG_PATH}`, `raw target: ${TARGET_SHORTCUT}`, `registered direct: ${ALT_SHORTCUT}`, `registered scheduled: ctrl+shift+alt+m`, `raw direct: ctrl+shift+o`].join("\n");
+	return [
+		`Modal Shortcut Lab`,
+		`build: ${BUILD_ID}`,
+		`debug: ${debugEnabled ? "on" : "off"}`,
+		`log: ${LOG_PATH}`,
+		`raw target: ${TARGET_SHORTCUT}`,
+		`raw safe candidate: ${SAFE_CANDIDATE_SHORTCUT}`,
+		`raw ctrl-space candidate: ${CTRL_SPACE_SHORTCUT}`,
+		`registered direct: ${ALT_SHORTCUT}`,
+		`registered scheduled: ctrl+shift+alt+m`,
+		`raw direct: ctrl+shift+o`,
+	].join("\n");
 }
 
 function debugLog(event: string, details: Record<string, unknown> = {}): void {

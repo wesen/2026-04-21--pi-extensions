@@ -28,8 +28,10 @@ The lab deliberately exposes several opening paths:
 
 - `Ctrl+Shift+M` — `pi.registerShortcut()` direct overlay open.
 - `Ctrl+Shift+Alt+M` — `pi.registerShortcut()` scheduled overlay open.
-- `Ctrl+Shift+P` — raw terminal listener scheduled overlay open; this matches the command-palette problem shortcut and should be tested only in isolated mode.
-- `Ctrl+Shift+O` — raw terminal listener direct overlay open.
+- `Ctrl+Shift+P` — raw terminal listener scheduled overlay open; this matches the old command-palette problem shortcut and should be tested only in isolated mode. In Kitty this is a built-in key-chord prefix, so it may not arrive until the next keypress.
+- `Ctrl+Shift+Alt+N` — raw terminal listener scheduled overlay open for a Kitty-safe command-palette shortcut candidate.
+- `Ctrl+Space` — raw terminal listener scheduled overlay open for an ergonomic alternate candidate; this may conflict with IME/tmux/user bindings on some machines.
+- `Ctrl+Shift+O` — raw terminal listener direct overlay open; Kitty binds this by default to `pass_selection_to_program`, so it may not reach Pi.
 
 ## Log
 
@@ -61,5 +63,7 @@ Important event names:
 3. Run `/modal-lab notify`; expect a notification.
 4. Run `/modal-lab overlay`; expect the modal.
 5. Press `Ctrl+Shift+M`; expect the modal.
-6. Press `Ctrl+Shift+P`; expect the modal from the raw terminal listener.
-7. Inspect `/tmp/pi-modal-shortcut-lab.log` and compare lifecycle ordering.
+6. Press `Ctrl+Shift+Alt+N`; expect the modal from the Kitty-safe raw terminal listener.
+7. Press `Ctrl+Space`; expect the modal if your terminal/desktop does not reserve that shortcut.
+8. Press `Ctrl+Shift+P`; in Kitty, expect delayed/prefix behavior rather than treating this as a safe app shortcut.
+9. Inspect `/tmp/pi-modal-shortcut-lab.log` and compare lifecycle ordering.

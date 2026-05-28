@@ -12,20 +12,31 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: extensions/modal-shortcut-lab/index.ts
-      Note: Implementation work recorded in diary
+    - Path: docs/pi-shared-extension-framework-guide.md
+      Note: Updated shared framework docs for the new default palette shortcut
+    - Path: extensions/command-palette/index.ts
+      Note: Changed command palette default shortcut to Ctrl+Shift+Alt+N and added env overrides
     - Path: extensions/modal-shortcut-lab/README.md
       Note: Lab extension quick runbook
+    - Path: extensions/modal-shortcut-lab/index.ts
+      Note: |-
+        Implementation work recorded in diary
+        Added raw shortcut candidates for Ctrl+Shift+Alt+N and Ctrl+Space
     - Path: ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/design-doc/01-analysis-and-design-guide.md
       Note: Design guide written during Step 1 and Step 2
     - Path: ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/scripts/02-smoke-tmux-ctrl-shift-p.sh
       Note: Smoke test evidence captured in diary
+    - Path: ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/scripts/03-terminal-key-probe.mjs
+      Note: Live terminal shortcut probe for Kitty/tmux raw input
+    - Path: ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/scripts/04-smoke-tmux-safe-shortcuts.sh
+      Note: Smoke test for safe shortcut candidates
 ExternalSources: []
 Summary: Chronological diary for building the modal shortcut lab and documenting shortcut-opened overlay debugging.
-LastUpdated: 2026-05-27T22:00:00-04:00
+LastUpdated: 2026-05-28T13:20:00-04:00
 WhatFor: Use this diary to reconstruct the investigation and write a post-mortem.
 WhenToUse: Read before resuming MODAL-SHORTCUT-LAB work or changing command-palette shortcut behavior.
 ---
+
 
 
 # Diary
@@ -249,3 +260,88 @@ The upload targeted the ticket-specific destination under the dated `/ai` hierar
 ### Technical details
 - Remote path: `/ai/2026/05/27/MODAL-SHORTCUT-LAB`
 - Uploaded name: `MODAL SHORTCUT LAB Design Guide.pdf`
+
+## Step 4: Identify Kitty Shortcut Collisions and Move the Palette Shortcut
+
+The live lab feedback and the Kitty shortcut table made the problem much more concrete. `Ctrl+Shift+P` is not a neutral application shortcut in Kitty: it is a built-in key-chord prefix for kitten actions, so Kitty can hold or delay it until the next keypress. `Ctrl+Shift+O` is also reserved by Kitty for `pass_selection_to_program`, which explains why it did not reach Pi as a usable raw shortcut.
+
+I moved the production command palette default to `Ctrl+Shift+Alt+N`, kept `/palette` as the command fallback, added environment overrides for experimenting with `Ctrl+Space`, and added ticket scripts that can inspect raw terminal events directly in Kitty/tmux-like conditions.
+
+### Prompt Context
+
+**User prompt (verbatim):** "feel free to write some additional scripts or even go programs in the scripts/ folder of te ticket to see if this is some terminal related stuff when running in kitty or so, since the other shortcuts seem to work find."
+
+**Follow-up user prompt (verbatim):** "Actually that seems to be the issue: https://gist.github.com/AskinNet/0d0d4f7f0ee221f8362af9d9876d021a"
+
+**Assistant interpretation:** Confirm that Kitty default shortcuts are the likely source of the delayed/missing shortcut behavior, then choose a safer command-palette shortcut and add scripts to verify raw terminal sequences.
+
+**Inferred user intent:** Stop fighting Kitty-reserved chords and make the command palette open from a shortcut that is likely to reach Pi immediately.
+
+**Commit (code):** N/A — changes are not committed yet.
+
+### What I did
+- Changed `extensions/command-palette/index.ts` default shortcut from `ctrl+shift+p` to `ctrl+shift+alt+n`.
+- Added `PI_COMMAND_PALETTE_SHORTCUT` and `PI_COMMAND_PALETTE_EXTRA_SHORTCUTS` support so `ctrl+space` can be tested without another code change.
+- Kept raw terminal interception and `pi.registerShortcut()` fallback, now for the configured shortcut list.
+- Updated command-palette docs/status text to mention the Kitty `Ctrl+Shift+P` conflict.
+- Extended `extensions/modal-shortcut-lab/index.ts` with raw scheduled candidate paths for `ctrl+shift+alt+n` and `ctrl+space`.
+- Updated `extensions/modal-shortcut-lab/README.md` with Kitty caveats for `Ctrl+Shift+P` and `Ctrl+Shift+O`.
+- Added `scripts/03-terminal-key-probe.mjs`, a raw-mode key probe that uses Pi TUI's `StdinBuffer`, `parseKey()`, and `matchesKey()` to print raw sequences and candidate matches.
+- Added `scripts/04-smoke-tmux-safe-shortcuts.sh`, a tmux smoke script that sends CSI-u sequences for `Ctrl+Shift+Alt+N` and `Ctrl+Space` into the lab.
+- Updated `docs/pi-shared-extension-framework-guide.md` to document `Ctrl+Shift+Alt+N` as the palette shortcut.
+- Updated the design guide current-status section with the safe-candidate findings.
+
+### Why
+- Kitty reserves `Ctrl+Shift+P` as a key-chord prefix and `Ctrl+Shift+O` for `pass_selection_to_program`; application-level Pi shortcuts should avoid both by default.
+- `Ctrl+Shift+Alt+N` is not listed in the Kitty defaults and the lab had already shown that triple-modifier key chords can reach Pi (`Ctrl+Shift+Alt+M` worked).
+- `Ctrl+Space` is ergonomic, but it may conflict with IME, tmux, or user bindings, so it is better as an override candidate than the immediate default.
+
+### What worked
+- `node --check scripts/03-terminal-key-probe.mjs` passed.
+- Decode-mode probe confirmed expected matches:
+  - `ESC[110:78;8u` parsed as `shift+ctrl+alt+n` and matched `ctrl+shift+alt+n`.
+  - `ESC[32;5u` parsed as `ctrl+space` and matched `ctrl+space`.
+  - `ESC[112:80;6u` parsed as `shift+ctrl+p` and matched `ctrl+shift+p`.
+- `scripts/04-smoke-tmux-safe-shortcuts.sh` opened the lab modal immediately for both candidate paths:
+  - `source: raw-terminal-safe-candidate`
+  - `source: raw-terminal-ctrl-space`
+- Full extension load validation passed:
+  - `timeout 25 pi --list-models`
+  - exit code `0`
+- A tmux smoke run of normal Pi with `PI_COMMAND_PALETTE_DEBUG=1` showed `Ctrl+Shift+Alt+N` opening the production command palette immediately, with `overlay.render.done` in `/tmp/pi-command-palette-debug.log`.
+
+### What didn't work
+- Passing a literal NUL (`$'\\x00'`) through `--decode` as an argv argument is not possible because argv strings are NUL-terminated. I removed that from the decode usage and kept live raw-mode probing for raw NUL `Ctrl+Space` behavior.
+
+### What I learned
+- The original symptom `Ctrl+Shift+P: nothing, then appears on next keypress` fits Kitty's key-chord prefix behavior very well.
+- `matchesKey()` can still recognize the CSI-u form of `Ctrl+Shift+P`; the issue is not Pi's parser, but whether Kitty releases that chord to the child process immediately.
+- The command palette can keep the raw terminal listener architecture; the unsafe part was the default chord, not the overlay open path.
+
+### What was tricky to build
+- The probe script needed to behave like Pi TUI enough to be meaningful: raw mode alone is not sufficient because Kitty and tmux can split or delay escape sequences. Reusing Pi TUI's `StdinBuffer` and key parser avoided inventing a second parser.
+- `Ctrl+Space` has two relevant representations: raw NUL in legacy modes and CSI-u `ESC[32;5u` when Kitty-style keyboard reporting is active. The script can observe both live, but only the CSI-u form is practical to pass through argv in decode mode.
+
+### What warrants a second pair of eyes
+- `Ctrl+Shift+Alt+N` should be tested in the user's real Kitty pane, not only by sending CSI-u sequences through tmux.
+- The environment override accepts arbitrary key strings cast to `KeyId`; invalid values will simply never match. That is acceptable for local experimentation, but a settings UI would need validation.
+
+### What should be done in the future
+- If `Ctrl+Shift+Alt+N` proves awkward, test `PI_COMMAND_PALETTE_SHORTCUT=ctrl+space` in the live Kitty session with `scripts/03-terminal-key-probe.mjs` first.
+- Consider adding a proper command-palette settings contribution if more shortcut customization is desired.
+
+### Code review instructions
+- Start with `extensions/command-palette/index.ts` and review `DEFAULT_SHORTCUT`, `configuredShortcuts()`, `matchPaletteShortcut()`, and `registerTerminalShortcut()`.
+- Review the lab additions in `extensions/modal-shortcut-lab/index.ts`, especially `SAFE_CANDIDATE_SHORTCUT` and `CTRL_SPACE_SHORTCUT` handling.
+- Review the probe script at `ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/scripts/03-terminal-key-probe.mjs`.
+- Validate with:
+  - `node --check ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/scripts/03-terminal-key-probe.mjs`
+  - `ttmp/2026/05/27/MODAL-SHORTCUT-LAB--minimal-pi-shortcut-modal-lab-for-debugging-terminal-overlay-opening/scripts/04-smoke-tmux-safe-shortcuts.sh`
+  - `timeout 25 pi --list-models`
+
+### Technical details
+- New default command-palette shortcut: `Ctrl+Shift+Alt+N` (`ctrl+shift+alt+n`).
+- Optional override: `PI_COMMAND_PALETTE_SHORTCUT=ctrl+space`.
+- Optional extras: `PI_COMMAND_PALETTE_EXTRA_SHORTCUTS=ctrl+space,ctrl+shift+alt+n`.
+- Kitty CSI-u sequence used for `Ctrl+Shift+Alt+N` smoke tests: `ESC[110:78;8u`.
+- Kitty CSI-u sequence used for `Ctrl+Space` smoke tests: `ESC[32;5u`.

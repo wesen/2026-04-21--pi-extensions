@@ -10,7 +10,7 @@ extension module
        └─ shared registry
             ├─ /px launcher
             ├─ action picker
-            ├─ command palette (Ctrl+Shift+P)
+            ├─ command palette (Ctrl+Shift+Alt+N)
             ├─ docs viewer
             ├─ settings views
             └─ dashboard/status widgets
@@ -313,10 +313,10 @@ A good widget render function is cheap. It should read current in-memory state a
 
 ## 8. Command Palette: the speed layer
 
-Actions are explicit, but the `/px` launcher requires multiple steps to reach them. The command palette is a **keyboard-driven hierarchical menu** for fast invocation of known actions. It opens with `Ctrl+Shift+P` (or `/palette`) and lets the user drill down with single-key presses.
+Actions are explicit, but the `/px` launcher requires multiple steps to reach them. The command palette is a **keyboard-driven hierarchical menu** for fast invocation of known actions. It opens with `Ctrl+Shift+Alt+N` (or `/palette`) and lets the user drill down with single-key presses. The default avoids Kitty's built-in `Ctrl+Shift+P` key-chord prefix.
 
 ```text
-Ctrl+Shift+P
+Ctrl+Shift+Alt+N
   │
   ▸ a  Agent Env →
     c  Compaction Meter →
@@ -366,7 +366,7 @@ At the root level, keys are auto-assigned from extension names (not from the ite
 
 | Aspect | Actions | Palette |
 |--------|---------|---------|
-| Purpose | Discovery via `/px` | Speed via `Ctrl+Shift+P` |
+| Purpose | Discovery via `/px` | Speed via `Ctrl+Shift+Alt+N` |
 | Structure | Flat list | Hierarchical tree |
 | Keys | No key hints | Single-character key hints |
 | Depth | One level | Multiple levels |
@@ -383,8 +383,8 @@ palette: [{ id: "open", title: "Open dashboard", key: "o", run: handleOpen }],
 ### 8.4 Palette interaction model
 
 ```text
-Ctrl+Shift+P   open palette
-a–z, 0–9      activate matching item (drill into submenu or execute leaf)
+Ctrl+Shift+Alt+N  open palette
+a–z, 0–9         activate matching item (drill into submenu or execute leaf)
 ← / Backspace  go back one level
 Esc            close palette
 /              toggle search within current level

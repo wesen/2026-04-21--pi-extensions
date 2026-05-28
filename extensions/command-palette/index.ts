@@ -2,13 +2,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { Key, matchesKey } from "@mariozechner/pi-tui";
+import { Key, matchesKey, type KeyId } from "@mariozechner/pi-tui";
 import { registerPiExtension, collectPaletteItems } from "../_shared/registry";
 import { CommandPaletteOverlay, buildRootPaletteItems, type PaletteResult } from "../_shared/ui/command-palette";
 
-const DEFAULT_SHORTCUT = "ctrl+shift+p";
+const DEFAULT_SHORTCUT = "ctrl+shift+alt+n";
+const SHORTCUT_ENV = "PI_COMMAND_PALETTE_SHORTCUT";
+const EXTRA_SHORTCUTS_ENV = "PI_COMMAND_PALETTE_EXTRA_SHORTCUTS";
+const ACTIVE_SHORTCUTS = configuredShortcuts();
 const DEBUG_LOG_PATH = path.join(os.tmpdir(), "pi-command-palette-debug.log");
-const DEBUG_BUILD = "render-burst-2026-05-27T21:05";
+const DEBUG_BUILD = "kitty-safe-shortcut-2026-05-28T13:20";
 
 let terminalShortcutUnsubscribe: (() => void) | undefined;
 let paletteOpen = false;
@@ -41,7 +44,9 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 				markdown: [
 					"# Command Palette",
 					"",
-					"Press `Ctrl+Shift+P` to open the palette.",
+					`Press \`${shortcutDisplay(ACTIVE_SHORTCUTS[0] ?? DEFAULT_SHORTCUT)}\` to open the palette.`,
+					"",
+					"The default avoids Kitty's built-in `Ctrl+Shift+P` key-chord prefix. Override it with `PI_COMMAND_PALETTE_SHORTCUT`, or add comma-separated extras with `PI_COMMAND_PALETTE_EXTRA_SHORTCUTS`.",
 					"",
 					"Each item shows a key hint. Press the key to drill into submenus or execute actions.",
 					"",
@@ -56,9 +61,9 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 		widgets: [],
 	});
 
-	// Raw terminal listener. This catches Ctrl+Shift+P before the editor sees it,
-	// consumes the key, and avoids the "next key goes to the REPL" race that can
-	// happen with editor-scoped extension shortcuts after focus-changing actions.
+	// Raw terminal listener. This catches configured palette shortcuts before the
+	// editor sees them, consumes the key, and avoids the "next key goes to the REPL"
+	// race that can happen with editor-scoped extension shortcuts after focus-changing actions.
 	pi.on("session_start", async (_event, ctx) => {
 		registerTerminalShortcut(ctx);
 	});
@@ -67,16 +72,18 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 		terminalShortcutUnsubscribe = undefined;
 	});
 
-	// Keep the official extension shortcut as a fallback for sessions where a raw
+	// Keep official extension shortcuts as a fallback for sessions where a raw
 	// terminal listener has not been registered yet (for example immediately after
 	// /reload before the next session_start lifecycle event).
-	pi.registerShortcut(DEFAULT_SHORTCUT, {
-		description: "Open command palette",
-		handler: async (ctx) => {
-			debugLog("fallbackShortcut.handler", { paletteOpen });
-			await openPalette(ctx as ExtensionCommandContext, "registered-shortcut-fallback");
-		},
-	});
+	for (const shortcut of ACTIVE_SHORTCUTS) {
+		pi.registerShortcut(shortcut, {
+			description: `Open command palette (${shortcutDisplay(shortcut)})`,
+			handler: async (ctx) => {
+				debugLog("fallbackShortcut.handler", { paletteOpen, shortcut });
+				await openPalette(ctx as ExtensionCommandContext, `registered-shortcut-fallback:${shortcut}`);
+			},
+		});
+	}
 
 	// /palette command as alternative entry point
 	pi.registerCommand("palette", {
@@ -92,18 +99,19 @@ export default function commandPaletteExtension(pi: ExtensionAPI): void {
 
 function registerTerminalShortcut(ctx: ExtensionContext): void {
 	terminalShortcutUnsubscribe?.();
-	debugLog("terminalShortcut.register", { cwd: ctx.cwd, build: DEBUG_BUILD });
+	debugLog("terminalShortcut.register", { cwd: ctx.cwd, build: DEBUG_BUILD, shortcuts: ACTIVE_SHORTCUTS });
 	terminalShortcutUnsubscribe = ctx.ui.onTerminalInput((data) => {
-		const matched = matchesKey(data, DEFAULT_SHORTCUT);
+		const matchedShortcut = matchPaletteShortcut(data);
 		debugLog("terminalInput", {
 			data: describeInput(data),
-			matchesDefaultShortcut: matched,
+			matchedShortcut,
+			shortcuts: ACTIVE_SHORTCUTS,
 			paletteOpen,
 			paletteOpenScheduled,
 			paletteInputReady,
 		});
-		if (matched) {
-			scheduleOpenPalette(ctx as ExtensionCommandContext, "raw-terminal-shortcut");
+		if (matchedShortcut) {
+			scheduleOpenPalette(ctx as ExtensionCommandContext, `raw-terminal-shortcut:${matchedShortcut}`);
 			return { consume: true };
 		}
 		if (paletteOpenScheduled || (paletteOpen && !paletteInputReady)) {
@@ -240,7 +248,17 @@ async function handlePaletteDebugCommand(args: string, ctx: ExtensionCommandCont
 		ctx.ui.notify(readDebugTail(), "info");
 		return;
 	}
-	ctx.ui.notify(`command-palette debug: ${debugEnabled ? "on" : "off"}\nlog: ${DEBUG_LOG_PATH}\ncommands: /palette-debug on|off|status|tail|clear`, "info");
+	ctx.ui.notify(
+		[
+			`command-palette debug: ${debugEnabled ? "on" : "off"}`,
+			`log: ${DEBUG_LOG_PATH}`,
+			`shortcuts: ${ACTIVE_SHORTCUTS.map(shortcutDisplay).join(", ")}`,
+			`override: ${SHORTCUT_ENV}=ctrl+space`,
+			`extras: ${EXTRA_SHORTCUTS_ENV}=ctrl+space,ctrl+shift+alt+n`,
+			"commands: /palette-debug on|off|status|tail|clear",
+		].join("\n"),
+		"info",
+	);
 }
 
 function debugLog(event: string, details: Record<string, unknown> = {}): void {
@@ -266,16 +284,55 @@ function forceRenderBurst(source: string, requestRender: ((force?: boolean) => v
 }
 
 function shouldReplayOpeningInput(data: string): boolean {
-	// Replay literal printable keys typed immediately after Ctrl+Shift+P, e.g. "r"
-	// in "Ctrl+Shift+P r". Do not replay kitty CSI-u release/alternate events such
-	// as ESC[27u: matchesKey() may classify those as Escape and instantly cancel
-	// the freshly mounted palette.
+	// Replay literal printable keys typed immediately after the opening shortcut,
+	// e.g. "r" in "<palette-shortcut> r". Do not replay kitty CSI-u release/alternate
+	// events such as ESC[27u: matchesKey() may classify those as Escape and instantly
+	// cancel the freshly mounted palette.
 	if (data.length === 1 && data >= " " && data !== "\x7f") return true;
 	if (data === "\x1b") return true;
 	if (data === "\r" || data === "\n") return true;
 	if (data === "\x7f" || data === "\b") return true;
 	if (data === "\x1b[A" || data === "\x1b[B" || data === "\x1b[C" || data === "\x1b[D") return true;
 	return false;
+}
+
+function configuredShortcuts(): KeyId[] {
+	const primary = normalizeShortcut(process.env[SHORTCUT_ENV]) ?? DEFAULT_SHORTCUT;
+	return uniqueShortcuts([primary, ...parseShortcutList(process.env[EXTRA_SHORTCUTS_ENV])]);
+}
+
+function parseShortcutList(value: string | undefined): KeyId[] {
+	return (value ?? "")
+		.split(/[\s,]+/)
+		.map(normalizeShortcut)
+		.filter((shortcut): shortcut is KeyId => Boolean(shortcut));
+}
+
+function normalizeShortcut(value: string | undefined): KeyId | undefined {
+	const shortcut = value?.trim().toLowerCase();
+	return shortcut ? (shortcut as KeyId) : undefined;
+}
+
+function uniqueShortcuts(shortcuts: KeyId[]): KeyId[] {
+	const seen = new Set<string>();
+	const result: KeyId[] = [];
+	for (const shortcut of shortcuts) {
+		if (seen.has(shortcut)) continue;
+		seen.add(shortcut);
+		result.push(shortcut);
+	}
+	return result;
+}
+
+function matchPaletteShortcut(data: string): KeyId | undefined {
+	return ACTIVE_SHORTCUTS.find((shortcut) => matchesKey(data, shortcut));
+}
+
+function shortcutDisplay(shortcut: string): string {
+	return shortcut
+		.split("+")
+		.map((part) => (part.length === 1 ? part.toUpperCase() : part[0]!.toUpperCase() + part.slice(1)))
+		.join("+");
 }
 
 function readDebugTail(maxLines = 40): string {

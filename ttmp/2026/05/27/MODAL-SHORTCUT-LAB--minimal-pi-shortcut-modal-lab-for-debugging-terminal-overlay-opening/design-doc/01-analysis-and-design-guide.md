@@ -27,7 +27,7 @@ ExternalSources:
     - "/home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@mariozechner/pi-coding-agent/docs/tui.md: Official Pi TUI and overlay documentation"
     - "/home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@mariozechner/pi-coding-agent/docs/keybindings.md: Official Pi keybinding format and defaults"
 Summary: Design and implementation guide for an isolated Pi extension that reproduces and explains shortcut-opened modal behavior.
-LastUpdated: 2026-05-27T21:55:00-04:00
+LastUpdated: 2026-05-28T13:20:00-04:00
 WhatFor: Use this when debugging why a Pi shortcut opens, delays, fails to render, or immediately closes a custom overlay modal.
 WhenToUse: Before changing the production command palette shortcut path; use the lab to reproduce each smaller layer first.
 ---
@@ -395,6 +395,8 @@ This is not the final desired production shape. It is a diagnostic tool. It tell
 | `extensions/modal-shortcut-lab/README.md` | Quick user-facing runbook |
 | `ttmp/.../scripts/01-run-isolated-modal-lab.sh` | Launch Pi with only the lab extension |
 | `ttmp/.../scripts/02-smoke-tmux-ctrl-shift-p.sh` | Reproduce raw `Ctrl+Shift+P` in a disposable tmux session |
+| `ttmp/.../scripts/03-terminal-key-probe.mjs` | Live raw-mode terminal probe that enables Kitty/modifyOtherKeys and prints parsed shortcut events |
+| `ttmp/.../scripts/04-smoke-tmux-safe-shortcuts.sh` | Tmux smoke test for `Ctrl+Shift+Alt+N` and `Ctrl+Space` candidate sequences |
 | `extensions/command-palette/index.ts` | Production code to compare after lab findings |
 | `extensions/_shared/ui/command-palette.ts` | Production component to compare render/input behavior |
 
@@ -811,10 +813,13 @@ Implemented and smoke-tested:
 - Registered direct and scheduled shortcuts.
 - Raw direct and raw scheduled shortcuts.
 - `Ctrl+Shift+P` raw scheduled path.
+- `Ctrl+Shift+Alt+N` and `Ctrl+Space` candidate raw scheduled paths.
 - JSONL debug logging.
 - Tmux smoke script for the observed kitty/tmux CSI-u `Ctrl+Shift+P` sequence.
+- Live terminal key probe script for diagnosing Kitty shortcut consumption and delayed key-chord behavior.
+- Safe-candidate tmux smoke test for `Ctrl+Shift+Alt+N` and `Ctrl+Space`.
 
-The first tmux smoke test succeeded: the modal was visible and `modal.render.done` appeared in the log.
+The first tmux smoke test succeeded: the modal was visible and `modal.render.done` appeared in the log. A later safe-candidate smoke test also showed immediate overlays for both `Ctrl+Shift+Alt+N` (`ESC[110:78;8u`) and `Ctrl+Space` (`ESC[32;5u`). The production command palette now defaults to `Ctrl+Shift+Alt+N` because Kitty reserves `Ctrl+Shift+P` as a key-chord prefix and `Ctrl+Shift+O` as `pass_selection_to_program`.
 
 ## Open Questions
 
