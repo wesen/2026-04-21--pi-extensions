@@ -453,3 +453,112 @@ It then verifies that a thinking-enabled request has:
 thinking: { type: "enabled" }
 reasoning_effort: undefined
 ```
+
+## Step 4: Build-validate the local pi-ai patch branch
+
+After committing the local `pi-ai` backport branch, I ran the package build to check that the source-level change compiles, not only that the targeted Vitest file passes. The build completed successfully, which means the request-builder change is type-compatible with the package's current generated model/types pipeline.
+
+The build command also regenerated model lists from live APIs, which created unrelated churn in generated files. I reverted those generated-file edits so the local branch remains a minimal PR/backport patch containing only the request-builder guard and regression test.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the Pi AI patch follow-through by validating the branch and keeping the ticket documentation current.
+
+**Inferred user intent:** Finish the source-patch workflow cleanly, with evidence that the patch builds and without leaving unrelated generated-file noise.
+
+### What I did
+
+- Ran the package build in the Pi monorepo clone:
+
+```bash
+cd /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix
+npm --prefix packages/ai run build
+```
+
+- Observed that the build completed successfully.
+- Checked the working tree afterward and found generated model churn:
+
+```text
+ M packages/ai/src/image-models.generated.ts
+ M packages/ai/src/models.generated.ts
+```
+
+- Reverted the generated-file churn:
+
+```bash
+git checkout -- packages/ai/src/image-models.generated.ts packages/ai/src/models.generated.ts
+```
+
+### Why
+
+- A passing targeted unit test proves the request payload invariant, but a build is still useful because it exercises generation and TypeScript compilation for the package.
+- The generated model files are live-data outputs and are unrelated to the compatibility guard, so keeping them out of the branch makes review safer.
+
+### What worked
+
+- `npm --prefix packages/ai run build` completed successfully.
+- The local `fix/deepseek-reasoning-effort` branch returned to a clean working tree after reverting generated files.
+
+### What didn't work
+
+- The build process is not fully deterministic for review because it fetches live model data and rewrites generated files:
+
+```text
+Fetching models from models.dev API...
+Fetching models from OpenRouter API...
+Fetching models from Vercel AI Gateway API...
+Generated src/models.generated.ts
+Fetching image models from OpenRouter API...
+Generated .../packages/ai/src/image-models.generated.ts
+```
+
+### What I learned
+
+- The code change is build-valid on the `v0.77.0` code line.
+- For this repo, build validation may need an immediate generated-file cleanup step when the intent is to keep a small patch branch.
+
+### What was tricky to build
+
+The build command has two roles: it validates TypeScript, but it also refreshes generated model catalogs from network APIs. The symptom was a clean source patch becoming dirty in generated files after a successful build. The fix was to inspect `git status --short`, confirm the touched files were generated catalogs only, and revert them.
+
+### What warrants a second pair of eyes
+
+- If a real upstream PR is opened, reviewers should decide whether generated model files should be refreshed separately or left untouched.
+- The current local patch is a backport from upstream `main`; review should confirm whether the real contribution path is provider metadata rather than duplicating an already-merged Pi AI fix.
+
+### What should be done in the future
+
+- Build and test a provider metadata patch for `pi-provider-umans` if its source repository is available.
+- Run live Pi compaction validation with `umans/umans-glm-5.1` once the installed runtime has both pieces: Pi AI guard and Umans metadata with `supportsReasoningEffort: false`.
+
+### Code review instructions
+
+- Confirm the Pi clone is clean:
+
+```bash
+cd /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix
+git status --short
+```
+
+- Re-run validation:
+
+```bash
+npm --prefix packages/ai test -- openai-completions-tool-choice.test.ts
+npm --prefix packages/ai run build
+```
+
+- If build rewrites generated files, inspect and revert them unless the review intentionally includes catalog refreshes.
+
+### Technical details
+
+Validation commands completed:
+
+```text
+npm --prefix packages/ai test -- openai-completions-tool-choice.test.ts
+# ✓ test/openai-completions-tool-choice.test.ts (26 tests)
+
+npm --prefix packages/ai run build
+# generate-models, generate-image-models, and tsgo completed successfully
+```

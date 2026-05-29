@@ -32,3 +32,12 @@ Cloned the Pi monorepo, created local branch fix/deepseek-reasoning-effort from 
 
 - /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts — DeepSeek guard source patch
 - /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts — Regression test
+
+## 2026-05-29
+
+Build-validated the local pi-ai backport branch with npm --prefix packages/ai run build; reverted live generated model catalog churn so the branch remains minimal.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts — Build-validated source patch
+- /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts — Test still accompanies the build-validated patch
