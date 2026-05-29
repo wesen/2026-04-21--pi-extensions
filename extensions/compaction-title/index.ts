@@ -28,6 +28,7 @@ interface CompactionTitleDetails {
 	titleGeneratedAt: string;
 	titleSectionStripped: boolean;
 	customInstructionsAppended: boolean;
+	thinkingDisabledForProviderCompat: boolean;
 }
 
 function createState(): CompactionTitleState {
@@ -77,6 +78,16 @@ function formatState(state: CompactionTitleState, currentName: string | undefine
 		`last updated: ${state.lastUpdatedAt ?? "(never)"}`,
 		`last error: ${state.lastError ?? "(none)"}`,
 	].join("\n");
+}
+
+function shouldDisableThinkingForProviderCompat(model: { provider?: string; id?: string; api?: string; compat?: { thinkingFormat?: string } }): boolean {
+	// Umans' OpenAI-compatible GLM/Kimi models currently accept the DeepSeek-style
+	// `thinking` parameter but reject requests that also include `reasoning_effort`.
+	// Pi's exported compact() helper only receives a streamFn when core calls it;
+	// this extension path calls compact() directly, so provider before-request hooks
+	// that strip `reasoning_effort` may not run. Disabling thinking for this custom
+	// title-generation compaction call avoids producing the invalid parameter pair.
+	return model.provider === "umans" || (model.api === "openai-completions" && model.compat?.thinkingFormat === "deepseek" && model.id?.startsWith("umans-"));
 }
 
 function applyArgs(args: string, state: CompactionTitleState): string[] {
@@ -151,6 +162,7 @@ export default function compactionTitleExtension(pi: ExtensionAPI): void {
 			const previousTitle = pi.getSessionName() ?? state.lastTitle;
 			const titleInstructions = buildTitleInstructions(previousTitle);
 			const customInstructions = combineInstructions(event.customInstructions, titleInstructions);
+			const thinkingDisabledForProviderCompat = shouldDisableThinkingForProviderCompat(model);
 			const result = await compact(
 				event.preparation,
 				model,
@@ -158,7 +170,7 @@ export default function compactionTitleExtension(pi: ExtensionAPI): void {
 				auth.headers,
 				customInstructions,
 				event.signal,
-				pi.getThinkingLevel(),
+				thinkingDisabledForProviderCompat ? undefined : pi.getThinkingLevel(),
 			);
 
 			const parsed = parseTitleAndSummary(result.summary, { stripTitleSection: state.stripTitleSection });
@@ -180,6 +192,7 @@ export default function compactionTitleExtension(pi: ExtensionAPI): void {
 				titleGeneratedAt: now,
 				titleSectionStripped: state.stripTitleSection,
 				customInstructionsAppended: Boolean(event.customInstructions?.trim()),
+				thinkingDisabledForProviderCompat,
 			};
 
 			setStatus(ctx, state);

@@ -13,6 +13,8 @@ Short 4-10 word noun phrase
 
 After `compact()` returns, the extension parses that section, stores it with `pi.setSessionName(title)`, strips the section from the stored compaction summary by default, and returns the compaction result to Pi.
 
+For Umans OpenAI-compatible models such as `umans/umans-glm-5.1`, this extension disables Pi thinking for its internal title-generation compaction call. The exported `compact()` helper is called directly from the extension, so provider `before_provider_request` hooks that normally sanitize payloads may not run. Disabling thinking for this provider-specific path avoids sending both `thinking` and `reasoning_effort`, which Umans rejects.
+
 If anything fails, the extension returns `undefined` so Pi falls back to default compaction.
 
 ## Install
