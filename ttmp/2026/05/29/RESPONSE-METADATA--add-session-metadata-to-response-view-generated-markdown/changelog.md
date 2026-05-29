@@ -44,3 +44,14 @@ Implemented response-viewer metadata output and validated with smoke script, pi 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/response.ts — Metadata renderer and document context implementation
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/29/RESPONSE-METADATA--add-session-metadata-to-response-view-generated-markdown/scripts/01-smoke-response-metadata.ts — Smoke test script
 
+
+## 2026-05-29
+
+Changed response-viewer body document links to md-view /render?file=<absolute-path> URLs and updated smoke validation (commit 20c04b9).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/README.md — Documented md-view render link behavior
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/response.ts — Updated link target generation
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/29/RESPONSE-METADATA--add-session-metadata-to-response-view-generated-markdown/scripts/01-smoke-response-metadata.ts — Updated link assertions
+

@@ -335,3 +335,85 @@ The implementation preserves the existing Response Viewer command surface and te
 - Markdown body link invariant:
   - Existing documents render as `[displayPath](relative-link-target)`.
   - Missing documents render as code text with `missing`.
+
+## Step 4: Switch body document links to md-view render URLs
+
+This step adjusted the link strategy after learning that filesystem-relative links from `/tmp/pi-response-viewer/last-response.md` are not the right target for md-view navigation. Existing/read/generated document links in the rendered Markdown body now point at md-view’s render endpoint with an absolute file path query parameter.
+
+The YAML frontmatter still keeps absolute document paths. The body now uses labels such as `docs/foo.md`, but hrefs such as `/render?file=%2Fhome%2Fmanuel%2F...%2Fdocs%2Ffoo.md`, so clicking them stays inside the md-view browser app and asks md-view to render that file directly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "the file links should be /render?file=... absolute path i guess to open properly"
+
+**Assistant interpretation:** Change generated response Markdown links from relative filesystem links to md-view `/render?file=<absolute-path>` links.
+
+**Inferred user intent:** Make document links in `/response-view` output actually open correctly in md-view instead of depending on fragile relative paths from the temp output directory.
+
+**Commit (code):** 20c04b9f53b0d5f4ad97e35a3b372fdbdf2feade — "response-viewer: use md-view render links"
+
+### What I did
+
+- Updated `/home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/response.ts`:
+  - Changed body `linkTarget` generation to `/render?file=${encodeURIComponent(absolutePath)}`.
+  - Removed the now-unused `dirname` import.
+  - Stopped applying generic URI encoding to the whole already-formed render URL.
+- Updated `/home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/response-viewer/README.md`:
+  - Documented that body links use md-view `/render?file=<absolute-path>` URLs.
+- Updated `/home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/29/RESPONSE-METADATA--add-session-metadata-to-response-view-generated-markdown/scripts/01-smoke-response-metadata.ts`:
+  - Added checks that generated/read document links include `/render?file=${encodeURIComponent(path)}`.
+
+### Why
+
+- md-view is a browser app with its own render endpoint, so a plain relative path from `/tmp/pi-response-viewer/last-response.md` may not navigate through md-view correctly.
+- The frontmatter already preserves absolute paths; using those absolute paths in md-view render URLs makes the body links operational.
+
+### What worked
+
+- Smoke script passed:
+  - `npx tsx ttmp/2026/05/29/RESPONSE-METADATA--add-session-metadata-to-response-view-generated-markdown/scripts/01-smoke-response-metadata.ts`
+  - Output: `response metadata smoke test passed`.
+- Extension load check passed:
+  - `timeout 20 pi --list-models`
+  - Output ended with `load-check-ok` in the wrapper command.
+
+### What didn't work
+
+- N/A. This was a small targeted adjustment and validation passed.
+
+### What I learned
+
+- The earlier “relative link” design satisfied the first written requirement but was not aligned with md-view’s actual navigation model.
+- The better invariant is: frontmatter stores absolute paths, body link labels stay readable, and body link hrefs use md-view render URLs with encoded absolute paths.
+
+### What was tricky to build
+
+- The encoding boundary matters. The absolute file path should be encoded as the `file` query parameter value, but the `/render?file=` prefix itself must remain readable and unescaped.
+
+### What warrants a second pair of eyes
+
+- Verify in a real browser/md-view session that `/render?file=<encoded absolute path>` is the exact stable endpoint across md-view versions.
+- Check whether md-view expects `file` to be encoded with `encodeURIComponent` or accepts raw absolute paths; encoded is safer for spaces and special characters.
+
+### What should be done in the future
+
+- Run a real non-empty previous-turn link click test in md-view after a turn that reads/writes Markdown documents.
+
+### Code review instructions
+
+- Review `linkTarget()` and `markdownLinkTarget()` in `extensions/response-viewer/response.ts`.
+- Validate with the smoke script and, ideally, by clicking generated/read links in md-view.
+
+### Technical details
+
+- Body link target format:
+
+  ```text
+  /render?file=<encodeURIComponent(absolutePath)>
+  ```
+
+- Example:
+
+  ```markdown
+  [docs/foo.md](/render?file=%2Fhome%2Fmanuel%2Fcode%2F...%2Fdocs%2Ffoo.md)
+  ```
