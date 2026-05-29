@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,6 +30,48 @@ export interface ResponseViewerState {
 	lastSavedPath: string | undefined;
 	lastSavedTurnIndex: number | undefined;
 	settings: ResponseViewerSettings;
+}
+
+export type ResponseDocumentKind = "generated" | "read";
+export type ResponseDocumentToolName = "write" | "edit" | "read";
+
+export interface ResponseDocumentContextItem {
+	kind: ResponseDocumentKind;
+	toolName: ResponseDocumentToolName;
+	toolCallId: string;
+	entryId: string;
+	absolutePath: string;
+	displayPath: string;
+	linkTarget: string;
+	exists: boolean;
+	timestamp: string | undefined;
+}
+
+export interface ResponseOutputPaths {
+	lastResponsePath: string;
+	timestampedPath: string;
+}
+
+export interface ResponseMarkdownContext {
+	title: string;
+	source: "pi-response-viewer";
+	cwd: string;
+	outputPath: string;
+	outputPaths: ResponseOutputPaths;
+	documents: ResponseDocumentContextItem[];
+}
+
+interface ToolCallBlock {
+	type: "toolCall";
+	id: string;
+	name: string;
+	arguments: Record<string, unknown>;
+}
+
+interface PendingDocumentToolCall {
+	id: string;
+	name: ResponseDocumentToolName;
+	absolutePath: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +147,129 @@ export function lastResponse(responses: CapturedResponse[]): CapturedResponse | 
 }
 
 // ---------------------------------------------------------------------------
+// Previous-turn document context
+// ---------------------------------------------------------------------------
+
+const DOCUMENT_EXTENSIONS = new Set([".md", ".markdown", ".mdx"]);
+
+function isToolCallBlock(block: unknown): block is ToolCallBlock {
+	if (!block || typeof block !== "object") return false;
+	const candidate = block as Record<string, unknown>;
+	return (
+		candidate.type === "toolCall" &&
+		typeof candidate.id === "string" &&
+		typeof candidate.name === "string" &&
+		!!candidate.arguments &&
+		typeof candidate.arguments === "object"
+	);
+}
+
+function isDocumentToolName(name: string): name is ResponseDocumentToolName {
+	return name === "read" || name === "write" || name === "edit";
+}
+
+function isDocumentPath(path: string): boolean {
+	return DOCUMENT_EXTENSIONS.has(extname(path).toLowerCase());
+}
+
+function documentKindForTool(toolName: ResponseDocumentToolName): ResponseDocumentKind {
+	return toolName === "read" ? "read" : "generated";
+}
+
+function displayPath(cwd: string, absolutePath: string): string {
+	const rel = relative(cwd, absolutePath);
+	if (!rel || rel.startsWith("..") || rel === absolutePath) return absolutePath;
+	return rel;
+}
+
+function linkTarget(outputPath: string, absolutePath: string): string {
+	return relative(dirname(outputPath), absolutePath) || ".";
+}
+
+function isAssistantTextEntry(entry: unknown): boolean {
+	if (!entry || typeof entry !== "object") return false;
+	const candidate = entry as any;
+	if (candidate.type !== "message") return false;
+	const message = candidate.message;
+	return message?.role === "assistant" && Array.isArray(message.content) && !!extractTextFromContent(message.content);
+}
+
+function previousTurnWindow(entries: unknown[], responseEntryId: string): unknown[] {
+	const selectedIndex = entries.findIndex((entry: any) => entry?.id === responseEntryId);
+	if (selectedIndex < 0) return [];
+
+	let start = 0;
+	for (let i = selectedIndex - 1; i >= 0; i--) {
+		if (isAssistantTextEntry(entries[i])) {
+			start = i + 1;
+			break;
+		}
+	}
+
+	return entries.slice(start, selectedIndex);
+}
+
+function itemTimestamp(entry: any, message: any): string | undefined {
+	if (typeof message?.timestamp === "number") return new Date(message.timestamp).toISOString();
+	if (typeof entry?.timestamp === "string") return entry.timestamp;
+	return undefined;
+}
+
+function collectDocumentsFromWindow(ctx: ExtensionContext, entries: unknown[], outputPath: string): ResponseDocumentContextItem[] {
+	const pendingById = new Map<string, PendingDocumentToolCall>();
+	const latestByKey = new Map<string, ResponseDocumentContextItem>();
+
+	for (const entry of entries) {
+		if (!entry || typeof entry !== "object" || (entry as any).type !== "message") continue;
+		const message = (entry as any).message;
+		if (!message) continue;
+
+		if (message.role === "assistant" && Array.isArray(message.content)) {
+			for (const block of message.content) {
+				if (!isToolCallBlock(block)) continue;
+				if (!isDocumentToolName(block.name)) continue;
+				const rawPath = block.arguments.path;
+				if (typeof rawPath !== "string" || !rawPath.trim()) continue;
+				const absolutePath = resolve(ctx.cwd, rawPath);
+				if (!isDocumentPath(absolutePath)) continue;
+				pendingById.set(block.id, { id: block.id, name: block.name, absolutePath });
+			}
+			continue;
+		}
+
+		if (message.role !== "toolResult") continue;
+		if (message.isError === true) continue;
+		const pending = pendingById.get(message.toolCallId);
+		if (!pending) continue;
+
+		const kind = documentKindForTool(pending.name);
+		const item: ResponseDocumentContextItem = {
+			kind,
+			toolName: pending.name,
+			toolCallId: pending.id,
+			entryId: (entry as any).id,
+			absolutePath: pending.absolutePath,
+			displayPath: displayPath(ctx.cwd, pending.absolutePath),
+			linkTarget: linkTarget(outputPath, pending.absolutePath),
+			exists: existsSync(pending.absolutePath),
+			timestamp: itemTimestamp(entry, message),
+		};
+		latestByKey.set(`${kind}:${pending.absolutePath}`, item);
+	}
+
+	return [...latestByKey.values()];
+}
+
+export function getPreviousTurnDocumentContext(
+	ctx: ExtensionContext,
+	response: CapturedResponse,
+	outputPath: string,
+): ResponseDocumentContextItem[] {
+	const entries = ctx.sessionManager.getBranch();
+	return collectDocumentsFromWindow(ctx, previousTurnWindow(entries, response.entryId), outputPath);
+}
+
+// ---------------------------------------------------------------------------
 // Temp file management
 // ---------------------------------------------------------------------------
 
@@ -118,42 +283,159 @@ export function timestampSlug(date = new Date()): string {
 	return date.toISOString().replace(/[:.]/g, "-");
 }
 
-function yamlString(value: string | undefined): string {
+function yamlScalar(value: string | number | boolean | undefined): string {
+	if (typeof value === "number") return String(value);
+	if (typeof value === "boolean") return value ? "true" : "false";
 	if (!value) return '""';
 	return JSON.stringify(value);
 }
 
-export function renderMarkdown(response: CapturedResponse): string {
+function markdownCode(value: string | undefined): string {
+	return `\`${(value || "").replace(/`/g, "\\`")}\``;
+}
+
+function markdownLinkLabel(value: string): string {
+	return value.replace(/]/g, "\\]");
+}
+
+function markdownLinkTarget(value: string): string {
+	return encodeURI(value).replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+function formatModel(response: CapturedResponse): string {
+	return [response.modelProvider, response.modelId].filter(Boolean).join("/") || "unknown";
+}
+
+function plural(count: number, singular: string): string {
+	return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+function buildMarkdownContext(
+	ctx: ExtensionContext,
+	response: CapturedResponse,
+	outputPath: string,
+	outputPaths: ResponseOutputPaths,
+): ResponseMarkdownContext {
+	return {
+		title: `Pi Response — Turn ${response.turnIndex + 1}`,
+		source: "pi-response-viewer",
+		cwd: ctx.cwd,
+		outputPath,
+		outputPaths,
+		documents: getPreviousTurnDocumentContext(ctx, response, outputPath),
+	};
+}
+
+function renderYamlDocumentList(items: ResponseDocumentContextItem[], indent: string): string[] {
+	return items.flatMap((item) => [
+		`${indent}- path: ${yamlScalar(item.absolutePath)}`,
+		`${indent}  relativePath: ${yamlScalar(item.displayPath)}`,
+		`${indent}  linkTarget: ${yamlScalar(item.linkTarget)}`,
+		`${indent}  toolName: ${yamlScalar(item.toolName)}`,
+		`${indent}  toolCallId: ${yamlScalar(item.toolCallId)}`,
+		`${indent}  entryId: ${yamlScalar(item.entryId)}`,
+		`${indent}  exists: ${yamlScalar(item.exists)}`,
+		`${indent}  timestamp: ${yamlScalar(item.timestamp)}`,
+	]);
+}
+
+function renderFrontmatter(response: CapturedResponse, metadata: ResponseMarkdownContext): string[] {
+	const generated = metadata.documents.filter((item) => item.kind === "generated");
+	const read = metadata.documents.filter((item) => item.kind === "read");
 	return [
 		"---",
-		`Title: ${yamlString(`Pi Response — Turn ${response.turnIndex + 1}`)}`,
-		`Source: ${yamlString("pi-response-viewer")}`,
-		`SessionId: ${yamlString(response.sessionId)}`,
-		`TurnIndex: ${response.turnIndex}`,
-		`CapturedAt: ${yamlString(response.capturedAt)}`,
-		`ModelProvider: ${yamlString(response.modelProvider)}`,
-		`ModelId: ${yamlString(response.modelId)}`,
-		`ModelName: ${yamlString(response.modelName)}`,
+		`title: ${yamlScalar(metadata.title)}`,
+		`source: ${yamlScalar(metadata.source)}`,
+		"session:",
+		`  id: ${yamlScalar(response.sessionId)}`,
+		`  responseEntryId: ${yamlScalar(response.entryId)}`,
+		`  turnIndex: ${yamlScalar(response.turnIndex)}`,
+		`  turnNumber: ${yamlScalar(response.turnIndex + 1)}`,
+		`capturedAt: ${yamlScalar(response.capturedAt)}`,
+		"model:",
+		`  provider: ${yamlScalar(response.modelProvider)}`,
+		`  id: ${yamlScalar(response.modelId)}`,
+		`  name: ${yamlScalar(response.modelName)}`,
+		"paths:",
+		`  lastResponse: ${yamlScalar(metadata.outputPaths.lastResponsePath)}`,
+		`  timestampedCopy: ${yamlScalar(metadata.outputPaths.timestampedPath)}`,
+		"documents:",
+		...(generated.length > 0 ? ["  generated:", ...renderYamlDocumentList(generated, "    ")] : ["  generated: []"]),
+		...(read.length > 0 ? ["  read:", ...renderYamlDocumentList(read, "    ")] : ["  read: []"]),
+		"---",
+	];
+}
+
+function renderMarkdownDocumentList(items: ResponseDocumentContextItem[]): string[] {
+	if (items.length === 0) return ["- None detected."];
+	return items.map((item) => {
+		const target = item.exists
+			? `[${markdownLinkLabel(item.displayPath)}](${markdownLinkTarget(item.linkTarget)})`
+			: markdownCode(item.displayPath);
+		return `- ${target} — ${markdownCode(item.toolName)}, ${item.exists ? "exists" : "missing"}`;
+	});
+}
+
+function renderIntro(response: CapturedResponse, metadata: ResponseMarkdownContext): string[] {
+	const generated = metadata.documents.filter((item) => item.kind === "generated");
+	const read = metadata.documents.filter((item) => item.kind === "read");
+	const model = formatModel(response);
+	return [
+		`# ${metadata.title}`,
+		"",
+		`> Session ${markdownCode(response.sessionId)}, turn ${response.turnIndex + 1}, captured ${markdownCode(response.capturedAt)}.`,
+		`> Model: ${markdownCode(model)}.`,
+		`> Previous-turn context: ${plural(generated.length, "generated document")}, ${plural(read.length, "read document")}.`,
+		"",
+		"## Context metadata",
+		"",
+		`- **Session:** ${markdownCode(response.sessionId)}`,
+		`- **Entry:** ${markdownCode(response.entryId)}`,
+		`- **Turn:** ${response.turnIndex + 1} (index ${response.turnIndex})`,
+		`- **Captured:** ${markdownCode(response.capturedAt)}`,
+		`- **Model:** ${markdownCode(model)}${response.modelName ? ` (${markdownCode(response.modelName)})` : ""}`,
+		"- **Saved files:**",
+		`  - ${markdownCode("last-response.md")}: ${markdownCode(metadata.outputPaths.lastResponsePath)}`,
+		`  - timestamped copy: ${markdownCode(metadata.outputPaths.timestampedPath)}`,
+		"",
+		"### Generated documents from previous turn",
+		"",
+		...renderMarkdownDocumentList(generated),
+		"",
+		"### Documents read in previous turn",
+		"",
+		...renderMarkdownDocumentList(read),
+		"",
 		"---",
 		"",
-		`# Pi Response — Turn ${response.turnIndex + 1}`,
+		"## Response",
 		"",
+	];
+}
+
+export function renderMarkdown(response: CapturedResponse, metadata: ResponseMarkdownContext): string {
+	return [
+		...renderFrontmatter(response, metadata),
+		"",
+		...renderIntro(response, metadata),
 		response.text,
 		"",
 	].join("\n");
 }
 
-export function saveToTempFile(response: CapturedResponse, overrideDir?: string): string {
+export function saveToTempFile(ctx: ExtensionContext, response: CapturedResponse, overrideDir?: string): string {
 	const dir = ensureTempDir(overrideDir);
 
 	// Always write last-response.md (overwritten each time, md-view live-reloads)
 	const lastPath = join(dir, "last-response.md");
-	writeFileSync(lastPath, renderMarkdown(response), "utf-8");
 
 	// Also write a timestamped copy for history
 	const slug = timestampSlug();
 	const timestampedPath = join(dir, `${slug}-turn-${response.turnIndex + 1}.md`);
-	writeFileSync(timestampedPath, renderMarkdown(response), "utf-8");
+	const outputPaths = { lastResponsePath: lastPath, timestampedPath };
+
+	writeFileSync(lastPath, renderMarkdown(response, buildMarkdownContext(ctx, response, lastPath, outputPaths)), "utf-8");
+	writeFileSync(timestampedPath, renderMarkdown(response, buildMarkdownContext(ctx, response, timestampedPath, outputPaths)), "utf-8");
 
 	return lastPath;
 }

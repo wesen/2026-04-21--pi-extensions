@@ -32,7 +32,7 @@ async function saveAndOpenResponse(
 	response: CapturedResponse,
 ): Promise<void> {
 	try {
-		const path = saveToTempFile(response);
+		const path = saveToTempFile(ctx, response);
 		state.lastSavedPath = path;
 		state.lastSavedTurnIndex = response.turnIndex;
 		await openWithMdView(pi, ctx, state, path);
@@ -258,7 +258,7 @@ export default function responseViewerExtension(pi: ExtensionAPI): void {
 		if (!response) return;
 
 		try {
-			const path = saveToTempFile(response);
+			const path = saveToTempFile(ctx, response);
 			state.lastSavedPath = path;
 			state.lastSavedTurnIndex = response.turnIndex;
 			await openWithMdView(pi, ctx as ExtensionCommandContext, state, path);

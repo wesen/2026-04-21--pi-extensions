@@ -6,6 +6,8 @@ Save any assistant response from this Pi session as a temporary Markdown file an
 
 Every time Pi produces an assistant response, Response Viewer captures it. You can then browse all captured responses in a scrollable picker, select one, and it gets saved to a temp Markdown file and opened with `md-view view` — rendered with syntax highlighting, proper formatting, and full browser navigation.
 
+Generated Markdown now includes an orientation header: YAML frontmatter for tools plus a short human-readable context section before the response body. The frontmatter uses absolute paths; the rendered Markdown context uses relative links.
+
 ## Commands
 
 | Command | Description |
@@ -54,12 +56,34 @@ From the `/px` launcher, Response Viewer provides:
 
 Access via `/px` → select Response Viewer → `s` for settings.
 
+## Metadata in generated Markdown
+
+Each saved response starts with YAML frontmatter containing:
+
+- Session id, response entry id, turn index, and human turn number
+- Capture timestamp
+- Model provider/id/name
+- Absolute paths for `last-response.md` and the timestamped history copy
+- Previous-turn document context grouped into generated documents and read documents
+
+After the frontmatter, the Markdown body begins with a short **Context metadata** section. This section repeats the important session/model details for humans and links to documents from the previous turn.
+
+Path rules:
+
+- **YAML frontmatter:** file paths are absolute for reliable machine indexing.
+- **Markdown body:** document links are relative to the generated response Markdown file.
+- Missing files are shown as missing instead of silently rendered as normal links.
+
+“Previous turn” means successful relevant `read`, `write`, and `edit` tool results that happened after the previous assistant text response and before the selected response. Response Viewer currently records Markdown-like documents (`.md`, `.markdown`, `.mdx`).
+
 ## How it works
 
-1. On `turn_end`, the extension captures the assistant message text
-2. When you select a response, it writes a Markdown file with YAML frontmatter to `$TMPDIR/pi-response-viewer/`
-3. Two files are written: `last-response.md` (always overwritten, for live-reload) and a timestamped copy for history
-4. `md-view view <path>` opens the file in your browser
+1. Response Viewer reconstructs assistant responses from the current session branch
+2. When you select a response, it computes temp output paths under `$TMPDIR/pi-response-viewer/`
+3. It scans the previous-turn session window for successful document `read`, `write`, and `edit` tool results
+4. It writes Markdown with metadata-rich YAML frontmatter and a readable context section
+5. Two files are written: `last-response.md` (always overwritten, for live-reload) and a timestamped copy for history
+6. `md-view view <path>` opens the stable `last-response.md` file in your browser
 
 ## Status bar
 
