@@ -79,6 +79,8 @@ const checks = [
 	["frontmatter has absolute read path", markdown.includes(`path: ${JSON.stringify(readDoc)}`)],
 	["body has generated section", markdown.includes("Generated documents from previous turn")],
 	["body has read section", markdown.includes("Documents read in previous turn")],
+	["body generated link uses md-view render URL", markdown.includes(`/render?file=${encodeURIComponent(generatedDoc)}`)],
+	["body read link uses md-view render URL", markdown.includes(`/render?file=${encodeURIComponent(readDoc)}`)],
 	["body has response", markdown.includes("This is the response body.")],
 ];
 

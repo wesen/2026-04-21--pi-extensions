@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import { extname, join, relative, resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,8 +182,8 @@ function displayPath(cwd: string, absolutePath: string): string {
 	return rel;
 }
 
-function linkTarget(outputPath: string, absolutePath: string): string {
-	return relative(dirname(outputPath), absolutePath) || ".";
+function linkTarget(_outputPath: string, absolutePath: string): string {
+	return `/render?file=${encodeURIComponent(absolutePath)}`;
 }
 
 function isAssistantTextEntry(entry: unknown): boolean {
@@ -299,7 +299,7 @@ function markdownLinkLabel(value: string): string {
 }
 
 function markdownLinkTarget(value: string): string {
-	return encodeURI(value).replace(/\(/g, "%28").replace(/\)/g, "%29");
+	return value;
 }
 
 function formatModel(response: CapturedResponse): string {

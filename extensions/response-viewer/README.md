@@ -6,7 +6,7 @@ Save any assistant response from this Pi session as a temporary Markdown file an
 
 Every time Pi produces an assistant response, Response Viewer captures it. You can then browse all captured responses in a scrollable picker, select one, and it gets saved to a temp Markdown file and opened with `md-view view` — rendered with syntax highlighting, proper formatting, and full browser navigation.
 
-Generated Markdown now includes an orientation header: YAML frontmatter for tools plus a short human-readable context section before the response body. The frontmatter uses absolute paths; the rendered Markdown context uses relative links.
+Generated Markdown now includes an orientation header: YAML frontmatter for tools plus a short human-readable context section before the response body. The frontmatter uses absolute paths; document links in the rendered Markdown use md-view `/render?file=<absolute-path>` URLs so they open reliably inside the md-view browser session.
 
 ## Commands
 
@@ -71,7 +71,7 @@ After the frontmatter, the Markdown body begins with a short **Context metadata*
 Path rules:
 
 - **YAML frontmatter:** file paths are absolute for reliable machine indexing.
-- **Markdown body:** document links are relative to the generated response Markdown file.
+- **Markdown body:** document links use md-view `/render?file=<absolute-path>` URLs so linked files open through md-view rather than as fragile filesystem-relative browser paths.
 - Missing files are shown as missing instead of silently rendered as normal links.
 
 “Previous turn” means successful relevant `read`, `write`, and `edit` tool results that happened after the previous assistant text response and before the selected response. Response Viewer currently records Markdown-like documents (`.md`, `.markdown`, `.mdx`).
