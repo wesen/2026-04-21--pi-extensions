@@ -8,3 +8,4 @@
 - [ ] Validate manual and auto-compaction with umans/umans-glm-5.1
 - [x] Patch compaction-title so Umans GLM title compaction does not send invalid thinking/reasoning_effort pair
 - [x] Clone Pi monorepo and create a local pi-ai patch branch for DeepSeek reasoning-effort compatibility
+- [x] Clone and patch pi-provider-umans so Umans models advertise supportsReasoningEffort false

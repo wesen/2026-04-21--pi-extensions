@@ -17,6 +17,10 @@ RelatedFiles:
       Note: Local v0.77.0 backport patch for DeepSeek reasoning-effort guard
     - Path: ../../../../../../../2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts
       Note: Regression test for thinking without reasoning_effort when compat disables it
+    - Path: ../../../../../../../2026-05-29--pi-provider-umans-reasoning-fix/README.md
+      Note: Documents Umans thinking versus reasoning_effort behavior
+    - Path: ../../../../../../../2026-05-29--pi-provider-umans-reasoning-fix/index.ts
+      Note: Provider metadata patch for Umans reasoning-effort compatibility
     - Path: ../../../../../../../go-go-golems/go-go-parc/Projects/2026/05/29/PROJ - Pi Extensions - Response Viewer Metadata Report.md
       Note: Prior Pi extensions project report supplied as starting context
     - Path: extensions/compaction-title/README.md
@@ -29,6 +33,7 @@ LastUpdated: 2026-05-29T17:20:00-04:00
 WhatFor: Use to resume the UMANS-GLM-COMPACTION ticket without rediscovering evidence, commands, and likely fixes.
 WhenToUse: Read before changing Umans provider metadata, Pi compaction request plumbing, or the compaction-title extension.
 ---
+
 
 
 
@@ -561,4 +566,157 @@ npm --prefix packages/ai test -- openai-completions-tool-choice.test.ts
 
 npm --prefix packages/ai run build
 # generate-models, generate-image-models, and tsgo completed successfully
+```
+
+## Step 5: Patch pi-provider-umans metadata for reasoning-effort compatibility
+
+With the Pi AI request-builder guard validated, I moved to the provider-side half of the fix. `pi-provider-umans` was still advertising `supportsReasoningEffort: true` for all fallback and dynamically discovered Umans models, which means even a guarded Pi AI runtime would still be told that `reasoning_effort` is acceptable.
+
+I cloned the provider source, changed the model compatibility metadata to `supportsReasoningEffort: false`, kept the existing request hook as a defensive strip for older Pi AI versions, and documented the reasoning behavior in the README. This gives the runtime the correct provider contract: Umans supports DeepSeek-style `thinking`, but not OpenAI `reasoning_effort`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 4)
+
+**Assistant interpretation:** Continue beyond the Pi AI backport by applying the provider metadata change needed to activate the guard for Umans models.
+
+**Inferred user intent:** Complete the end-to-end fix path rather than leaving the provider metadata inconsistent with the request-builder behavior.
+
+### What I did
+
+- Cloned the provider repository:
+
+```bash
+cd /home/manuel/code/wesen
+git clone https://github.com/umans-ai/pi-provider-umans.git 2026-05-29--pi-provider-umans-reasoning-fix
+```
+
+- Created a patch branch:
+
+```bash
+cd /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix
+git switch -c fix/reasoning-effort-compat
+```
+
+- Patched `/home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix/index.ts`:
+  - all fallback models now set `supportsReasoningEffort: false`
+  - dynamically discovered models returned by `mapUmansModel(...)` also set `supportsReasoningEffort: false`
+  - the existing `before_provider_request` strip remains as a defensive path for older Pi AI versions
+- Updated `/home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix/README.md` with a "Reasoning Compatibility" section.
+- Ran the repository scripts:
+
+```bash
+npm run check
+npm run build
+git diff --check
+```
+
+- Smoke-loaded the local extension with Pi:
+
+```bash
+pi --no-session --no-extensions -e /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix --list-models umans-glm-5.1
+```
+
+- Committed the provider patch:
+
+```text
+2ec50df66f5ccc6eab8533fb66e540b6e199252e — fix: disable reasoning_effort for Umans models
+```
+
+### Why
+
+- The Pi AI guard only suppresses `reasoning_effort` when model compatibility says the provider does not support it.
+- Umans models reject requests that contain both `thinking` and `reasoning_effort`, so the provider metadata should encode that constraint directly.
+- Keeping the request hook preserves a compatibility safety net for installed Pi AI versions that predate the guard.
+
+### What worked
+
+- The provider repository cloned cleanly.
+- The metadata patch was small and applied to both static fallback and dynamic model-discovery paths.
+- The provider's existing scripts passed:
+
+```text
+npm run check
+# nothing to check
+
+npm run build
+# nothing to build
+```
+
+- The local extension smoke-load succeeded and listed `umans/umans-glm-5.1`.
+
+### What didn't work
+
+- The smoke-load emitted unrelated warnings from the current Pi environment:
+
+```text
+Deprecation warning: registerProvider("umans") apiKey value "UMANS_API_KEY" is treated as a legacy environment variable reference. This will no longer be detected as an environment variable reference in a future release. Pass "$UMANS_API_KEY" instead.
+Warning: No models match pattern "zai/glm-5"
+Warning: No models match pattern "zai/glm-4.7-flash"
+```
+
+These warnings did not prevent the provider from loading or listing `umans-glm-5.1`.
+
+### What I learned
+
+- The installed provider's package metadata points at `https://github.com/umans-ai/pi-provider-umans.git`, and the current source matches the installed `1.2.5` package shape.
+- The provider already knew about the request incompatibility in its hook comments; the missing piece was making that incompatibility part of model metadata too.
+
+### What was tricky to build
+
+The provider currently has no real build or test harness; `npm run check` and `npm run build` are placeholders. I used Pi's extension loader as a practical smoke test instead. That validates that the edited TypeScript can be loaded by Pi and that the provider still registers the expected model, but it does not prove live request behavior against the Umans API.
+
+### What warrants a second pair of eyes
+
+- Confirm that all Umans models, not only GLM, should have `supportsReasoningEffort: false`. The existing hook comment says Kimi and GLM only understand `thinking`, so I applied the setting uniformly.
+- Consider changing the provider registration `apiKey` value from `"UMANS_API_KEY"` to `"$UMANS_API_KEY"` in a separate cleanup patch to address the deprecation warning.
+
+### What should be done in the future
+
+- Install the local provider patch into Pi or publish it upstream, then run a live manual `/compact` and auto-compaction test with `umans/umans-glm-5.1`.
+- Add a lightweight provider test harness if this repository starts accepting automated tests.
+
+### Code review instructions
+
+- Review the provider patch:
+
+```bash
+cd /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix
+git show --stat 2ec50df66f5ccc6eab8533fb66e540b6e199252e
+git show 2ec50df66f5ccc6eab8533fb66e540b6e199252e
+```
+
+- Start in:
+  - `index.ts` fallback model compat blocks
+  - `index.ts` `mapUmansModel(...)`
+  - `README.md` "Reasoning Compatibility"
+- Validate with:
+
+```bash
+npm run check
+npm run build
+pi --no-session --no-extensions -e /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix --list-models umans-glm-5.1
+```
+
+### Technical details
+
+The key metadata contract is now:
+
+```ts
+compat: {
+  supportsDeveloperRole: false,
+  supportsReasoningEffort: false,
+  thinkingFormat: "deepseek",
+  requiresReasoningContentOnAssistantMessages: true,
+}
+```
+
+The existing hook still removes `reasoning_effort` if an older runtime emits it:
+
+```ts
+if ("reasoning_effort" in p) {
+  const { reasoning_effort: _, ...rest } = p as any;
+  event.payload.params = rest;
+  delete (p as any).reasoning_effort;
+}
 ```

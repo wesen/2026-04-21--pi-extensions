@@ -41,3 +41,12 @@ Build-validated the local pi-ai backport branch with npm --prefix packages/ai ru
 
 - /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts — Build-validated source patch
 - /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts — Test still accompanies the build-validated patch
+
+## 2026-05-29
+
+Cloned pi-provider-umans, patched fallback and dynamic model metadata to set supportsReasoningEffort false, documented the compatibility rule, smoke-loaded the local extension, and committed provider patch 2ec50df6.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix/README.md — Compatibility documentation
+- /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix/index.ts — Provider compatibility metadata patch
