@@ -13,6 +13,10 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/compaction.md
       Note: Pi compaction internals documentation used to trace split-turn summarization
+    - Path: ../../../../../../../2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts
+      Note: Local v0.77.0 backport patch for DeepSeek reasoning-effort guard
+    - Path: ../../../../../../../2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts
+      Note: Regression test for thinking without reasoning_effort when compat disables it
     - Path: ../../../../../../../go-go-golems/go-go-parc/Projects/2026/05/29/PROJ - Pi Extensions - Response Viewer Metadata Report.md
       Note: Prior Pi extensions project report supplied as starting context
     - Path: extensions/compaction-title/README.md
@@ -25,6 +29,7 @@ LastUpdated: 2026-05-29T17:20:00-04:00
 WhatFor: Use to resume the UMANS-GLM-COMPACTION ticket without rediscovering evidence, commands, and likely fixes.
 WhenToUse: Read before changing Umans provider metadata, Pi compaction request plumbing, or the compaction-title extension.
 ---
+
 
 
 
@@ -288,3 +293,163 @@ const result = await compact(
 ```
 
 This means the extension still uses Pi's normal compaction helper and prompt, but avoids setting `options.reasoning` for the problematic Umans request shape.
+
+## Step 3: Clone Pi and create a local pi-ai compatibility patch branch
+
+I cloned the upstream Pi monorepo into a separate working directory so the deeper `@earendil-works/pi-ai` fix can be developed as a proper source change rather than as an edit to an installed npm dependency. The installed global Pi package is version `0.77.0`, and the cloned repository's current `main` branch already contains the DeepSeek compatibility guard from a newer upstream merge. To make a branch that matches the installed failure, I created the local patch branch from tag `v0.77.0`.
+
+The branch now contains the minimal request-builder change and a regression test. The request builder still sends DeepSeek-style `thinking`, but it only sends `reasoning_effort` when compatibility metadata says the provider supports it. This is the invariant needed by Umans-style models that accept `thinking` but reject the simultaneous `reasoning_effort` field.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** After committing the Pi extension fix and writing the Obsidian report, clone the Pi source repository and create a local source-level `pi-ai` patch suitable for later pull-request work.
+
+**Inferred user intent:** Avoid patching only installed JavaScript; produce a clean branch with source and tests that can be compared to upstream and used for local validation or PR preparation.
+
+### What I did
+
+- Cloned the upstream Pi monorepo:
+
+```bash
+cd /home/manuel/code/wesen
+git clone https://github.com/earendil-works/pi.git 2026-05-29--pi-deepseek-reasoning-fix
+```
+
+- Observed that current `main` already contains a similar fix in `packages/ai/src/providers/openai-completions.ts`:
+
+```ts
+if (options?.reasoningEffort && compat.supportsReasoningEffort) {
+  (params as any).reasoning_effort = ...
+}
+```
+
+- Created a local branch from the installed Pi release tag:
+
+```bash
+cd /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix
+git switch -c fix/deepseek-reasoning-effort v0.77.0
+```
+
+- Patched:
+  - `/home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts`
+- Added a regression test in:
+  - `/home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts`
+- Installed dependencies for test execution:
+
+```bash
+npm install --ignore-scripts
+```
+
+- Ran the targeted test:
+
+```bash
+npm --prefix packages/ai test -- openai-completions-tool-choice.test.ts
+```
+
+- Committed the local patch branch:
+
+```text
+1cf2c943d7205e66f739aba90f355a76deee59df — fix(ai): respect deepseek reasoning effort compat
+```
+
+### Why
+
+- Editing the installed dependency under `~/.nvm/.../node_modules` is useful for emergency local validation, but it is not a clean contribution path.
+- A source branch based on `v0.77.0` reproduces the installed package behavior and makes the minimal backport explicit.
+- The test protects the exact invariant: DeepSeek thinking format should not imply `reasoning_effort` when `supportsReasoningEffort` is false.
+
+### What worked
+
+- The clone succeeded.
+- The branch from `v0.77.0` showed the installed behavior: the DeepSeek branch sent `reasoning_effort` whenever `options.reasoningEffort` was set.
+- The patch applied cleanly.
+- The targeted package test passed:
+
+```text
+✓ test/openai-completions-tool-choice.test.ts (26 tests) 36ms
+Test Files  1 passed (1)
+Tests  26 passed (26)
+```
+
+### What didn't work
+
+- The first test attempt failed because dependencies were not installed:
+
+```text
+sh: 1: vitest: not found
+```
+
+- Running `npm install --ignore-scripts` changed `package-lock.json` by removing some optional dependency `libc` fields. I reverted that lockfile change before committing because it was install noise unrelated to the compatibility fix.
+
+### What I learned
+
+- Upstream `main` already contains the DeepSeek guard, apparently through a newer merge. That means a new upstream PR for this exact `pi-ai` change may not be needed against `main`.
+- The local branch is still useful as a backport branch for validating the fix against the installed `v0.77.0` code line.
+- The better remaining upstream/provider task may be `pi-provider-umans`: its model metadata should set `supportsReasoningEffort: false` so Pi AI's guard can do the right thing.
+
+### What was tricky to build
+
+The tricky part was choosing the correct base branch. Cloning `main` did not reproduce the installed bug because `main` already includes the compatibility guard. Building a PR branch directly from `main` would have produced either no source diff or a redundant change. Branching from `v0.77.0` made the local patch meaningful because it matches the globally installed Pi package version.
+
+The second tricky point was test hygiene. `npm install --ignore-scripts` was necessary to run `vitest`, but it touched `package-lock.json`. The lockfile change was unrelated platform metadata churn, so it was reverted before committing the patch.
+
+### What warrants a second pair of eyes
+
+- Decide whether the local branch should be used only for local backport testing or whether any part still needs an upstream PR.
+- Confirm whether the installed Pi package should be upgraded to a newer release that already contains the fix instead of carrying a local patch.
+- Confirm whether `pi-provider-umans` needs its own PR to set `supportsReasoningEffort: false` for dynamic and fallback model metadata.
+
+### What should be done in the future
+
+- Test the local branch by building `packages/ai` and temporarily installing/copying it into the global Pi package's nested `node_modules/@earendil-works/pi-ai`.
+- Patch `pi-provider-umans` metadata so the guard is activated for Umans models.
+- Re-run manual and auto-compaction with `umans/umans-glm-5.1`.
+
+### Code review instructions
+
+- Review the local patch branch:
+
+```bash
+cd /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix
+git show --stat 1cf2c943d7205e66f739aba90f355a76deee59df
+git show 1cf2c943d7205e66f739aba90f355a76deee59df
+```
+
+- Focus on:
+  - `packages/ai/src/providers/openai-completions.ts`
+  - `packages/ai/test/openai-completions-tool-choice.test.ts`
+- Validate with:
+
+```bash
+npm --prefix packages/ai test -- openai-completions-tool-choice.test.ts
+```
+
+### Technical details
+
+The key source change is:
+
+```ts
+if (options?.reasoningEffort && compat.supportsReasoningEffort) {
+  (params as any).reasoning_effort =
+    model.thinkingLevelMap?.[options.reasoningEffort] ?? options.reasoningEffort;
+}
+```
+
+The regression test creates an OpenAI-completions model with:
+
+```ts
+compat: {
+  supportsDeveloperRole: false,
+  supportsReasoningEffort: false,
+  thinkingFormat: "deepseek",
+}
+```
+
+It then verifies that a thinking-enabled request has:
+
+```ts
+thinking: { type: "enabled" }
+reasoning_effort: undefined
+```

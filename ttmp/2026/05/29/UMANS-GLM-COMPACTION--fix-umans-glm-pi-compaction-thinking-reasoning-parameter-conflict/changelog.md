@@ -23,3 +23,12 @@ Patched compaction-title so its Umans GLM title-generation compaction call disab
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/compaction-title/README.md — User-facing explanation of Umans behavior
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/compaction-title/index.ts — Compatibility guard and compaction details flag
+
+## 2026-05-29
+
+Cloned the Pi monorepo, created local branch fix/deepseek-reasoning-effort from v0.77.0, patched pi-ai DeepSeek request generation, added a regression test, and committed local patch 1cf2c943.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts — DeepSeek guard source patch
+- /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts — Regression test
