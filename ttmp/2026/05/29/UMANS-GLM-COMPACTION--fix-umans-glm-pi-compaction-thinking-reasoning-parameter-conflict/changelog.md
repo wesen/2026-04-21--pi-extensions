@@ -50,3 +50,12 @@ Cloned pi-provider-umans, patched fallback and dynamic model metadata to set sup
 
 - /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix/README.md — Compatibility documentation
 - /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix/index.ts — Provider compatibility metadata patch
+
+## 2026-05-29
+
+Patched the installed global pi-ai dist from the local backport branch, smoke-tested a live Umans request, ran Pi in tmux with the patched provider and compaction-title, triggered /compact successfully, and verified a post-compaction response.
+
+### Related Files
+
+- /home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/providers/openai-completions.js — Installed runtime validation patch
+- /tmp/pi-umans-compaction-test-capture.txt — Manual compaction test evidence

@@ -11,8 +11,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../../../tmp/pi-umans-compaction-test-capture.txt
+      Note: Captured tmux evidence for successful manual compaction
     - Path: ../../../../../../../../../.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/compaction.md
       Note: Pi compaction internals documentation used to trace split-turn summarization
+    - Path: ../../../../../../../../../.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/providers/openai-completions.js
+      Note: Installed runtime patched with local pi-ai DeepSeek guard for validation
     - Path: ../../../../../../../2026-05-29--pi-deepseek-reasoning-fix/packages/ai/src/providers/openai-completions.ts
       Note: Local v0.77.0 backport patch for DeepSeek reasoning-effort guard
     - Path: ../../../../../../../2026-05-29--pi-deepseek-reasoning-fix/packages/ai/test/openai-completions-tool-choice.test.ts
@@ -33,6 +37,7 @@ LastUpdated: 2026-05-29T17:20:00-04:00
 WhatFor: Use to resume the UMANS-GLM-COMPACTION ticket without rediscovering evidence, commands, and likely fixes.
 WhenToUse: Read before changing Umans provider metadata, Pi compaction request plumbing, or the compaction-title extension.
 ---
+
 
 
 
@@ -719,4 +724,197 @@ if ("reasoning_effort" in p) {
   event.payload.params = rest;
   delete (p as any).reasoning_effort;
 }
+```
+
+## Step 6: Runtime-test patched Pi AI and patched Umans provider with manual compaction
+
+I applied the local `pi-ai` DeepSeek guard to the globally installed Pi runtime, loaded the patched Umans provider from its local checkout, and tested both a normal one-shot request and an interactive `/compact` flow inside tmux. The test reproduced the intended runtime configuration: `umans/umans-glm-5.1`, thinking enabled at `high`, patched `@earendil-works/pi-ai`, patched provider metadata, and the patched `compaction-title` extension.
+
+The manual compaction succeeded. Pi showed `[compaction] Compacted from 6,334 tokens`, did not emit the previous `cannot specify both 'thinking' and 'reasoning_effort'` error, did not show `compaction-title failed`, and the session continued to answer after compaction.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, test it. run in a tmux so that you can trigger a compaction as well."
+
+**Assistant interpretation:** Patch the installed runtime with the local Pi AI fix, run the patched provider in an interactive tmux Pi session, trigger `/compact`, and verify the failure is gone.
+
+**Inferred user intent:** Move from source-level confidence to real runtime validation of the compaction behavior that originally failed.
+
+### What I did
+
+- Backed up the installed Pi AI package before patching it:
+
+```bash
+/home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai.backup-20260529-182133
+```
+
+- Built the local `pi-ai` patch branch and copied its `dist/` into the installed Pi runtime:
+
+```bash
+INST=/home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai
+SRC=/home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix/packages/ai
+cp -a "$INST" "$INST.backup-$(date +%Y%m%d-%H%M%S)"
+cd /home/manuel/code/wesen/2026-05-29--pi-deepseek-reasoning-fix
+git checkout fix/deepseek-reasoning-effort
+npm --prefix packages/ai run build
+rsync -a --delete "$SRC/dist/" "$INST/dist/"
+```
+
+- Verified the installed runtime contains the guard:
+
+```text
+installed-pi-ai-deepseek-guard=present
+```
+
+- Reverted generated model-file churn in the source checkout after the build:
+
+```bash
+git checkout -- packages/ai/src/models.generated.ts packages/ai/src/image-models.generated.ts
+```
+
+- Ran a live one-shot request through the patched local provider:
+
+```bash
+pi --no-session --no-extensions \
+  -e /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix \
+  --model umans/umans-glm-5.1 \
+  --thinking high \
+  --no-tools \
+  -p "Reply exactly: provider-ok"
+```
+
+- Started an interactive tmux session:
+
+```bash
+tmux new-session -d -s pi-umans-compaction-test \
+  "cd /home/manuel/code/wesen/2026-04-21--pi-extensions && pi --no-extensions -e /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix -e /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/compaction-title --model umans/umans-glm-5.1 --thinking high --session-dir /tmp/pi-umans-compaction-test-20260529-182156"
+```
+
+- Sent an initial prompt, then `/compact`, then a post-compaction prompt.
+- Captured the tmux pane to:
+
+```bash
+/tmp/pi-umans-compaction-test-capture.txt
+```
+
+- Closed the tmux session after capturing evidence.
+
+### Why
+
+- Source tests do not prove the globally installed Pi command is using the patched `pi-ai` dist files.
+- The original failure happened during interactive compaction, so an actual TUI `/compact` run was the most direct validation.
+- Loading the provider from the local checkout ensured the provider metadata was the patched version without permanently replacing the installed provider package.
+
+### What worked
+
+- The installed `pi-ai` runtime now contains the DeepSeek compatibility guard.
+- The one-shot Umans request succeeded:
+
+```text
+provider-ok
+```
+
+- The interactive request before compaction succeeded:
+
+```text
+ready-for-compaction-test
+```
+
+- Manual `/compact` succeeded:
+
+```text
+[compaction]
+
+Compacted from 6,334 tokens (ctrl+o to expand)
+```
+
+- The post-compaction request succeeded:
+
+```text
+post-compact-ok
+```
+
+### What didn't work
+
+- The runtime emitted existing environment/provider warnings that did not block the test:
+
+```text
+Deprecation warning: registerProvider("umans") apiKey value "UMANS_API_KEY" is treated as a legacy environment variable reference. This will no longer be detected as an environment variable reference in a future release. Pass "$UMANS_API_KEY" instead.
+Warning: No models match pattern "zai/glm-5"
+Warning: No models match pattern "zai/glm-4.7-flash"
+```
+
+- Building `pi-ai` again regenerated live model catalogs, so I reverted the generated files in the source checkout after copying `dist/` into the installed runtime.
+
+### What I learned
+
+- The combined fix works in the actual Pi runtime: patched `pi-ai` plus patched `pi-provider-umans` metadata avoids the invalid request pair during manual compaction.
+- The patched `compaction-title` extension no longer caused the fallback warning in this test run.
+- The test consumed Umans quota, visible in the status widget moving from roughly `477` requests used to `484` requests used.
+
+### What was tricky to build
+
+The runtime validation needed three layers to line up at once: the installed global `pi-ai` dist had to be replaced, the local patched provider had to be loaded with `--no-extensions -e ...`, and the local patched `compaction-title` extension had to be loaded explicitly too. If any one layer used the old version, the test could have produced misleading results.
+
+The other tricky point was evidence capture. Because `/compact` is an interactive slash command, I ran Pi in tmux, sent keys to the pane, waited for model responses, captured the pane text, and then closed the session after saving the capture file.
+
+### What warrants a second pair of eyes
+
+- Decide whether to leave the globally installed `pi-ai` patched or restore from the backup and wait for an upstream Pi release.
+- Consider installing the patched provider permanently only after the provider branch is merged/published, because this test loaded it from a local path.
+- The test validates manual compaction, not a natural auto-compaction event after crossing the context threshold.
+
+### What should be done in the future
+
+- Run an auto-compaction test only if needed; it will likely consume more quota/context.
+- Open or update the provider PR from `fix/reasoning-effort-compat`.
+- If a newer Pi release includes the `pi-ai` guard, prefer upgrading Pi over keeping a manually patched nested package.
+
+### Code review instructions
+
+- Inspect the runtime patch backup and installed file:
+
+```bash
+ls -d /home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai.backup-20260529-182133
+rg -n "reasoningEffort && compat.supportsReasoningEffort" /home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/providers/openai-completions.js
+```
+
+- Review the tmux capture:
+
+```bash
+cat /tmp/pi-umans-compaction-test-capture.txt
+```
+
+- Re-run the manual test if needed with:
+
+```bash
+pi --no-extensions \
+  -e /home/manuel/code/wesen/2026-05-29--pi-provider-umans-reasoning-fix \
+  -e /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/compaction-title \
+  --model umans/umans-glm-5.1 \
+  --thinking high \
+  --session-dir /tmp/pi-umans-compaction-test-rerun
+```
+
+Then send a prompt, run `/compact`, and send a post-compaction prompt.
+
+### Technical details
+
+Successful captured TUI evidence included:
+
+```text
+[Extensions]
+  2026-05-29--pi-provider-umans-reasoning-fix, compaction-title
+
+We are testing compaction with the patched Umans provider. Please reply with exactly: ready-for-compaction-test
+
+ready-for-compaction-test
+
+[compaction]
+
+Compacted from 6,334 tokens (ctrl+o to expand)
+
+After compaction, reply exactly: post-compact-ok
+
+post-compact-ok
 ```
