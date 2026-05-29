@@ -59,3 +59,12 @@ Patched the installed global pi-ai dist from the local backport branch, smoke-te
 
 - /home/manuel/.nvm/versions/node/v22.22.1/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/providers/openai-completions.js — Installed runtime validation patch
 - /tmp/pi-umans-compaction-test-capture.txt — Manual compaction test evidence
+
+## 2026-05-29
+
+Researched upstream Pi and provider contribution paths, captured external resources with defuddle into sources/, and wrote a PR contribution reference without opening or pushing any PR.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/29/UMANS-GLM-COMPACTION--fix-umans-glm-pi-compaction-thinking-reasoning-parameter-conflict/reference/02-upstream-pr-contribution-research.md — PR contribution research summary
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/29/UMANS-GLM-COMPACTION--fix-umans-glm-pi-compaction-thinking-reasoning-parameter-conflict/sources — Defuddle-captured source material
