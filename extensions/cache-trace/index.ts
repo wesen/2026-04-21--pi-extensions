@@ -104,12 +104,7 @@ export default function cacheTrace(pi: ExtensionAPI): void {
 		const record = rememberAssistantMessage(state, ctx, event.message as any);
 		if (!record) return;
 		pi.appendEntry(CACHE_TRACE_ENTRY_TYPE, record);
-		pi.sendMessage({
-			customType: CACHE_TRACE_CUSTOM_TYPE,
-			content: formatSnapshot(record),
-			display: true,
-			details: record,
-		});
+		enqueueTimelineMessage(ctx, record);
 		updateStatus(ctx);
 	});
 
@@ -168,6 +163,26 @@ export default function cacheTrace(pi: ExtensionAPI): void {
 	function updateStatus(ctx: ExtensionContext): void {
 		if (!ctx.hasUI) return;
 		ctx.ui.setStatus(STATUS_KEY, formatStatus(state.records[state.records.length - 1]));
+	}
+
+	function enqueueTimelineMessage(ctx: ExtensionContext, record: CacheTraceRecord): void {
+		if (!ctx.hasUI) return;
+		let attempts = 0;
+		const sendWhenIdle = () => {
+			attempts += 1;
+			if (!ctx.isIdle() && attempts < 200) {
+				setTimeout(sendWhenIdle, 100);
+				return;
+			}
+			if (!ctx.isIdle()) return;
+			pi.sendMessage({
+				customType: CACHE_TRACE_CUSTOM_TYPE,
+				content: formatSnapshot(record),
+				display: true,
+				details: record,
+			}, { triggerTurn: false });
+		};
+		setTimeout(sendWhenIdle, 0);
 	}
 }
 
