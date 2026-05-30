@@ -236,7 +236,7 @@ Important invariants:
 - `callIndexInAgent` increments on each assistant `message_end` with usage.
 - `providerRequestCount` is the delta of provider requests since the last assistant snapshot.
 - A `custom` session entry persists the full record.
-- A visible custom message stores only a concise display string plus record details.
+- A visible custom message stores an empty content string and puts the record in `details`, so the renderer can show the card without adding cache text to LLM context.
 
 ## Cache Classification Rules
 
@@ -303,7 +303,7 @@ on message_end(event, ctx):
 
   record = normalizeUsageAndClassify(event.message.usage)
   pi.appendEntry("cache-trace-event", record)
-  enqueueTimelineMessageWhenIdle(record)
+  enqueueTimelineMessageWhenIdle({ content: "", details: record })
   ctx.ui.setStatus("cache-trace", formatStatus(record))
 ```
 
@@ -438,7 +438,7 @@ Manual steps:
 
 - `message_end` must ignore non-assistant messages.
 - Provider request deltas must reset after each snapshot.
-- Custom timeline cards must remain concise.
+- Custom timeline cards should keep `content: ""` and render from `details` metadata so they do not add cache text to future LLM context.
 - Timeline cards must be sent only after `ctx.isIdle()` is true; sending a custom message while streaming steers/follows up into the active agent and can create feedback turns.
 - The modal must not return lines wider than the terminal width.
 - The extension must not mutate provider payloads or messages.
@@ -448,7 +448,7 @@ Manual steps:
 
 ### Visible custom messages can affect future context
 
-Pi custom messages participate in LLM context. This is currently the only durable visible timeline surface available to extensions. Cache Trace mitigates the risk by keeping the content short and by deferring timeline emission until Pi is idle. Future work should move timeline display to a non-context transcript card API if Pi adds one.
+Pi custom messages participate in LLM context through their `content` field. Cache Trace mitigates this by storing the visible card payload in `details` metadata and setting `content` to an empty string. The renderer reads `details`, while the LLM context receives no cache text from the card. Future work should still prefer a first-class non-context transcript card API if Pi adds one.
 
 ### Cache clears are inferred
 

@@ -393,6 +393,7 @@ This was caused by `pi.sendMessage()` being called while the agent was still str
 ### What should be done in the future
 
 - Move visible Cache Trace cards to a non-context transcript surface if Pi adds one.
+- Keep timeline custom-message `content` empty and render from `details` metadata to avoid injecting cache text into future LLM context.
 - Add a regression note or automated harness for “extension sends custom message after message_end without causing a follow-up turn.”
 
 ### Code review instructions
