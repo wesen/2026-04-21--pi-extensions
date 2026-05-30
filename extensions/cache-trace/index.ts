@@ -177,7 +177,7 @@ export default function cacheTrace(pi: ExtensionAPI): void {
 			if (!ctx.isIdle()) return;
 			pi.sendMessage({
 				customType: CACHE_TRACE_CUSTOM_TYPE,
-				content: formatSnapshot(record),
+				content: "",
 				display: true,
 				details: record,
 			}, { triggerTurn: false });

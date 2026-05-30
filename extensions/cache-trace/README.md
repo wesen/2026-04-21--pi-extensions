@@ -35,4 +35,4 @@ The extension uses Pi lifecycle hooks:
 - `agent_start`, `turn_start`, `tool_execution_end`, and `agent_end` group calls into one agent run.
 - `session_compact` marks the next snapshot as potentially affected by a cache clear.
 
-The visible timeline card is intentionally concise because custom messages become part of future context in Pi's session model.
+The visible timeline card stores the cache trace record in `details` metadata and uses an empty `content` string, so the renderer can show the card while adding no cache text to future LLM context.
