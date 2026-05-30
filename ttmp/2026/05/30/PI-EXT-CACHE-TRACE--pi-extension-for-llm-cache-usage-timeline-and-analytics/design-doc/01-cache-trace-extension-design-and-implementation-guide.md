@@ -303,12 +303,7 @@ on message_end(event, ctx):
 
   record = normalizeUsageAndClassify(event.message.usage)
   pi.appendEntry("cache-trace-event", record)
-  pi.sendMessage({
-    customType: "cache-trace-snapshot",
-    content: formatSnapshot(record),
-    display: true,
-    details: record,
-  })
+  enqueueTimelineMessageWhenIdle(record)
   ctx.ui.setStatus("cache-trace", formatStatus(record))
 ```
 
@@ -444,6 +439,7 @@ Manual steps:
 - `message_end` must ignore non-assistant messages.
 - Provider request deltas must reset after each snapshot.
 - Custom timeline cards must remain concise.
+- Timeline cards must be sent only after `ctx.isIdle()` is true; sending a custom message while streaming steers/follows up into the active agent and can create feedback turns.
 - The modal must not return lines wider than the terminal width.
 - The extension must not mutate provider payloads or messages.
 - `registerPiExtension({ docs: [{ path: "extensions/cache-trace/README.md" }] })` uses a relative path.
@@ -452,7 +448,7 @@ Manual steps:
 
 ### Visible custom messages can affect future context
 
-Pi custom messages participate in LLM context. This is currently the only durable visible timeline surface available to extensions. Cache Trace mitigates the risk by keeping the content short, but future work should move timeline display to a non-context transcript card API if Pi adds one.
+Pi custom messages participate in LLM context. This is currently the only durable visible timeline surface available to extensions. Cache Trace mitigates the risk by keeping the content short and by deferring timeline emission until Pi is idle. Future work should move timeline display to a non-context transcript card API if Pi adds one.
 
 ### Cache clears are inferred
 

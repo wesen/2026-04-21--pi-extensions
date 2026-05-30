@@ -2,12 +2,13 @@
 
 ## TODO
 
-- [ ] Run a live-model tmux smoke test that completes at least two prompts and verifies timeline cards after real LLM calls. A print-mode attempt timed out before any model output.
 - [ ] Review whether visible cache trace cards should remain custom messages or move to a non-context transcript surface if Pi adds one.
 - [ ] Consider provider-specific header parsers for cache/debug headers when available.
 
 ## Done
 
+- [x] Run a live-model tmux smoke test that completes two prompts and verifies timeline cards plus modal records after real LLM calls.
+- [x] Fix timeline-card feedback turns by deferring `pi.sendMessage()` until `ctx.isIdle()` is true.
 - [x] Run an interactive tmux smoke test that opens `/cache-trace` and verifies the modal renders in a real Pi TUI session.
 - [x] Create docmgr ticket workspace and primary design/diary documents.
 - [x] Investigate extension framework, TUI, session, lifecycle hook, and usage accounting references.

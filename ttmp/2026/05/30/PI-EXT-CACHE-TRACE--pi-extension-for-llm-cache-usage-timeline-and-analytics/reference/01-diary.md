@@ -285,3 +285,136 @@ Deprecation warning: registerProvider("umans") apiKey value "UMANS_API_KEY" is t
 ### Technical details
 
 The successful tmux modal smoke test used a real interactive Pi process, not a mock renderer. It therefore validates extension loading, slash command registration, `ctx.ui.custom()`, overlay construction, width handling at 120 columns, and the empty-state overview path.
+
+## Step 3: Live LLM Test and Feedback-Loop Fix
+
+I ran the requested live tmux test with real Anthropic Haiku calls and discovered an important bug: sending a custom timeline message directly inside `message_end` while the agent was still streaming caused Pi to treat the custom message as steering input. The model then responded to the Cache Trace card, which produced another Cache Trace card, causing a feedback loop.
+
+I fixed the extension by deferring visible timeline-card emission until `ctx.isIdle()` returns true. The extension still records the snapshot immediately and updates status immediately, but the user-visible custom message is appended only after the active agent run has finished.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Proceed with the remaining live tmux validation and fix anything discovered.
+
+**Inferred user intent:** The user wants the previously deferred live two-prompt smoke test completed, including validation of timeline cards after actual LLM calls.
+
+**Commit (code):** 5a0003f8499351d0d4a829a1a074216bdecdc524 — "Avoid cache trace feedback turns"
+
+### What I did
+
+- Reproduced print-mode hanging with Cache Trace enabled and confirmed baseline Pi without Cache Trace could complete a tiny Anthropic prompt.
+- Identified that Cache Trace `pi.sendMessage()` from `message_end` was unsafe while streaming.
+- Updated `extensions/cache-trace/index.ts` to call `enqueueTimelineMessage(ctx, record)` instead of sending the custom message immediately.
+- Implemented `enqueueTimelineMessage()` with a short polling loop:
+  - skip when `ctx.hasUI` is false,
+  - wait until `ctx.isIdle()` is true,
+  - call `pi.sendMessage(..., { triggerTurn: false })` only after idle.
+- Re-ran print-mode smoke:
+  - `PI_OFFLINE=1 timeout 120 pi --no-extensions -e ./extensions/cache-trace --no-skills --no-prompt-templates --no-context-files --no-session --no-tools --model anthropic/claude-haiku-4-5 --thinking off -p 'Reply with exactly OK.'`
+- Re-ran live interactive tmux smoke with two prompts and `/cache-trace`.
+- Re-ran extension load checks:
+  - `timeout 20 pi -e ./extensions/cache-trace --list-models`
+  - `timeout 20 pi --list-models`
+- Committed the fix as `5a0003f8499351d0d4a829a1a074216bdecdc524`.
+
+### Why
+
+- Visible custom messages sent while streaming become steering/follow-up messages according to Pi's runtime behavior. Cache Trace wants a transcript card, not a new model instruction.
+- Deferring until idle preserves the timeline behavior without feeding the Cache Trace card back into the active response.
+- Print mode has no UI, so timeline cards are skipped there while persistent custom entries and status logic remain safe.
+
+### What worked
+
+- After the fix, print-mode Cache Trace completed successfully:
+
+```text
+exit:0
+OK
+```
+
+- The live tmux test completed two real prompts and showed two Cache Trace cards plus a modal with two records:
+
+```text
+Reply exactly ONE.
+ONE.
+Cache Trace run 1.1 miss
+read 0 · write 0 · input 563 · output 6 · req 1
+
+Reply exactly TWO.
+TWO.
+Cache Trace run 2.1 miss
+read 0 · write 0 · input 562 · output 6 · req 1
+
+/cache-trace
+2 LLM cache snapshot(s)
+Latest: run 2.1 anthropic/claude-haiku-4-5
+Cache: miss · read 0 · write 0 · input 562 · output 6
+Provider requests before latest message: 1 · tool results in run: 0
+```
+
+- Both extension load checks still passed after the fix.
+
+### What didn't work
+
+- Before the fix, the first live tmux run produced a feedback loop. The captured pane showed repeated assistant responses to Cache Trace cards such as:
+
+```text
+Understood. Cache Trace #147 shows:
+- Cache hit on run 1.49
+...
+Ready for the next task.
+
+Cache Trace run 1.50 hit
+...
+```
+
+This was caused by `pi.sendMessage()` being called while the agent was still streaming.
+
+### What I learned
+
+- `pi.sendMessage()` is safe for passive transcript insertion only when Pi is idle. During streaming, it is delivered as steering/follow-up input unless deferred.
+- `triggerTurn: false` does not prevent steering behavior while streaming; it only matters for the non-streaming path.
+- Live tmux testing caught a serious behavior bug that load checks could not catch.
+
+### What was tricky to build
+
+- The bug looked like normal timeline rendering at first because the Cache Trace cards appeared, but the model then started answering those cards. The symptom was rapidly increasing `run 1.N` snapshots without user prompts.
+- The correct fix was not to remove timeline cards, but to change their timing. The extension now records immediately but waits up to about 20 seconds for idle before appending the visible custom message.
+- Print mode needed special handling because it has no timeline UI; skipping visible custom messages when `ctx.hasUI` is false prevents hangs and avoids meaningless transcript injection.
+
+### What warrants a second pair of eyes
+
+- Review the `enqueueTimelineMessage()` timeout (`200 * 100ms`) to decide whether 20 seconds is appropriate for very long cleanup phases.
+- Confirm that a future Pi API does not provide a better non-context timeline-card append operation.
+- Check whether context pollution from visible cards remains acceptable until such an API exists.
+
+### What should be done in the future
+
+- Move visible Cache Trace cards to a non-context transcript surface if Pi adds one.
+- Add a regression note or automated harness for “extension sends custom message after message_end without causing a follow-up turn.”
+
+### Code review instructions
+
+- Start at `extensions/cache-trace/index.ts`, especially `message_end` and `enqueueTimelineMessage()`.
+- Re-run the live smoke command in tmux if behavior changes.
+- Confirm there are exactly as many Cache Trace timeline cards as real assistant responses, not an increasing loop of cards generated from cards.
+
+### Technical details
+
+Minimal live-smoke command pattern:
+
+```bash
+tmux new-session -d -s cache-trace-live2 -x 140 -y 48 \
+  "cd /home/manuel/code/wesen/2026-04-21--pi-extensions && \
+   PI_OFFLINE=1 pi --no-extensions -e ./extensions/cache-trace \
+     --no-skills --no-prompt-templates --no-context-files --no-session --no-tools \
+     --model anthropic/claude-haiku-4-5 --thinking off"
+
+tmux send-keys -t cache-trace-live2 'Reply exactly ONE.' Enter
+sleep 20
+tmux send-keys -t cache-trace-live2 'Reply exactly TWO.' Enter
+sleep 20
+tmux send-keys -t cache-trace-live2 '/cache-trace' Enter
+```

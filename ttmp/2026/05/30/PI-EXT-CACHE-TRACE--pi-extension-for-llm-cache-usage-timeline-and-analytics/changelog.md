@@ -24,3 +24,14 @@ Uploaded the design bundle to reMarkable and completed an interactive tmux modal
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/30/PI-EXT-CACHE-TRACE--pi-extension-for-llm-cache-usage-timeline-and-analytics/reference/01-diary.md — Records reMarkable upload and tmux smoke results
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/30/PI-EXT-CACHE-TRACE--pi-extension-for-llm-cache-usage-timeline-and-analytics/tasks.md — Tracks remaining live-model smoke test
 
+
+## 2026-05-30
+
+Completed live two-prompt tmux smoke test and fixed Cache Trace feedback turns by deferring visible timeline cards until Pi is idle (commit 5a0003f).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/cache-trace/index.ts — Defers timeline custom messages until ctx.isIdle()
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/30/PI-EXT-CACHE-TRACE--pi-extension-for-llm-cache-usage-timeline-and-analytics/reference/01-diary.md — Records live smoke test and feedback-loop fix
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/05/30/PI-EXT-CACHE-TRACE--pi-extension-for-llm-cache-usage-timeline-and-analytics/tasks.md — Marks live-model smoke test done
+
