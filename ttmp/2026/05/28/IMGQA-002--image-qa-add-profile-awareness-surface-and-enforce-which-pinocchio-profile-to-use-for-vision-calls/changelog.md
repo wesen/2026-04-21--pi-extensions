@@ -26,3 +26,13 @@ Step 1: Implemented profile dropdown. Created profiles.ts, rewrote index.ts sett
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/index.ts — Rewrote settings with select dropdown
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/profiles.ts — New file — curated list
 
+
+## 2026-05-28
+
+Fix: removed customProfile field (schema settings don't support freeform text) and removed validate() callback (no need to validate profiles against pinocchio). Dropdown now shows curated + all discovered profiles only.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/index.ts — Removed CUSTOM_VALUE sentinel
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/image-qa/profiles.ts — Removed validateProfile()
+

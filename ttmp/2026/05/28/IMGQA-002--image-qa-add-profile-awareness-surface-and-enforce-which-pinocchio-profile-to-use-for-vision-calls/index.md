@@ -1,7 +1,7 @@
 ---
 Title: 'image-qa: add profile awareness — surface and enforce which pinocchio profile to use for vision calls'
 Ticket: IMGQA-002
-Status: active
+Status: completed
 Topics:
     - pi-extension
     - vision
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-28T18:05:34.316081507-04:00
+LastUpdated: 2026-05-28T19:17:27.953876121-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # image-qa: add profile awareness — surface and enforce which pinocchio profile to use for vision calls
 
