@@ -426,10 +426,10 @@ export function renderMarkdown(response: CapturedResponse, metadata: ResponseMar
 export function saveToTempFile(ctx: ExtensionContext, response: CapturedResponse, overrideDir?: string): string {
 	const dir = ensureTempDir(overrideDir);
 
-	// Always write last-response.md (overwritten each time, md-view live-reloads)
+	// Always write last-response.md (overwritten each time) for compatibility.
 	const lastPath = join(dir, "last-response.md");
 
-	// Also write a timestamped copy for history
+	// Also write a timestamped copy for stable viewing/history.
 	const slug = timestampSlug();
 	const timestampedPath = join(dir, `${slug}-turn-${response.turnIndex + 1}.md`);
 	const outputPaths = { lastResponsePath: lastPath, timestampedPath };
@@ -437,7 +437,7 @@ export function saveToTempFile(ctx: ExtensionContext, response: CapturedResponse
 	writeFileSync(lastPath, renderMarkdown(response, buildMarkdownContext(ctx, response, lastPath, outputPaths)), "utf-8");
 	writeFileSync(timestampedPath, renderMarkdown(response, buildMarkdownContext(ctx, response, timestampedPath, outputPaths)), "utf-8");
 
-	return lastPath;
+	return timestampedPath;
 }
 
 // ---------------------------------------------------------------------------

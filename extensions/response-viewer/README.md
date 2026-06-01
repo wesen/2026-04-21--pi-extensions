@@ -82,8 +82,8 @@ Path rules:
 2. When you select a response, it computes temp output paths under `$TMPDIR/pi-response-viewer/`
 3. It scans the previous-turn session window for successful document `read`, `write`, and `edit` tool results
 4. It writes Markdown with metadata-rich YAML frontmatter and a readable context section
-5. Two files are written: `last-response.md` (always overwritten, for live-reload) and a timestamped copy for history
-6. `md-view view <path>` opens the stable `last-response.md` file in your browser
+5. Two files are written: `last-response.md` (always overwritten, for compatibility) and a timestamped copy for stable history
+6. `md-view view <path>` opens the timestamped copy in your browser, so the viewed response is not overwritten by later opens
 
 ## Status bar
 
