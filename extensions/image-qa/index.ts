@@ -34,6 +34,7 @@ function promptSection(title: string, value: string): string {
 
 function composePinocchioPrompt(context: string, question: string): string {
 	return [
+		"Important: You are a separate vision QA agent. You have no access to the caller's project, files, previous Pi conversation, previous image QA calls, or earlier answers unless they are explicitly included below. Interpret references like 'this', 'that', 'the previous one', or 'is this better?' only if the provided context defines what they refer to; otherwise state what information is missing.",
 		promptSection("Context", context),
 		promptSection("Question", question),
 	].join("\n\n");
@@ -238,17 +239,22 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 			"two versions of a diagram, or several related photos. " +
 			"The images are analyzed by a vision-language model (VLM), so results are interpretations, " +
 			"not guaranteed ground truth: visual details may be missed, hallucinated, or imperfect. " +
-			"IMPORTANT: This tool is stateless — each call starts a fresh session with no memory of " +
-			"previous calls. Put surrounding context in the separate context parameter, and put the " +
-			"specific thing you want answered in the question parameter. Describe what you already know, " +
-			"what you've already asked about these or related images, and what you're looking for now in " +
-			"context. Do not assume the model knows anything from prior turns or the current conversation.",
+			"IMPORTANT: This tool is stateless and the vision QA agent is separate from Pi — each call starts " +
+			"a fresh session with no memory of previous calls and no knowledge of the current project, files, " +
+			"goals, UI state, or conversation unless you explicitly include that information in context. " +
+			"Put detailed establishing context in the context parameter: what the images show, why they matter, " +
+			"what changed, what problem you are investigating, image ordering, prior observations, and what " +
+			"ambiguous references mean. Put the specific thing you want answered in the question parameter. " +
+			"Do not ask context-dependent questions like 'is this better?' unless context explains what 'this' " +
+			"refers to and what it should be better than.",
 		promptSnippet:
-			"ask_questions_about_images(images, context, question) — ask a vision model about one or multiple images, including before/after comparisons (stateless: provide explicit context)",
+			"ask_questions_about_images(images, context, question) — ask a separate stateless vision QA agent about one or multiple images; provide detailed establishing context because it has no project/conversation knowledge",
 		promptGuidelines: [
-			"When using ask_questions_about_images, put all relevant surrounding information in the context argument — the tool has no memory of past calls.",
+			"When using ask_questions_about_images, put all relevant establishing information in the context argument — the vision QA agent has no memory of past calls and no access to this project or conversation.",
+			"Explain the intent behind the question: what the images show, why they matter, what changed, what you are trying to verify, and any relevant acceptance criteria.",
+			"Do not rely on references like 'this', 'that', 'previous', 'same issue', or 'is it better?' unless the context explicitly defines the referent and comparison baseline.",
 			"Keep question focused on the specific visual answer you want; do not bury the question inside the context field.",
-			"Provide multiple images in one ask_questions_about_images call when comparing before/after states, alternatives, screenshots, or related visual evidence.",
+			"Provide multiple images in one ask_questions_about_images call when comparing before/after states, alternatives, screenshots, or related visual evidence, and state the image order in context.",
 			"Treat ask_questions_about_images results as VLM interpretations rather than perfect visual ground truth; verify important details when possible.",
 		],
 		parameters: Type.Object({
@@ -260,9 +266,12 @@ export default function imageQaExtension(pi: ExtensionAPI): void {
 			}),
 			context: Type.String({
 				description:
-					"Surrounding context for this stateless image-analysis call. Include what is already known, " +
-					"why these images matter, relevant prior questions/answers, ordering such as before/after, " +
-					"and any uncertainty or constraints the VLM should be aware of. Every invocation is a fresh session.",
+					"Detailed establishing context for this stateless image-analysis call. The vision QA agent has " +
+					"no project knowledge and cannot see prior conversation, previous tool calls, files, goals, or " +
+					"earlier answers unless you include them here. Explain what the images show, why they matter, " +
+					"what changed, relevant prior observations/questions, image ordering such as before/after, " +
+					"comparison baselines, acceptance criteria, and any uncertainty or constraints. Avoid bare references " +
+					"like 'this' or 'better' unless you define them in this context.",
 			}),
 			question: Type.String({
 				description:

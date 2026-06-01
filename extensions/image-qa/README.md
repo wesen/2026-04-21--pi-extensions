@@ -15,8 +15,8 @@ hood, where the images are interpreted by a vision-language model (VLM).
 | Parameter  | Type       | Description                                                                                                   |
 |------------|------------|---------------------------------------------------------------------------------------------------------------|
 | `images`   | `string[]` | One or more image file paths (relative to cwd or absolute). Provide multiple images for comparisons such as before/after screenshots. |
-| `context`  | `string`   | Surrounding context for this stateless call: what is known, why the images matter, prior related questions/answers, image ordering, and constraints. |
-| `question` | `string`   | The specific question to ask about the images. Keep this focused; put background information in `context`.     |
+| `context`  | `string`   | Detailed establishing context for this stateless call: what the images show, why they matter, what changed, prior related observations/questions, image ordering, comparison baseline, acceptance criteria, and constraints. The vision QA agent has no project or conversation knowledge unless you include it here. |
+| `question` | `string`   | The specific question to ask about the images. Keep this focused; put background information and referent definitions in `context`.     |
 
 ### ⚠️ VLM interpretation, not perfect ground truth
 
@@ -29,16 +29,39 @@ checks on specific regions/details.
 ### ⚠️ Stateless — each call is a fresh session
 
 The tool calls `pinocchio code professional --non-interactive`, which creates a
-**fresh session** each time. The underlying model has **no access** to:
+**fresh session** each time. Treat the underlying model as a separate QA person
+who has **no access** to:
 
+- This repository or project goals
+- Files, source code, tickets, tasks, or implementation history
 - Previous images from earlier tool calls
 - Previous questions or answers
 - The current Pi conversation context
+- What `this`, `that`, `the previous one`, `the bug`, or `better` refers to
 
-You **must** include all relevant context in the `context` parameter every time.
-Describe what you already know, what you've already asked, and what you're
-looking for now. Keep `question` focused on the concrete answer you want from
-the vision model.
+You **must** include all relevant establishing context in the `context` parameter
+every time. Explain what the images show, why they matter, what changed, what
+problem you are investigating, how images are ordered, what the comparison
+baseline is, and what would count as success or failure. Keep `question` focused
+on the concrete answer you want from the vision model.
+
+Bad context-dependent question:
+
+```json
+{
+  "context": "Screenshot attached.",
+  "question": "Is this better?"
+}
+```
+
+Better version:
+
+```json
+{
+  "context": "This screenshot shows the settings modal after changing the CSS grid gap from 8px to 16px. The previous problem was that labels overlapped input fields on narrow terminals. Please compare against that described baseline; only this after screenshot is attached, so call out any uncertainty.",
+  "question": "Does the visible layout appear to resolve the label/input overlap problem, and are there any remaining spacing or alignment issues?"
+}
+```
 
 The tool-call display renders both `context` and `question`, so you can inspect
 what surrounding context the agent chose to send before the VLM answer appears.
@@ -60,7 +83,7 @@ pinocchio code professional \
 ```json
 {
   "images": ["/tmp/before.png", "/tmp/after.png"],
-  "context": "These two screenshots show the same UI before and after a CSS change. The first image is before; the second image is after. Treat the answer as a VLM interpretation and call out any uncertainty.",
+  "context": "These two screenshots show the same UI before and after a CSS change in this project. The first image is before; the second image is after. The intended fix was to stop the sidebar buttons from wrapping and to keep the main content aligned with the header. Treat the answer as a VLM interpretation and call out any uncertainty.",
   "question": "Compare the screenshots and describe the visible layout, spacing, and color differences. Does the after screenshot appear to fix the original problem?"
 }
 ```
