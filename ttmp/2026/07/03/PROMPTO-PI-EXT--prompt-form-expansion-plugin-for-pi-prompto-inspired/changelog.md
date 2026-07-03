@@ -92,3 +92,8 @@ Replaced hand-rolled frontmatter parser with the yaml package via new repo-root 
 
 Published deep-dive project report to the go-go-parc Obsidian vault (PROJ - Prompto Pi Extension, vault commit 00b5980, pushed)
 
+
+## 2026-07-03
+
+Added research logbook (reference/02): per-resource usefulness/staleness log for all 23 consulted resources, with actionable staleness summary (session-summary input handler wrong vs 0.78 API; reMarkable design-doc copy superseded; two-clone conflict missing from README)
+

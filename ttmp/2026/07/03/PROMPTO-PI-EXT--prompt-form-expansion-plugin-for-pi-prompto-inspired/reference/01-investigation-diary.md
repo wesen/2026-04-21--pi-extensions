@@ -374,7 +374,7 @@ types, config, a two-layer template store, a dependency-free YAML-subset
 frontmatter parser, the strict `{{…}}` renderer, and a `/prompto` command
 whose form is (for now) the sequential-dialog fallback. Verified end-to-end
 in an isolated tmux-driven pi session: `/prompto demo/greeting` → input
-dialog → choice dialog → "Please greet World.\nAnswer in German." expanded
+dialog → choice dialog → `"Please greet World.\nAnswer in German."` expanded
 into the editor with a confirmation notify.
 
 The one significant deviation from the design doc: no `yaml` package import.
@@ -908,3 +908,75 @@ project in the personal knowledge base, independent of the ticket workspace.
 
 ### Technical details
 - Vault commit: `00b5980` on `go-go-parc` main.
+
+## Step 13: Research logbook created and uploaded (with design doc rev 2)
+
+Created `reference/02-research-logbook-resource-usefulness-and-staleness-
+tracking.md`: 23 per-resource entries (legacy prompto tree, pi-extensions
+docs and prior-art extensions, installed pi type declarations, toolchain
+facts, and this ticket's own documents), each answering the eight tracking
+questions (researching / looking for / why chosen / how found / useful /
+not useful / out of date / needs updating), fronted by an actionable
+staleness summary table. Uploaded to reMarkable as a new bundle together
+with the current design doc and diary — which also retires the logbook's
+own top staleness finding (the device copy of the design doc was rev 1).
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a research logbook document in the ticket that allows us to keep track of which resources are useful / out of date / need updating . For all the documents and external resources you read, list: - what you were researching - what you were looking for in this document in particular - why you chose it - how you found the resource itself - what you found useful in the document - what you didn't find useful - what is out of date / what was wrong - what would need updating. Store in ticket and upload to remarkable."
+
+**Assistant interpretation:** Write a per-resource research log with those
+eight fields for everything consulted during this ticket; store as a ticket
+reference doc; upload to reMarkable.
+
+**Inferred user intent:** Institutional memory about source quality — so
+future sessions skip dead ends, trust the right documents, and know which
+repo docs to fix.
+
+### What I did
+- `docmgr doc add` (reference/02), wrote 23 entries + staleness table +
+  method note; related the two flagged files; changelog; doctor (passes).
+- `remarquee upload bundle` → "PROMPTO-PI-EXT Research Logbook and Design
+  v2.pdf" at `/ai/2026/07/03/PROMPTO-PI-EXT` (new name, no --force, rev-1
+  annotations preserved).
+
+### Why
+- The staleness findings (session-summary API drift, rev-1 device copy,
+  README two-clone gap) were scattered across diary steps and design-doc
+  risks; the logbook makes them one queryable list.
+
+### What worked
+- Bundling the current design doc into the same upload resolved the
+  logbook's top "needs updating" item in the same action.
+
+### What didn't work
+- First upload failed: pandoc/xelatex died on a literal `\n` in diary
+  Step 6 prose ("Please greet World.\nAnswer…" → TeX read `\nAnswer` as an
+  undefined control sequence). Fixed by wrapping the string in backticks.
+  Rule: escaped-newline literals in prose must be inline code before any
+  pandoc upload.
+
+### What I learned
+- The remarkable-upload skill's "malformed code block" warning generalizes:
+  ANY backslash sequence in prose is a latent xelatex bomb.
+
+### What was tricky to build
+- N/A (writing step).
+
+### What warrants a second pair of eyes
+- Logbook entry 15's claim that session-summary's input handler is
+  non-functional under 0.78 is inferred from type mismatch, not tested.
+
+### What should be done in the future
+- Act on the staleness table: port session-summary's input handler; add the
+  two-clone caveat to ext/README.md; re-verify types.d.ts line anchors when
+  pi is upgraded past 0.78.
+
+### Code review instructions
+- Read `reference/02-…md` staleness table first, then spot-check two
+  entries against the cited files.
+
+### Technical details
+- Upload: `remarquee upload bundle <logbook> <design-doc> <diary> --name
+  "PROMPTO-PI-EXT Research Logbook and Design v2" --remote-dir
+  /ai/2026/07/03/PROMPTO-PI-EXT --toc-depth 2 --non-interactive`.
