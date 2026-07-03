@@ -10,21 +10,21 @@ This repository is about making Pi extensions feel like one cohesive product ins
 extensions/
   _shared/                    # Shared registry, launcher/dashboard UI, common framework pieces
   agent-env/                  # Inject PI_AGENT_* context into shell executions
+  command-palette/            # Keyboard-driven palette for extension actions
   compaction-meter/           # Context remaining/status widgets
   compaction-title/           # compact() + automatic session title generation
   direnv-bash/                # direnv-aware bash/user shell execution
-  docmgr/                     # docmgr ticket browser/status inside Pi
   image-qa/                   # ask_questions_about_images tool via pinocchio
   kagi-web-search/            # kagi_web_search tool via surf
-  kanban-demo/                # Rich TUI Kanban/demo tool extension
   launcher/                   # /px shared extension launcher
   markdown-recent-viewer/     # Session edit/write Markdown picker + md-view
   pinned-skills/              # Persistent pinned skill prompt injection
-  response-capture/           # Capture assistant responses into docmgr
+  prompto/                    # Prompt template picker/forms/plugins
+  response-viewer/            # Browse and open assistant responses with md-view
   selective-compaction/       # User-selected range compaction
+  session-search/             # Search session history and fork from matches
   session-summary/            # Mandatory <summary> block enforcement/widget
   session-tagger/             # Tag moments in session history
-  tui-showcase/               # TUI component/pattern showcase
 
 docs/
   pi-shared-extension-framework-guide.md  # How to write extensions in this repo
@@ -64,20 +64,20 @@ Start here before adding or refactoring an extension:
 | `launcher` | Provides `/px`, the shared extension launcher/dashboard entry point. | [`extensions/launcher/index.ts`](extensions/launcher/index.ts) |
 | `_shared` | Registry, launcher UI, docs/settings UI, dashboard integration. | [`extensions/_shared/`](extensions/_shared/) |
 | `agent-env` | Injects Pi session metadata (`PI_AGENT_*`) into bash/user shell executions. | [`extensions/agent-env/index.ts`](extensions/agent-env/index.ts), [`README`](extensions/agent-env/README.md) |
+| `command-palette` | Provides a keyboard-driven palette for registered extension actions. | [`extensions/command-palette/index.ts`](extensions/command-palette/index.ts) |
 | `direnv-bash` | Loads allowed `direnv` environments before bash/user shell commands. | [`extensions/direnv-bash/index.ts`](extensions/direnv-bash/index.ts), [`README`](extensions/direnv-bash/README.md) |
-| `docmgr` | Shows docmgr ticket/doc/task status and workflows inside Pi. | [`extensions/docmgr/index.ts`](extensions/docmgr/index.ts) |
 | `pinned-skills` | Keeps selected skill instructions loaded in prompt context. | [`extensions/pinned-skills/index.ts`](extensions/pinned-skills/index.ts), [`README`](extensions/pinned-skills/README.md) |
+| `prompto` | Expands prompt templates through picker/forms/plugins. | [`extensions/prompto/index.ts`](extensions/prompto/index.ts), [`README`](extensions/prompto/README.md) |
+| `response-viewer` | Browses assistant responses and opens them with md-view. | [`extensions/response-viewer/index.ts`](extensions/response-viewer/index.ts), [`README`](extensions/response-viewer/README.md) |
+| `session-search` | Searches session history and navigates/forks from matches. | [`extensions/session-search/index.ts`](extensions/session-search/index.ts), [`README`](extensions/session-search/README.md) |
 | `session-summary` | Enforces final `<summary>...</summary>` blocks and displays compact summaries. | [`extensions/session-summary/index.ts`](extensions/session-summary/index.ts) |
 | `session-tagger` | Tags important session moments for later analysis/forking. | [`extensions/session-tagger/index.ts`](extensions/session-tagger/index.ts) |
-| `response-capture` | Captures assistant responses into docmgr. | [`extensions/response-capture/index.ts`](extensions/response-capture/index.ts), [`README`](extensions/response-capture/README.md) |
 | `compaction-meter` | Shows context/compaction status in Pi. | [`extensions/compaction-meter/index.ts`](extensions/compaction-meter/index.ts), [`README`](extensions/compaction-meter/README.md) |
 | `compaction-title` | Runs compaction/title generation and stores session titles. | [`extensions/compaction-title/index.ts`](extensions/compaction-title/index.ts), [`README`](extensions/compaction-title/README.md) |
 | `selective-compaction` | Lets the user compact a selected range instead of the whole branch. | [`extensions/selective-compaction/index.ts`](extensions/selective-compaction/index.ts), [`README`](extensions/selective-compaction/README.md) |
 | `image-qa` | Adds `ask_questions_about_images` backed by `pinocchio code professional --images`. | [`extensions/image-qa/index.ts`](extensions/image-qa/index.ts), [`README`](extensions/image-qa/README.md) |
 | `kagi-web-search` | Adds `kagi_web_search` backed by `surf kagi search --query`. | [`extensions/kagi-web-search/index.ts`](extensions/kagi-web-search/index.ts), [`README`](extensions/kagi-web-search/README.md) |
 | `markdown-recent-viewer` | Lists Markdown files touched by session `edit`/`write` tool calls and opens them with `md-view view`. | [`extensions/markdown-recent-viewer/index.ts`](extensions/markdown-recent-viewer/index.ts), [`README`](extensions/markdown-recent-viewer/README.md) |
-| `kanban-demo` | Rich TUI Kanban board demo with an LLM-callable task tool. | [`extensions/kanban-demo/index.ts`](extensions/kanban-demo/index.ts), [`README`](extensions/kanban-demo/README.md) |
-| `tui-showcase` | Grab-bag of TUI patterns, overlays, widgets, tools, and renderers. | [`extensions/tui-showcase/index.ts`](extensions/tui-showcase/index.ts), [`README`](extensions/tui-showcase/README.md) |
 
 ## Installing local extensions
 

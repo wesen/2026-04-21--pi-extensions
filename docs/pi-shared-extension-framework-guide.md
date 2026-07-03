@@ -16,7 +16,7 @@ extension module
             └─ dashboard/status widgets
 ```
 
-The framework lives under `extensions/_shared/`. Pilot extensions such as `pinned-skills`, `agent-env`, `compaction-meter`, and `kanban-demo` show the current style.
+The framework lives under `extensions/_shared/`. Production extensions such as `pinned-skills`, `agent-env`, `compaction-meter`, `prompto`, and `response-viewer` show the current style.
 
 ## 1. Why the shared framework exists
 
@@ -321,7 +321,6 @@ Ctrl+Shift+Alt+N
   ▸ a  Agent Env →
     c  Compaction Meter →
     o  Compaction Title →
-    d  Docmgr →
     p  Pinned Skills →
     r  Response Viewer →
     s  Session Tagger →

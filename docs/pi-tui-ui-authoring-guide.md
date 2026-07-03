@@ -895,26 +895,22 @@ Best practices:
 
 ## Patterns from existing extensions
 
-### `tui-showcase`
+### Shared launcher overlays
 
-The showcase is a custom overlay component. It uses a `Component` class, local state, `handleInput()`, and a set of render helper methods. It demonstrates the core pattern for rich interactive UIs:
+The shared launcher and picker overlays use custom `Component` classes with local state, `handleInput()`, and focused render helper methods. They demonstrate the core pattern for rich interactive UIs without relying on deleted demo extensions:
 
 ```text
-TuiShowcaseOverlay
+ExtensionLauncher
   handleInput()
   render()
-    frame()
-    renderTabs()
-    renderBody()
-      renderPalette()
-      renderComponents()
-      renderForm()
-      renderDashboard()
-      renderMarkdown()
-      renderHelp()
+    renderSearchLine()
+    renderHelpLines()
+    buildListRows()
+    renderDetails()
+    renderFooter()
 ```
 
-Takeaway: for complex overlays, express hierarchy as TypeScript render methods.
+Takeaway: for complex overlays, express hierarchy as TypeScript render methods and keep navigation/search/scroll state explicit.
 
 ### Nico's `pi-skill-palette`
 

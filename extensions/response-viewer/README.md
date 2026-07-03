@@ -99,5 +99,4 @@ rv:3turns/last:5/chars:2.3K/saved
 
 ## Relationship to other extensions
 
-- **response-capture** — saves responses persistently to `.pi/response-capture/` and imports into docmgr tickets. Response Viewer is for quick viewing; response-capture is for archiving.
 - **markdown-recent-viewer** — browses Markdown files edited/written by tool calls. Response Viewer focuses on assistant response text specifically.

@@ -24,16 +24,19 @@ Concise implementation guides live in `docs/`:
 extensions/
   _shared/          # registry, dashboard, UI components
   agent-env/        # direnv/env injection before bash calls
+  command-palette/  # keyboard-driven palette for extension actions
   compaction-meter/ # context-remaining status bar widget
   compaction-title/ # compact() + auto-title
   direnv-bash/      # direnv .envrc injection
-  docmgr/           # docmgr ticket browser in Pi
-  kanban-demo/      # TUI Kanban demo
+  image-qa/         # vision QA tool bridge
+  kagi-web-search/  # Kagi web search tool bridge
   launcher/         # extension launcher + action picker
+  markdown-recent-viewer/ # recent Markdown file picker
   pinned-skills/    # pinned skills loader
-  response-capture/ # capture assistant responses to docmgr
+  prompto/          # prompt template picker/forms/plugins
+  response-viewer/  # browse assistant responses in md-view
   selective-compaction/ # user-selected range compaction
+  session-search/   # search session history and fork from matches
   session-summary/  # mandatory <summary> block enforcement
   session-tagger/   # tag moments for later analysis/forking
-  tui-showcase/     # grab-bag TUI pattern demo
 ```
