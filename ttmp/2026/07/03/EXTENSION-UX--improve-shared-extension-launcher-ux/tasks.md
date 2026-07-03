@@ -15,17 +15,17 @@
 
 ## Phase 1: Launcher state restoration and wraparound navigation
 
-- [ ] Add `ExtensionLauncherState` to `extensions/_shared/ui/extension-launcher.ts`
-- [ ] Add optional `initialState` to `ExtensionLauncherOptions`
-- [ ] Hydrate launcher state from `initialState` in the constructor
-- [ ] Add a `snapshot()` helper that captures query/search/cursor/list-scroll/details-scroll
-- [ ] Include state snapshots in launcher results for select/actions/docs/settings/dashboard/palette
-- [ ] Thread saved state through `openLauncher(ctx, initialState?)` in `extensions/launcher/index.ts`
-- [ ] Reopen launcher after docs/actions/settings with the previous selection and search restored
-- [ ] Change extension list arrow movement to wrap from top to bottom and bottom to top
-- [ ] Reset right-pane scroll when selected extension or query changes
+- [x] Add `ExtensionLauncherState` to `extensions/_shared/ui/extension-launcher.ts`
+- [x] Add optional `initialState` to `ExtensionLauncherOptions`
+- [x] Hydrate launcher state from `initialState` in the constructor
+- [x] Add a `snapshot()` helper that captures query/search/cursor/list-scroll/details-scroll
+- [x] Include state snapshots in launcher results for select/actions/docs/settings/dashboard/palette
+- [x] Thread saved state through `openLauncher(ctx, initialState?)` in `extensions/launcher/index.ts`
+- [x] Reopen launcher after docs/actions/settings with the previous selection and search restored
+- [x] Change extension list arrow movement to wrap from top to bottom and bottom to top
+- [x] Reset right-pane scroll when selected extension or query changes
 - [ ] Validate `/px` docs-back behavior and list wraparound manually
-- [ ] Commit Phase 1 implementation
+- [x] Commit Phase 1 implementation
 - [ ] Update diary/changelog for Phase 1
 
 ## Phase 2: Shared fuzzy search behavior

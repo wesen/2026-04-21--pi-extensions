@@ -208,3 +208,82 @@ timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
 # EXIT:0
 # Existing warnings only: deprecated umans apiKey env reference and unmatched configured model patterns.
 ```
+
+## Step 3: Implement launcher state restoration and wraparound navigation
+
+This step implemented the first shared launcher phase. The launcher now carries a typed state snapshot out of the overlay when the user opens docs, actions, settings, the dashboard, or the palette. The launcher command flow can pass that snapshot back into the next launcher instance, so returning from docs/actions/settings restores the previous search, selection, and list scroll instead of starting at the top.
+
+The same code change also updates arrow navigation to wrap through the visible extension list. Pressing `Up` on the first visible extension selects the last visible extension, and pressing `Down` on the last visible extension returns to the first. This makes the launcher behave like a keyboard palette rather than a static list.
+
+### Prompt Context
+
+**User prompt (verbatim):** "commit at appropriat eintervals, keep a detailed diary as you work."
+
+**Assistant interpretation:** Continue the implementation with focused commits and update the diary after each meaningful milestone.
+
+**Inferred user intent:** Make the EXTENSION-UX implementation reviewable and continuation-friendly, with code commits and documentation checkpoints aligned to phases.
+
+**Commit (code):** df23e9ea57e8eb6d213b6967b0fe93be9a2e9b92 — "Launcher: preserve selection state and wrap navigation"
+
+### What I did
+
+- Added `ExtensionLauncherState` in `extensions/_shared/ui/extension-launcher.ts`.
+- Added `initialState?: Partial<ExtensionLauncherState>` to `ExtensionLauncherOptions`.
+- Hydrated query, search mode, cursor, list scroll, and details scroll from the initial state.
+- Added a `snapshot()` helper to capture launcher state before returning results.
+- Added state snapshots to launcher results for `select`, `actions`, `docs`, `settings`, `dashboard`, and `palette`.
+- Changed `move(delta)` from clamped navigation to modulo wraparound.
+- Reset future right-pane `detailsScroll` on selection/query changes so Phase 3 can add actual right-pane scrolling without carrying stale offsets.
+- Updated `extensions/launcher/index.ts` so docs/actions/settings reopen `/px` with the previous state.
+- Ran `timeout 20 pi --list-models`; it exited `0` with only existing provider/model warnings.
+- Committed the Phase 1 code as `df23e9e`.
+
+### Why
+
+- The user's first complaint was that returning from plugin help resets the list to the top. That happened because `handleLauncherResult()` opened a brand-new launcher without any state.
+- Wraparound navigation is expected for palette-style keyboard UIs and avoids repeatedly pressing `Down` when the desired item is near the bottom.
+
+### What worked
+
+- The state-threading change was small and localized to `ExtensionLauncher` and `launcher/index.ts`.
+- Existing nested overlay flow stayed intact; only the reopen call gained `result.state`.
+- The extension load check passed after the type/interface changes.
+
+### What didn't work
+
+- I could not perform an interactive `/px` smoke test from this non-interactive tool context. The task list keeps manual validation open.
+
+### What I learned
+
+- The launcher already had all necessary in-memory state; the missing part was exporting/importing that state across overlay boundaries.
+- Adding `detailsScroll` early keeps the state contract compatible with the upcoming scrollable details-pane phase.
+
+### What was tricky to build
+
+- The main sharp edge was result typing. Once launcher results carry state, every result variant that leaves the overlay for another view must include the snapshot, otherwise callers can accidentally lose continuity for one branch. I updated all non-cancel result variants together.
+- Another subtle point was query changes: they must reset both left-list scroll and future right-pane scroll. Otherwise a filtered result can inherit a scroll offset from a different selected extension.
+
+### What warrants a second pair of eyes
+
+- Check whether dashboard/palette results should preserve and later restore launcher state if those paths return to the launcher in future changes. They now carry state, but current control flow does not reuse it.
+- Review whether `searchActive` should be restored as active after returning from docs, or whether returning to inactive search with the query preserved would feel better. The implementation currently restores the exact state.
+
+### What should be done in the future
+
+- Manually validate `/px` docs-back behavior.
+- Continue with Phase 2 fuzzy search.
+
+### Code review instructions
+
+- Start with `extensions/_shared/ui/extension-launcher.ts` and review the `ExtensionLauncherState` type, constructor hydration, `snapshot()`, and `move()`.
+- Then review `extensions/launcher/index.ts` to verify `result.state` is threaded only for nested overlays that reopen the launcher.
+- Validate with `timeout 20 pi --list-models`, then manually test `/px` → select extension → `?` → `Esc`.
+
+### Technical details
+
+Validation command:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
+# EXIT:0
+```

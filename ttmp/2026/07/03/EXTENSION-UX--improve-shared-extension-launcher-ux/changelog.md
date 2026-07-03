@@ -33,3 +33,13 @@ Committed prompto picker/template work as 02ef4e5 and expanded EXTENSION-UX task
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/prompto/ui/picker.ts — Prompto picker commit 02ef4e5
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/07/03/EXTENSION-UX--improve-shared-extension-launcher-ux/tasks.md — Expanded phase tracking
 
+
+## 2026-07-03
+
+Phase 1: implemented launcher state snapshots, restored selection after docs/actions/settings, and added wraparound list navigation (commit df23e9e).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — State snapshot and wraparound implementation
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Threads launcher state through nested overlay returns
+
