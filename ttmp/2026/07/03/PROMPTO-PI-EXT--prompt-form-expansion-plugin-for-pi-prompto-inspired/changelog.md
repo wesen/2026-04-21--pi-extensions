@@ -87,3 +87,8 @@ Replaced hand-rolled frontmatter parser with the yaml package via new repo-root 
 - /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/extensions/prompto/frontmatter.ts — Now a thin fence-split + yaml.parse wrapper
 - /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/package.json — New repo-root manifest making bare npm imports resolvable for both loaders
 
+
+## 2026-07-03
+
+Published deep-dive project report to the go-go-parc Obsidian vault (PROJ - Prompto Pi Extension, vault commit 00b5980, pushed)
+

@@ -864,3 +864,47 @@ acceptable price.
 ### Technical details
 - `.gitignore` gained `node_modules/`; authoring doc's "frontmatter
   caveats" section rewritten (full YAML, top level must be a map).
+
+## Step 12: Project report published to the Obsidian vault
+
+Wrote the deep-dive project report as a `PROJ - …` note in the go-go-parc
+vault, in textbook style (no analogies): architecture and prefill-sequence
+mermaid diagrams, the merge-order specification, the plugin protocol
+walk-through, the loader-duality lesson, failure modes, open questions.
+Committed (`00b5980`) and pushed to `go-go-golems/go-go-parc` main.
+
+### Prompt Context
+
+**User prompt (verbatim):** "write a detailed project report for the obsidian vault as a deep dive technical analysis blog post using a textbook writing style (no analogies, see skill). Commit and push the bsidian vault when done (go-go-parc vault)."
+
+**Assistant interpretation:** Author a PROJ-style vault note about this
+project in the textbook-authoring voice, then commit and push the vault.
+
+**Inferred user intent:** Durable, readable long-form documentation of the
+project in the personal knowledge base, independent of the ticket workspace.
+
+### What I did
+- Wrote `Projects/2026/07/03/PROJ - Prompto Pi Extension - Prompt Form Expansion for Pi.md` (233 lines) in `/home/manuel/code/wesen/go-go-golems/go-go-parc`.
+- Staged only the note (left untracked `.pi/`, `.ttmp.yaml` alone), committed, pushed.
+
+### Why
+- The ticket's design doc is implementation-facing; the vault note is the
+  durable narrative for future readers.
+
+### What worked / What didn't work
+- Clean push on the first attempt. / N/A.
+
+### What I learned
+- N/A (writing step).
+
+### What was tricky to build / What warrants a second pair of eyes
+- N/A. / The note states open questions as of today; revisit after tasks 38/40.
+
+### What should be done in the future
+- Update the vault note's status when the extension leaves active development.
+
+### Code review instructions
+- Read the note at the path above; cross-check claims against the design doc and this diary.
+
+### Technical details
+- Vault commit: `00b5980` on `go-go-parc` main.
