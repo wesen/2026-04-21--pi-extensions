@@ -59,15 +59,15 @@
 
 ## Phase 4: Prompto shortcut and paste insertion workflow
 
-- [ ] Add `RunPromptoOptions` to `extensions/prompto/run.ts`
-- [ ] Support `replace-editor`, `paste-editor`, and `send` output modes
-- [ ] Keep `/prompto` default behavior backward-compatible
-- [ ] Add a prompto shortcut with `pi.registerShortcut()` in `extensions/prompto/index.ts`
-- [ ] Wire shortcut to prompto picker using paste insertion
-- [ ] Add a visible action/palette item for paste insertion if useful
+- [x] Add `RunPromptoOptions` to `extensions/prompto/run.ts`
+- [x] Support `replace-editor`, `paste-editor`, and `send` output modes
+- [x] Keep `/prompto` default behavior backward-compatible
+- [x] Add a prompto shortcut with `pi.registerShortcut()` in `extensions/prompto/index.ts`
+- [x] Wire shortcut to prompto picker using paste insertion
+- [x] Add a visible action/palette item for paste insertion if useful
 - [ ] Update prompto docs/help text for replacement vs paste behavior
 - [ ] Validate shortcut insertion with existing editor text
-- [ ] Commit Phase 4 implementation
+- [x] Commit Phase 4 implementation
 - [ ] Update diary/changelog for Phase 4
 
 ## Final validation and delivery

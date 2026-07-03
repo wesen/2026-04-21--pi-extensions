@@ -444,3 +444,82 @@ Validation command:
 timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
 # EXIT:0
 ```
+
+## Step 6: Add prompto paste insertion shortcut
+
+This step implemented the prompto part of the UX request. Prompto now has an explicit output mode so callers can choose between replacing the editor, pasting into the editor, or sending directly. The existing `/prompto` command remains backward-compatible because it still defaults to replacement for editor-submit templates and direct send for `submit: auto` templates.
+
+A new `Ctrl+Alt+P` shortcut opens the prompto picker and pastes the expanded template at the editor cursor. Prompto also exposes a named action and command-palette item for the paste workflow, making the behavior discoverable even if the keyboard shortcut is not remembered.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue implementation with a focused prompto insertion commit and diary update.
+
+**Inferred user intent:** Make prompto usable from the middle of an existing draft prompt without relying on slash-command position or replacing the editor.
+
+**Commit (code):** 606f2c40965bb7e587ed21243b06bf3c0d9b8077 — "Prompto: add paste insertion shortcut"
+
+### What I did
+
+- Added `RunPromptoOptions` in `extensions/prompto/run.ts`.
+- Added output modes: `replace-editor`, `paste-editor`, and `send`.
+- Kept existing `/prompto` behavior by defaulting to `send` for `submit: auto` and `replace-editor` otherwise.
+- Added paste behavior using `ctx.ui.pasteToEditor(prompt)`.
+- Added a prompto action: `Pick and paste a prompt template`.
+- Added a prompto palette item: `Prompto: paste a template`.
+- Registered `Ctrl+Alt+P` via `pi.registerShortcut()` to open prompto and paste the expanded template.
+- Ran `timeout 20 pi --list-models`; it exited `0` with only existing provider/model warnings.
+- Committed the Phase 4 code as `606f2c4`.
+
+### Why
+
+- Slash commands are naturally command-position oriented. A shortcut gives users a way to open prompto from anywhere in the editor.
+- `pasteToEditor()` preserves existing editor content and uses Pi's paste handling, unlike `setEditorText()` which replaces the whole editor.
+
+### What worked
+
+- The output-mode change was small and did not disturb template selection or form filling.
+- The shortcut could be added entirely through the existing Pi extension API.
+- The load check passed after adding the shortcut and type cast from shortcut context to command context.
+
+### What didn't work
+
+- I could not manually test `Ctrl+Alt+P` in this tool context. Manual shortcut validation remains open.
+
+### What I learned
+
+- `runPrompto()` only requires command-context features for the existing form/UI flows, but shortcut handlers are typed as `ExtensionContext`. The implementation casts the shortcut context to `ExtensionCommandContext`, which should be reviewed against runtime behavior.
+- Exposing both action and palette paths is useful because shortcuts can be hard to discover.
+
+### What was tricky to build
+
+- The main tricky part was preserving backward compatibility. The implementation avoids changing default `/prompto` semantics by making paste insertion opt-in through `RunPromptoOptions`.
+- Another subtle point was `submit: auto`: the shortcut forces paste mode, which is intentional for an insertion workflow, while normal `/prompto` still honors auto-submit.
+
+### What warrants a second pair of eyes
+
+- Confirm `Ctrl+Alt+P` does not conflict with local terminal or Pi keybindings.
+- Review whether the shortcut context cast is acceptable or whether `runPrompto()` and `openForm()` should be generalized to `ExtensionContext`.
+
+### What should be done in the future
+
+- Manually validate `Ctrl+Alt+P` with existing editor text.
+- Update prompto user docs if the shortcut becomes permanent.
+- Run final validation and upload an updated ticket bundle.
+
+### Code review instructions
+
+- Review `RunPromptoOptions` and output selection in `extensions/prompto/run.ts`.
+- Review prompto action, palette item, and shortcut registration in `extensions/prompto/index.ts`.
+- Validate project load with `timeout 20 pi --list-models`.
+
+### Technical details
+
+Validation command:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
+# EXIT:0
+```

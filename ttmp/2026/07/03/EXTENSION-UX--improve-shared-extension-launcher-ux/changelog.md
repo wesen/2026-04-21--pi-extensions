@@ -63,3 +63,13 @@ Phase 3: added scrollable launcher details, fallback detail-scroll keys, dynamic
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Scrollable details and dynamic launcher body rows
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Taller launcher overlay options
 
+
+## 2026-07-03
+
+Phase 4: added prompto output modes, paste action/palette item, and Ctrl+Alt+P paste insertion shortcut (commit 606f2c4).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/prompto/index.ts — Prompto paste action
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/prompto/run.ts — Prompto output modes and paste behavior
+
