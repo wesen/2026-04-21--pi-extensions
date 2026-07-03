@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 
 import { registerPiExtension } from "../_shared/registry";
 import { describePlugin } from "./plugin";
@@ -42,6 +42,13 @@ export default function prompto(pi: ExtensionAPI): void {
 				run: (ctx) => runPrompto(pi, store, "", ctx),
 			},
 			{
+				id: "paste",
+				title: "Pick and paste a prompt template",
+				description: "Pick a template and paste it at the current editor cursor without replacing existing text.",
+				shortcutHint: "Ctrl+Alt+P",
+				run: (ctx) => runPrompto(pi, store, "", ctx, { output: "paste-editor" }),
+			},
+			{
 				id: "reload",
 				title: "Reload templates",
 				description: "Rescan .pi/prompts and ~/.pi/agent/prompts (re-runs plugin discovery).",
@@ -56,7 +63,22 @@ export default function prompto(pi: ExtensionAPI): void {
 				tags: ["prompts", "templates"],
 				run: (ctx) => runPrompto(pi, store, "", ctx),
 			},
+			{
+				id: "prompto-paste",
+				title: "Prompto: paste a template",
+				description: "Open the template picker and paste the expanded template at the editor cursor.",
+				key: "p",
+				tags: ["prompts", "templates", "paste"],
+				run: (ctx) => runPrompto(pi, store, "", ctx, { output: "paste-editor" }),
+			},
 		],
+	});
+
+	pi.registerShortcut("ctrl+alt+p", {
+		description: "Prompto: pick and paste a prompt template at the editor cursor",
+		handler: async (ctx) => {
+			await runPrompto(pi, store, "", ctx as ExtensionCommandContext, { output: "paste-editor" });
+		},
 	});
 
 	pi.registerCommand("prompto", {

@@ -11,7 +11,11 @@ import type { FieldValue, PromptTemplate } from "./types";
 import { openForm } from "./ui/form";
 import { openPicker } from "./ui/picker";
 
-export async function runPrompto(pi: ExtensionAPI, store: PromptStore, args: string, ctx: ExtensionCommandContext): Promise<void> {
+export interface RunPromptoOptions {
+	output?: "replace-editor" | "paste-editor" | "send";
+}
+
+export async function runPrompto(pi: ExtensionAPI, store: PromptStore, args: string, ctx: ExtensionCommandContext, options: RunPromptoOptions = {}): Promise<void> {
 	if (!ctx.hasUI) return;
 
 	if (args === "reload") {
@@ -48,8 +52,12 @@ export async function runPrompto(pi: ExtensionAPI, store: PromptStore, args: str
 	}
 	if (prompt === undefined) return; // cancelled
 
-	if (template.submit === "auto") {
+	const output = options.output ?? (template.submit === "auto" ? "send" : "replace-editor");
+	if (output === "send") {
 		pi.sendUserMessage(prompt, ctx.isIdle() ? undefined : { deliverAs: "followUp" });
+	} else if (output === "paste-editor") {
+		ctx.ui.pasteToEditor(prompt);
+		ctx.ui.notify(`prompto: "${template.name}" pasted into the editor`, "info");
 	} else {
 		ctx.ui.setEditorText(prompt);
 		ctx.ui.notify(`prompto: "${template.name}" expanded into the editor`, "info");
