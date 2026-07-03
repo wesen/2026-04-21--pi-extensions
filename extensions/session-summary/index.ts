@@ -181,6 +181,9 @@ export default function (pi: ExtensionAPI) {
     description: "Requires compact <summary> blocks, displays the latest summary widget, and exposes summary diagnostics.",
     commands: ["summary", "summary-toggle", "summary-logs", "summary-debug"],
     tags: ["summary", "prompt", "widget"],
+    docs: [
+      { id: "overview", title: "Session Summary overview", path: "extensions/session-summary/README.md" },
+    ],
   });
   const state: SummaryState = {
     lastSummary: null,
@@ -337,7 +340,6 @@ export default function (pi: ExtensionAPI) {
             createSummaryWidget(
               "📋 Debug Log",
               preview,
-              "",
               false,
               theme,
             ),
