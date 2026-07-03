@@ -82,8 +82,18 @@ describe("parseFrontmatter", () => {
 		expect(map.fields[1].prompt).toBe("hello b\n");
 	});
 
-	test("tabs are rejected", () => {
-		expect(() => parseFrontmatter("a:\n\tb: 1")).toThrow(/tabs/);
+	test("tab indentation is rejected", () => {
+		expect(() => parseFrontmatter("a:\n\tb: 1")).toThrow(/[Tt]abs/);
+	});
+
+	test("top-level scalar is rejected (frontmatter must be a map)", () => {
+		expect(() => parseFrontmatter('"just a quoted string"')).toThrow(/map/);
+	});
+
+	test("anchors and folded scalars now work (full YAML)", () => {
+		const map = parseFrontmatter("base: &b hello\nref: *b\nfolded: >-\n  one\n  two");
+		expect(map.ref).toBe("hello");
+		expect(map.folded).toBe("one two");
 	});
 
 	test("garbage line throws", () => {

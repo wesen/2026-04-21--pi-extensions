@@ -58,10 +58,9 @@ This line only appears when depth is "full".
 
 ## Frontmatter caveats
 
-The frontmatter parser is a deliberate YAML subset: maps, lists of maps,
-inline arrays, quoted scalars, `|`/`|-` block strings, `#` comments.
-No anchors, flow maps, folded scalars, or tabs. Keep it simple; parse
-errors show up as warnings in `/prompto reload`.
+Frontmatter is full YAML (parsed with the `yaml` package from the repo's
+package.json). The top level must be a map; parse errors show up as
+warnings in `/prompto reload`.
 
 ## Prefill behavior
 

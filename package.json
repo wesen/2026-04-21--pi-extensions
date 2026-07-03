@@ -1,0 +1,8 @@
+{
+	"name": "pi-extensions",
+	"private": true,
+	"description": "Local pi extensions (loaded as TypeScript source via .pi/settings.json)",
+	"dependencies": {
+		"yaml": "^2.6.0"
+	}
+}
