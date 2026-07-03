@@ -33,6 +33,30 @@ export default function prompto(pi: ExtensionAPI): void {
 			{ id: "authoring", title: "Authoring prompto templates", load: () => loadDoc("docs/authoring.md") },
 			{ id: "plugin-protocol", title: "JSONL plugin protocol", load: () => loadDoc("docs/plugin-protocol.md") },
 		],
+		actions: [
+			{
+				id: "expand",
+				title: "Expand a prompt template",
+				description: "Pick a template and fill its form.",
+				default: true,
+				run: (ctx) => runPrompto(pi, store, "", ctx),
+			},
+			{
+				id: "reload",
+				title: "Reload templates",
+				description: "Rescan .pi/prompts and ~/.pi/agent/prompts (re-runs plugin discovery).",
+				run: (ctx) => runPrompto(pi, store, "reload", ctx),
+			},
+		],
+		palette: [
+			{
+				id: "prompto-expand",
+				title: "Prompto: expand a template",
+				description: "Open the template picker and expand through a form.",
+				tags: ["prompts", "templates"],
+				run: (ctx) => runPrompto(pi, store, "", ctx),
+			},
+		],
 	});
 
 	pi.registerCommand("prompto", {
@@ -42,6 +66,11 @@ export default function prompto(pi: ExtensionAPI): void {
 			const items = store
 				.list()
 				.filter((t) => t.name.startsWith(trimmed))
+				.sort((a, b) => {
+					// project layer outranks global; then alphabetical
+					if (a.source !== b.source) return a.source === "project" ? -1 : 1;
+					return a.name.localeCompare(b.name);
+				})
 				.slice(0, 20)
 				.map((t) => ({ value: t.name, label: t.name, description: t.title ?? t.description ?? "" }));
 			if ("reload".startsWith(trimmed)) items.push({ value: "reload", label: "reload", description: "Rescan template directories" });

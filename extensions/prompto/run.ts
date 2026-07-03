@@ -4,6 +4,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-cod
 
 import { renderViaPlugin } from "./plugin";
 import { runPrefill } from "./prefill";
+import { loadRememberedValues, saveRememberedValues } from "./state";
 import type { PromptStore, ScanResult } from "./store";
 import { defaultValues, renderTemplate } from "./template";
 import type { FieldValue, PromptTemplate } from "./types";
@@ -80,8 +81,10 @@ async function collectValues(
 ): Promise<Record<string, FieldValue> | undefined> {
 	const seed = defaultValues(template.fields);
 	if (template.fields.length === 0) return seed;
+	Object.assign(seed, loadRememberedValues(ctx.cwd, template));
 	const warn = (message: string) => ctx.ui.notify(`prompto: ${message}`, "warning");
 
+	let values: Record<string, FieldValue> | undefined;
 	if (template.prefill?.when === "after-required") {
 		// Pass 1: ask only the required fields, so the prefill prompt can
 		// reference their values (e.g. derive a title from the goal).
@@ -92,13 +95,15 @@ async function collectValues(
 			Object.assign(seed, firstPass);
 		}
 		Object.assign(seed, await runPrefill(ctx, template, seed, prefillMaxTokens, warn));
-		return openForm(ctx, template, seed);
+		values = await openForm(ctx, template, seed);
+	} else {
+		if (template.prefill) {
+			Object.assign(seed, await runPrefill(ctx, template, seed, prefillMaxTokens, warn));
+		}
+		values = await openForm(ctx, template, seed);
 	}
-
-	if (template.prefill) {
-		Object.assign(seed, await runPrefill(ctx, template, seed, prefillMaxTokens, warn));
-	}
-	return openForm(ctx, template, seed);
+	if (values !== undefined) saveRememberedValues(ctx.cwd, template, values);
+	return values;
 }
 
 export function reportScan(ctx: ExtensionCommandContext, scan: ScanResult): void {
