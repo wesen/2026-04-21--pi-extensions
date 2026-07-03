@@ -15,7 +15,7 @@ import { ActionPicker } from "../_shared/ui/action-picker";
 import { CommandPaletteOverlay, buildRootPaletteItems, type PaletteResult } from "../_shared/ui/command-palette";
 import { DashboardOverlay } from "../_shared/ui/dashboard-overlay";
 import { DocViewer } from "../_shared/ui/doc-viewer";
-import { ExtensionLauncher, type ExtensionLauncherResult } from "../_shared/ui/extension-launcher";
+import { ExtensionLauncher, type ExtensionLauncherResult, type ExtensionLauncherState } from "../_shared/ui/extension-launcher";
 import { GenericSettingsView, resolveSettingsSchema } from "../_shared/ui/settings-view";
 
 const EXTENSION_ID = "launcher";
@@ -97,7 +97,7 @@ export default function launcherExtension(pi: ExtensionAPI): void {
 	});
 }
 
-async function openLauncher(ctx: ExtensionCommandContext): Promise<void> {
+async function openLauncher(ctx: ExtensionCommandContext, initialState?: ExtensionLauncherState): Promise<void> {
 	const extensions = listPiExtensions();
 	if (extensions.length === 0) {
 		ctx.ui.notify("No extensions registered with the launcher yet.", "warning");
@@ -108,6 +108,7 @@ async function openLauncher(ctx: ExtensionCommandContext): Promise<void> {
 			extensions,
 			theme,
 			done,
+			initialState,
 			requestRender: () => tui.requestRender(),
 		}),
 		{
@@ -124,15 +125,15 @@ async function handleLauncherResult(result: ExtensionLauncherResult, ctx: Extens
 	if (result.kind === "palette") return openPaletteFromLauncher(ctx);
 	if (result.kind === "docs") {
 		await openDocs(ctx, result.extension);
-		return openLauncher(ctx);
+		return openLauncher(ctx, result.state);
 	}
 	if (result.kind === "settings") {
 		await openSettings(ctx, result.extension);
-		return openLauncher(ctx);
+		return openLauncher(ctx, result.state);
 	}
 	if (result.kind === "actions") {
 		await openActions(ctx, result.extension);
-		return openLauncher(ctx);
+		return openLauncher(ctx, result.state);
 	}
 	return runExtensionDefault(ctx, result.extension);
 }

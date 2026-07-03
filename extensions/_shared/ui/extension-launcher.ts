@@ -1,13 +1,21 @@
 import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@mariozechner/pi-tui";
 import type { PiExtensionRegistration } from "../registry";
 
+export interface ExtensionLauncherState {
+	query: string;
+	searchActive: boolean;
+	cursor: number;
+	listScroll: number;
+	detailsScroll: number;
+}
+
 export type ExtensionLauncherResult =
-	| { kind: "select"; extension: PiExtensionRegistration }
-	| { kind: "actions"; extension: PiExtensionRegistration }
-	| { kind: "docs"; extension: PiExtensionRegistration }
-	| { kind: "settings"; extension: PiExtensionRegistration }
-	| { kind: "dashboard" }
-	| { kind: "palette" }
+	| { kind: "select"; extension: PiExtensionRegistration; state: ExtensionLauncherState }
+	| { kind: "actions"; extension: PiExtensionRegistration; state: ExtensionLauncherState }
+	| { kind: "docs"; extension: PiExtensionRegistration; state: ExtensionLauncherState }
+	| { kind: "settings"; extension: PiExtensionRegistration; state: ExtensionLauncherState }
+	| { kind: "dashboard"; state: ExtensionLauncherState }
+	| { kind: "palette"; state: ExtensionLauncherState }
 	| { kind: "cancel" };
 
 export interface ExtensionLauncherOptions {
@@ -18,6 +26,7 @@ export interface ExtensionLauncherOptions {
 	};
 	done(result: ExtensionLauncherResult): void;
 	requestRender?: () => void;
+	initialState?: Partial<ExtensionLauncherState>;
 }
 
 interface ScoredExtension {
@@ -46,6 +55,7 @@ export class ExtensionLauncher implements Component {
 	private searchActive = false;
 	private cursor = 0;
 	private scroll = 0;
+	private detailsScroll = 0;
 	private cachedWidth: number | undefined;
 	private cachedLines: string[] | undefined;
 
@@ -54,6 +64,11 @@ export class ExtensionLauncher implements Component {
 		this.theme = options.theme;
 		this.done = options.done;
 		this.requestRender = options.requestRender;
+		this.query = options.initialState?.query ?? "";
+		this.searchActive = options.initialState?.searchActive ?? false;
+		this.cursor = options.initialState?.cursor ?? 0;
+		this.scroll = options.initialState?.listScroll ?? 0;
+		this.detailsScroll = options.initialState?.detailsScroll ?? 0;
 	}
 
 	handleInput(data: string): void {
@@ -86,6 +101,7 @@ export class ExtensionLauncher implements Component {
 				this.query = this.query.slice(0, -1);
 				this.cursor = 0;
 				this.scroll = 0;
+				this.detailsScroll = 0;
 				this.markDirty();
 				return;
 			}
@@ -93,6 +109,7 @@ export class ExtensionLauncher implements Component {
 				this.query = "";
 				this.cursor = 0;
 				this.scroll = 0;
+				this.detailsScroll = 0;
 				this.markDirty();
 				return;
 			}
@@ -100,6 +117,7 @@ export class ExtensionLauncher implements Component {
 				this.query += data;
 				this.cursor = 0;
 				this.scroll = 0;
+				this.detailsScroll = 0;
 				this.markDirty();
 			}
 			return;
@@ -107,30 +125,30 @@ export class ExtensionLauncher implements Component {
 
 		if (matchesKey(data, Key.enter)) {
 			const extension = this.currentExtension();
-			if (extension) this.done({ kind: "select", extension });
+			if (extension) this.done({ kind: "select", extension, state: this.snapshot() });
 			return;
 		}
 		if (data === "?" || matchesKey(data, "f1")) {
 			const extension = this.currentExtension();
-			if (extension) this.done({ kind: "docs", extension });
+			if (extension) this.done({ kind: "docs", extension, state: this.snapshot() });
 			return;
 		}
 		if (data === "a") {
 			const extension = this.currentExtension();
-			if (extension) this.done({ kind: "actions", extension });
+			if (extension) this.done({ kind: "actions", extension, state: this.snapshot() });
 			return;
 		}
 		if (data === "s") {
 			const extension = this.currentExtension();
-			if (extension) this.done({ kind: "settings", extension });
+			if (extension) this.done({ kind: "settings", extension, state: this.snapshot() });
 			return;
 		}
 		if (data === "d") {
-			this.done({ kind: "dashboard" });
+			this.done({ kind: "dashboard", state: this.snapshot() });
 			return;
 		}
 		if (data === "p") {
-			this.done({ kind: "palette" });
+			this.done({ kind: "palette", state: this.snapshot() });
 			return;
 		}
 		if (matchesKey(data, Key.up)) {
@@ -143,11 +161,13 @@ export class ExtensionLauncher implements Component {
 		}
 		if (matchesKey(data, Key.home)) {
 			this.cursor = 0;
+			this.detailsScroll = 0;
 			this.markDirty();
 			return;
 		}
 		if (matchesKey(data, Key.end)) {
 			this.cursor = Math.max(0, this.visibleExtensions().length - 1);
+			this.detailsScroll = 0;
 			this.markDirty();
 		}
 	}
@@ -203,8 +223,19 @@ export class ExtensionLauncher implements Component {
 	private move(delta: number): void {
 		const count = this.visibleExtensions().length;
 		if (count === 0) return;
-		this.cursor = Math.max(0, Math.min(count - 1, this.cursor + delta));
+		this.cursor = (this.cursor + delta + count) % count;
+		this.detailsScroll = 0;
 		this.markDirty();
+	}
+
+	private snapshot(): ExtensionLauncherState {
+		return {
+			query: this.query,
+			searchActive: this.searchActive,
+			cursor: this.cursor,
+			listScroll: this.scroll,
+			detailsScroll: this.detailsScroll,
+		};
 	}
 
 	private currentExtension(): PiExtensionRegistration | undefined {
