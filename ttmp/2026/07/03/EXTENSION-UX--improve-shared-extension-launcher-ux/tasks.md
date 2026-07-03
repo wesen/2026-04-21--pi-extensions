@@ -43,18 +43,18 @@
 
 ## Phase 3: Scrollable launcher details pane and dynamic overlay height
 
-- [ ] Add `detailsScroll` state to `ExtensionLauncher`
-- [ ] Split details rendering into `buildDetailsLines()` and scroll-window rendering
-- [ ] Add modified-arrow or fallback-key handlers for right-pane scrolling
-- [ ] Clamp details scroll during render based on actual detail line count
-- [ ] Add visible scroll range hints for the right details pane
-- [ ] Add a terminal-row helper for dynamic body row calculation
-- [ ] Replace fixed launcher `bodyRows = 16` with a dynamic clamp
-- [ ] Increase launcher overlay max height in `extensions/launcher/index.ts`
-- [ ] Replace fixed doc viewer `bodyRows = 18` with a dynamic clamp
-- [ ] Update help/footer text to advertise list vs details scroll keys
+- [x] Add `detailsScroll` state to `ExtensionLauncher`
+- [x] Split details rendering into `buildDetailsLines()` and scroll-window rendering
+- [x] Add modified-arrow or fallback-key handlers for right-pane scrolling
+- [x] Clamp details scroll during render based on actual detail line count
+- [x] Add visible scroll range hints for the right details pane
+- [x] Add a terminal-row helper for dynamic body row calculation
+- [x] Replace fixed launcher `bodyRows = 16` with a dynamic clamp
+- [x] Increase launcher overlay max height in `extensions/launcher/index.ts`
+- [x] Replace fixed doc viewer `bodyRows = 18` with a dynamic clamp
+- [x] Update help/footer text to advertise list vs details scroll keys
 - [ ] Manually validate long extension details and prompto docs scrolling
-- [ ] Commit Phase 3 implementation
+- [x] Commit Phase 3 implementation
 - [ ] Update diary/changelog for Phase 3
 
 ## Phase 4: Prompto shortcut and paste insertion workflow

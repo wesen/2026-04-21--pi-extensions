@@ -52,3 +52,14 @@ Phase 2: replaced launcher search scoring with tokenized chunk-based fuzzy match
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Chunked fuzzy search implementation
 
+
+## 2026-07-03
+
+Phase 3: added scrollable launcher details, fallback detail-scroll keys, dynamic launcher/doc viewer heights, and taller launcher overlay (commit c0e1461).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/doc-viewer.ts — Dynamic docs viewer body rows
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Scrollable details and dynamic launcher body rows
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Taller launcher overlay options
+

@@ -360,3 +360,87 @@ Validation command:
 timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
 # EXIT:0
 ```
+
+## Step 5: Add scrollable details panes and dynamic modal height
+
+This step implemented the third shared launcher phase. The top-level launcher now renders all details for the selected extension, then applies a separate right-pane scroll window instead of slicing details permanently at the visible body height. It also uses a terminal-row heuristic so the launcher and docs viewer can show more rows on taller terminals.
+
+The standalone docs viewer already had scroll input, but it also used a fixed body height. That fixed value is now replaced by a dynamic clamp, and the footer explicitly advertises page scrolling. The launcher overlay max height was increased so Pi is allowed to display the taller component.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue implementing the EXTENSION-UX phases with focused commits and diary entries.
+
+**Inferred user intent:** Make the shared extension UI easier to navigate from the keyboard and avoid hiding important command/action details.
+
+**Commit (code):** c0e1461e0f864fece59a4de12b67c26580c00cb0 — "Launcher: add scrollable details and dynamic height"
+
+### What I did
+
+- Added right-pane detail scroll handlers in `ExtensionLauncher`:
+  - `Shift+Up` / `Shift+Down`
+  - `Alt+Up` / `Alt+Down`
+  - `[` / `]` fallback keys
+  - shifted/alt page up/down jumps
+- Split detail rendering into full-line construction and scroll-window rendering.
+- Added a visible detail scroll range hint when content overflows.
+- Removed hard-coded truncation of actions/docs/widgets in the details pane so scrolling can reveal all entries.
+- Replaced launcher `bodyRows = 16` with `launcherBodyRows()` based on `process.stdout.rows`.
+- Increased `/px` overlay max height from `80%` to `90%`.
+- Replaced doc viewer `bodyRows = 18` with `docBodyRows()` based on terminal height.
+- Updated doc viewer and launcher footer hints.
+- Ran `timeout 20 pi --list-models`; it exited `0` with only existing provider/model warnings.
+- Committed the Phase 3 code as `c0e1461`.
+
+### Why
+
+- The user specifically could not scroll the top-level help/details pane to see commands.
+- Fixed-height rendering made large terminals underused.
+- Scrollable details let the launcher remain a compact two-pane UI while still exposing all metadata.
+
+### What worked
+
+- The existing `detailsScroll` state added in Phase 1 could be reused directly.
+- The standalone docs viewer already had scroll input, so only body height and hint text needed to change.
+- The extension load check passed after adding `process.stdout.rows` helpers.
+
+### What didn't work
+
+- I could not manually verify modifier-arrow decoding in the live terminal. The implementation includes fallback `[` / `]` keys for that reason, and manual validation remains open.
+
+### What I learned
+
+- The launcher's right pane was not missing content generation; it generated content and then sliced it to visible rows. Splitting full content generation from scroll-window rendering fixed the core limitation.
+- The Pi TUI component contract still only gives width, so terminal-height heuristics are the least invasive way to improve vertical sizing.
+
+### What was tricky to build
+
+- The detail scroll hint consumes one row when content overflows. The implementation accounts for this by reducing content rows by one and clamping scroll against the content window size, so the last detail lines remain reachable.
+- Shift-modified keys may not be portable, so the fallback keys are part of the implementation rather than merely documentation.
+
+### What warrants a second pair of eyes
+
+- Verify terminal behavior for `Shift+Up/Down` and `Alt+Up/Down` in the actual Pi terminal.
+- Review whether `process.stdout.rows` should be centralized into a shared TUI utility if more overlays adopt dynamic height.
+
+### What should be done in the future
+
+- Manually validate details scrolling on an extension with many actions/docs/widgets/commands.
+- Continue with Phase 4 prompto shortcut/paste insertion.
+
+### Code review instructions
+
+- Review `renderDetails()` and `buildDetailsLines()` in `extensions/_shared/ui/extension-launcher.ts`.
+- Review `launcherBodyRows()` and `docBodyRows()` for acceptable min/max clamps.
+- Validate project load with `timeout 20 pi --list-models`.
+
+### Technical details
+
+Validation command:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
+# EXIT:0
+```
