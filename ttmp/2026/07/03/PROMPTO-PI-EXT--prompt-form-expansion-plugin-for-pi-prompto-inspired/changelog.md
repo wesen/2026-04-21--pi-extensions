@@ -106,3 +106,8 @@ Added prompto-template-authoring project skill (.claude/skills/) covering templa
 
 - /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/.claude/skills/prompto-template-authoring/SKILL.md — New authoring skill
 
+
+## 2026-07-03
+
+Addressed PR #1 review (commit d3a532b, pushed): value memory moved outside the worktree to ~/.pi/agent/prompto-state/ (cwd-hash keyed); CRLF frontmatter fences accepted; 65 tests; replies posted on both review threads
+

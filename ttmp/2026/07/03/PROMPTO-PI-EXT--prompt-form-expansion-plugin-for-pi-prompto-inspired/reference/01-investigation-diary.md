@@ -1032,3 +1032,82 @@ operation rather than tribal knowledge from this session.
 
 ### Technical details
 - Skill frontmatter follows the house format (name + trigger-rich description).
+
+## Step 15: PR review issues addressed (commit d3a532b)
+
+Codex left two P2 findings on PR #1 (wesen/2026-04-21--pi-extensions); both
+were valid and both are fixed and pushed, with replies posted on the review
+threads.
+
+**Finding 1 — remembered values in the worktree.** `state.ts` wrote
+last-submitted form values (arbitrary prompt text) to
+`<cwd>/.pi/prompto-state.json`, an untracked-but-committable file in the
+user's project. Rather than gitignoring (which would only cover this repo),
+state moved outside the worktree entirely: per-project files at
+`~/.pi/agent/prompto-state/<sha256(cwd) first 16 hex>.json`, with the cwd
+recorded inside the file for debuggability. Per-project semantics are
+unchanged. This also retires diary Step 10's "second pair of eyes" concern
+and design-doc open question 6's gitignore sub-question.
+
+**Finding 2 — CRLF frontmatter fences.** `splitFrontmatter` required
+`---\n`, so CRLF-authored templates fell through to plain-prompt handling:
+no form, raw YAML pasted into the editor. Opening fence is now
+`/^---\r?\n/` and closing fence `/^---[ \t]*\r?$/m`; the yaml package
+handles CRLF content natively.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ddress code review issues here: https://github.com/wesen/2026-04-21--pi-extensions/pull/1"
+
+**Assistant interpretation:** Fetch the PR's review comments, fix the
+issues, push to the PR branch, and respond on the threads.
+
+**Inferred user intent:** Get the PR mergeable.
+
+**Commit (code):** d3a532b — "Address PR review: state out of worktree, CRLF frontmatter fences"
+
+### What I did
+- `gh api` to read review comments; rewrote `state.ts` (stateDir injectable
+  for tests); fixed `splitFrontmatter`; updated `docs/authoring.md` and the
+  authoring skill's state-path claims; added `tests/state.test.ts` (5 tests:
+  outside-worktree/deterministic path, roundtrip with field filtering,
+  schema-narrowing drop, missing-file, cross-project isolation) and 2 CRLF
+  fence tests.
+- 65 bun tests pass; pi load smoke exit 0; pushed `6cb7621..d3a532b`;
+  replied on both review threads via `gh api …/comments/<id>/replies`.
+
+### Why
+- Both findings are correctness/safety issues in exactly the categories the
+  design flagged (state sensitivity, silent template degradation).
+
+### What worked
+- Making `stateDir` an optional parameter made the state module fully
+  testable without touching `homedir()`.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- A file that consists solely of `---` (no newline) is now classified plain
+  rather than empty-frontmatter — behavior change from the regex rewrite,
+  deemed correct (such a file is not a template).
+
+### What was tricky to build
+- N/A (surgical fixes).
+
+### What warrants a second pair of eyes
+- Old state files: any existing `<cwd>/.pi/prompto-state.json` from the
+  previous scheme is silently orphaned (not migrated, not deleted). Given
+  the feature shipped hours ago, migration was skipped deliberately.
+
+### What should be done in the future
+- Delete stray `.pi/prompto-state.json` files from any project where the
+  pre-fix build ran (the e2e scratch dir has one; this repo does not).
+
+### Code review instructions
+- Diff `extensions/prompto/state.ts` and `frontmatter.ts` at d3a532b;
+  `bun test extensions/prompto/tests/` → 65 pass.
+
+### Technical details
+- Review threads: comments 3521225433 (state) and 3521225437 (CRLF) on
+  PR #1; replies posted 2026-07-03.
