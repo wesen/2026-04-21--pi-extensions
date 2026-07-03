@@ -27,13 +27,13 @@ export class DocViewer implements Component {
 		const inner = w - 2;
 		const bodyW = inner - 2;
 		const allBody = this.renderMarkdown(bodyW);
-		const bodyRows = 18;
+		const bodyRows = docBodyRows();
 		this.scroll = Math.max(0, Math.min(this.scroll, Math.max(0, allBody.length - bodyRows)));
 		const visible = allBody.slice(this.scroll, this.scroll + bodyRows);
 		const lines: string[] = [top(w, this.options.title, this.options.theme)];
 		for (let i = 0; i < bodyRows; i++) lines.push(row(visible[i] ?? "", inner, this.options.theme));
 		const scrollInfo = allBody.length > bodyRows ? ` ${this.scroll + 1}-${Math.min(this.scroll + bodyRows, allBody.length)}/${allBody.length}` : "";
-		lines.push(row(this.options.theme.fg("dim", ` Esc back · ↑↓ scroll${scrollInfo}`), inner, this.options.theme));
+		lines.push(row(this.options.theme.fg("dim", ` Esc back · ↑↓/PgUp/PgDn scroll${scrollInfo}`), inner, this.options.theme));
 		lines.push(bottom(w, this.options.theme));
 		return lines.map((line) => truncateToWidth(line, w, ""));
 	}
@@ -58,6 +58,15 @@ export class DocViewer implements Component {
 		}
 		return lines;
 	}
+}
+
+function terminalRows(fallback = 30): number {
+	return typeof process.stdout.rows === "number" && process.stdout.rows > 0 ? process.stdout.rows : fallback;
+}
+
+function docBodyRows(): number {
+	const chromeRows = 3;
+	return Math.max(18, Math.min(40, Math.floor(terminalRows() * 0.9) - chromeRows));
 }
 
 function top(width: number, title: string, theme: DocViewerOptions["theme"]): string {

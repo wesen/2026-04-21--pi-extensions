@@ -151,6 +151,22 @@ export class ExtensionLauncher implements Component {
 			this.done({ kind: "palette", state: this.snapshot() });
 			return;
 		}
+		if (matchesKey(data, Key.shift("up")) || matchesKey(data, Key.alt("up")) || data === "[") {
+			this.scrollDetails(-1);
+			return;
+		}
+		if (matchesKey(data, Key.shift("down")) || matchesKey(data, Key.alt("down")) || data === "]") {
+			this.scrollDetails(1);
+			return;
+		}
+		if (matchesKey(data, Key.shift("pageUp")) || matchesKey(data, Key.alt("pageUp"))) {
+			this.scrollDetails(-8);
+			return;
+		}
+		if (matchesKey(data, Key.shift("pageDown")) || matchesKey(data, Key.alt("pageDown"))) {
+			this.scrollDetails(8);
+			return;
+		}
 		if (matchesKey(data, Key.up)) {
 			this.move(-1);
 			return;
@@ -179,7 +195,7 @@ export class ExtensionLauncher implements Component {
 		const innerWidth = modalWidth - 2;
 		const splitLeftWidth = Math.max(28, Math.min(36, Math.floor((modalWidth - 3) * 0.43)));
 		const splitRightWidth = modalWidth - 3 - splitLeftWidth;
-		const bodyRows = 16;
+		const bodyRows = launcherBodyRows();
 		const filtered = this.filtered();
 		const visibleExtensions = this.visibleExtensions(filtered);
 		this.cursor = Math.min(this.cursor, Math.max(0, visibleExtensions.length - 1));
@@ -225,6 +241,11 @@ export class ExtensionLauncher implements Component {
 		if (count === 0) return;
 		this.cursor = (this.cursor + delta + count) % count;
 		this.detailsScroll = 0;
+		this.markDirty();
+	}
+
+	private scrollDetails(delta: number): void {
+		this.detailsScroll = Math.max(0, this.detailsScroll + delta);
 		this.markDirty();
 	}
 
@@ -331,6 +352,20 @@ export class ExtensionLauncher implements Component {
 	}
 
 	private renderDetails(extension: PiExtensionRegistration | undefined, width: number, rows: number): string[] {
+		const allLines = this.buildDetailsLines(extension, width).map((line) => truncateToWidth(line, width, "…"));
+		const hasOverflow = allLines.length > rows;
+		const contentRows = hasOverflow ? Math.max(1, rows - 1) : rows;
+		this.detailsScroll = Math.max(0, Math.min(this.detailsScroll, Math.max(0, allLines.length - contentRows)));
+		const visible = allLines.slice(this.detailsScroll, this.detailsScroll + contentRows);
+		if (hasOverflow) {
+			const end = Math.min(this.detailsScroll + contentRows, allLines.length);
+			visible.push(this.theme.fg("dim", truncateToWidth(` details ${this.detailsScroll + 1}-${end}/${allLines.length} · Shift/Alt+↑↓ or [ ]`, width, "…")));
+		}
+		while (visible.length < rows) visible.push("");
+		return visible;
+	}
+
+	private buildDetailsLines(extension: PiExtensionRegistration | undefined, width: number): string[] {
 		if (!extension) {
 			return [this.theme.fg("dim", " DETAILS"), "", this.theme.fg("dim", " Select an extension to see details")];
 		}
@@ -343,12 +378,12 @@ export class ExtensionLauncher implements Component {
 			lines.push("");
 			lines.push(` ${this.theme.fg("dim", "Actions")}`);
 			if (extension.run) lines.push("   Enter  Default action");
-			lines.push(...(extension.actions ?? []).slice(0, 4).map((action) => `   ${action.default ? "Enter" : "a"}  ${action.title}`));
+			lines.push(...(extension.actions ?? []).map((action) => `   ${action.default ? "Enter" : "a"}  ${action.title}`));
 		}
 		if (extension.docs?.length) {
 			lines.push("");
 			lines.push(` ${this.theme.fg("dim", "Docs")}`);
-			lines.push(...extension.docs.slice(0, 3).map((doc) => `   ?  ${doc.title}`));
+			lines.push(...extension.docs.map((doc) => `   ?  ${doc.title}`));
 		}
 		if (extension.settings) {
 			lines.push("");
@@ -358,7 +393,7 @@ export class ExtensionLauncher implements Component {
 		if (extension.widgets?.length) {
 			lines.push("");
 			lines.push(` ${this.theme.fg("dim", "Widgets")}`);
-			lines.push(...extension.widgets.slice(0, 3).map((widget) => `   ${widget.defaultZone ?? "dashboard"}: ${widget.title}`));
+			lines.push(...extension.widgets.map((widget) => `   ${widget.defaultZone ?? "dashboard"}: ${widget.title}`));
 		}
 		if (extension.commands?.length) {
 			lines.push("");
@@ -373,12 +408,12 @@ export class ExtensionLauncher implements Component {
 		lines.push("");
 		lines.push(` ${this.theme.fg("dim", "Registered as")}`);
 		lines.push(`   ${extension.id}`);
-		return lines.slice(0, rows).map((line) => truncateToWidth(line, width, "…"));
+		return lines;
 	}
 
 	private renderFooter(width: number, filtered: ScoredExtension[]): string[] {
 		const visible = this.visibleExtensions(filtered);
-		const queryEcho = this.query ? ` filter: ${this.query}` : " Tip: press / to search; normal letters trigger launcher shortcuts.";
+		const queryEcho = this.query ? ` filter: ${this.query}` : " Tip: / search · ↑↓ list · Shift/Alt+↑↓ details · [ ] details fallback.";
 		const names = visible
 			.slice(0, 4)
 			.map((extension) => extension.name)
@@ -457,6 +492,15 @@ function paletteSearchChunks(item: NonNullable<PiExtensionRegistration["palette"
 		...(item.tags ?? []),
 		...(item.children ?? []).flatMap(paletteSearchChunks),
 	].filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+function terminalRows(fallback = 30): number {
+	return typeof process.stdout.rows === "number" && process.stdout.rows > 0 ? process.stdout.rows : fallback;
+}
+
+function launcherBodyRows(): number {
+	const chromeRows = 9;
+	return Math.max(16, Math.min(30, Math.floor(terminalRows() * 0.9) - chromeRows));
 }
 
 function borderTop(width: number, title: string, theme: ExtensionLauncherOptions["theme"]): string {

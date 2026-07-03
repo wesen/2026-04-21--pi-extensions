@@ -113,7 +113,7 @@ async function openLauncher(ctx: ExtensionCommandContext, initialState?: Extensi
 		}),
 		{
 			overlay: true,
-			overlayOptions: { width: "85%", maxHeight: "80%", minWidth: 70, margin: 1 },
+			overlayOptions: { width: "90%", maxHeight: "90%", minWidth: 70, margin: 1 },
 		},
 	);
 	await handleLauncherResult(result, ctx);
