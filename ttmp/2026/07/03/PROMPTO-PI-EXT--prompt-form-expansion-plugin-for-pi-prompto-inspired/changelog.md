@@ -77,3 +77,13 @@ Phase 5 polish (commit 38557c6): /px actions + palette item, project-first autoc
 
 - /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/extensions/prompto/state.ts — Per-project value memory
 
+
+## 2026-07-03
+
+Replaced hand-rolled frontmatter parser with the yaml package via new repo-root package.json (commit d5741d8); frontmatter is now full YAML; 58 bun tests pass; runtime resolution under pi verified live
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/extensions/prompto/frontmatter.ts — Now a thin fence-split + yaml.parse wrapper
+- /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/package.json — New repo-root manifest making bare npm imports resolvable for both loaders
+

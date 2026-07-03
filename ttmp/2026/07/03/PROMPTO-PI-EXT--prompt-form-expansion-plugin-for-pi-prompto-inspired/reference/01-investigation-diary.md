@@ -791,3 +791,76 @@ file; reopening the form in a fresh pi session showed "Alice█" prefilled.
 ### Technical details
 - State shape: `{ "values": { "<template-name>": { "<field>": <value> } } }`,
   filtered to currently-declared fields on both load and save.
+
+## Step 11: package.json + real yaml parser (commit d5741d8)
+
+The user overruled the dependency-light constraint: added a repo-root
+`package.json` with the `yaml` package and replaced the hand-rolled
+frontmatter parser. `frontmatter.ts` dropped from ~230 lines to ~50 (fence
+splitting, `parse()` delegation, top-level-must-be-a-map check);
+frontmatter is now full YAML — anchors, folded scalars, and flow maps work,
+pinned by new tests. Net −138 lines.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add package.json + install, that way we can use a proper yaml parser"
+
+**Assistant interpretation:** Add a root package.json, install `yaml`, and
+swap the subset parser for it.
+
+**Inferred user intent:** Eliminate the parser-maintenance liability and
+the YAML-subset authoring restrictions; a node_modules in the repo is an
+acceptable price.
+
+**Commit (code):** d5741d8 — "Replace hand-rolled frontmatter parser with the yaml package"
+
+### What I did
+- Root `package.json` (private, `yaml ^2.6.0`), npm lockfile,
+  `node_modules/` gitignored; `npm install`.
+- Rewrote `frontmatter.ts`; adjusted one test (yaml's tab error message),
+  added two (top-level scalar rejected; anchors/folded scalars now parse).
+- 58 bun tests pass; pi load smoke exit 0; live tmux check confirmed pi's
+  jiti resolves `yaml` from the repo node_modules (form opened, remembered
+  values intact).
+
+### Why
+- Resolution now works for BOTH loaders from the same place: node-style
+  walk-up from `extensions/prompto/*` finds the repo-root `node_modules`
+  under bun test and under pi's jiti alike — the mismatch from diary
+  Steps 6/8 is gone for real npm packages.
+
+### What worked
+- Drop-in: `parseFrontmatter`'s signature and `FmMap`/`FmValue` types were
+  already the yaml lib's natural output shape, so `template.ts` and
+  `plugin-protocol.ts` needed zero changes.
+
+### What didn't work
+- `bun install` failed in this sandbox ("bun is unable to write files to
+  tempdir: ReadOnlyFileSystem", even with TMPDIR overridden) — used
+  `npm install` instead, hence a package-lock.json rather than bun.lock.
+
+### What I learned
+- The pi-package split (`prefill.ts`/`prefill-parse.ts` etc.) is still
+  required: `@mariozechner/pi-*` imports remain resolvable only inside pi
+  (alias to the earendil fork), so bun-tested modules may use npm deps and
+  node builtins, but still not pi packages.
+
+### What was tricky to build
+- N/A (deletion-heavy step).
+
+### What warrants a second pair of eyes
+- Version skew: pi bundles its own nested `yaml` for its internals while
+  extensions now use the repo's `^2.6.0` — both current, API-stable, but
+  worth remembering there are two copies in play.
+
+### What should be done in the future
+- Optionally migrate other extensions' hand-rolled YAML emission to the
+  package; out of scope for this ticket.
+
+### Code review instructions
+- Diff `extensions/prompto/frontmatter.ts` (should be ~50 lines) and the
+  frontmatter tests; `bun test extensions/prompto/tests/` → 58 pass.
+
+### Technical details
+- `.gitignore` gained `node_modules/`; authoring doc's "frontmatter
+  caveats" section rewritten (full YAML, top level must be a map).
