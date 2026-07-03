@@ -7,6 +7,14 @@ relative to that directory with the extension stripped —
 and the first segment is the group. Project templates shadow global ones
 with the same name. After adding files, run `/prompto reload`.
 
+## Using templates
+
+- `/prompto` opens the template picker and expands the selected template into the editor, replacing the current editor text for normal `submit: editor` templates.
+- `/prompto <template-name>` expands a specific template directly.
+- `Ctrl+Alt+P` opens the same picker but pastes the expanded template at the current editor cursor, preserving existing draft text.
+- The launcher action **Pick and paste a prompt template** and the command-palette item **Prompto: paste a template** expose the same paste workflow.
+- `/prompto reload` rescans project and global template directories.
+
 Three kinds:
 
 - **Plain** — any file without `fields:`/`prefill:` frontmatter. Selecting
