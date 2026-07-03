@@ -22,11 +22,12 @@ export class FrontmatterError extends Error {}
  */
 export function splitFrontmatter(source: string): { frontmatter: FmMap | undefined; body: string } {
 	const normalized = source.replace(/^﻿/, "");
-	if (!normalized.startsWith("---\n") && normalized !== "---") {
+	const openFence = /^---\r?\n/.exec(normalized);
+	if (!openFence) {
 		return { frontmatter: undefined, body: normalized };
 	}
-	const rest = normalized.slice(4);
-	const endMatch = /^---[ \t]*$/m.exec(rest);
+	const rest = normalized.slice(openFence[0].length);
+	const endMatch = /^---[ \t]*\r?$/m.exec(rest);
 	if (!endMatch) return { frontmatter: undefined, body: normalized };
 	const fmText = rest.slice(0, endMatch.index);
 	const body = rest.slice(endMatch.index + endMatch[0].length).replace(/^\r?\n/, "");

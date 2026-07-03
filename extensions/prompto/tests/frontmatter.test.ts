@@ -19,6 +19,19 @@ describe("splitFrontmatter", () => {
 		const { frontmatter } = splitFrontmatter("---\ntitle: Hi\nno end");
 		expect(frontmatter).toBeUndefined();
 	});
+
+	test("CRLF fences and content parse identically to LF", () => {
+		const { frontmatter, body } = splitFrontmatter("---\r\ntitle: Hi\r\nfields:\r\n  - name: goal\r\n---\r\nBody {{goal}}\r\n");
+		expect(frontmatter?.title).toBe("Hi");
+		expect(frontmatter?.fields).toEqual([{ name: "goal" }]);
+		expect(body).toBe("Body {{goal}}\r\n");
+	});
+
+	test("mixed: LF opening fence with CRLF end fence still splits", () => {
+		const { frontmatter, body } = splitFrontmatter("---\ntitle: Hi\n---\r\nBody\n");
+		expect(frontmatter?.title).toBe("Hi");
+		expect(body).toBe("Body\n");
+	});
 });
 
 describe("parseFrontmatter", () => {

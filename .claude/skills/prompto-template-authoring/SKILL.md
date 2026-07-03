@@ -92,9 +92,10 @@ overlay on Enter; `boolean` space-toggles; `choice` cycles with ←/→;
   unprefilled form with one warning. Keep prefill prompts small and
   single-purpose; the model must answer with one JSON object restricted to
   the allowed keys.
-- Remembered values: each template's last-submitted values persist in
-  `<cwd>/.pi/prompto-state.json` and seed the next form; prefill proposals
-  override remembered values.
+- Remembered values: each template's last-submitted values persist per
+  project under `~/.pi/agent/prompto-state/` (keyed by a cwd hash, outside
+  the worktree so prompt text is never committable) and seed the next form;
+  prefill proposals override remembered values.
 
 ## JSONL plugins
 

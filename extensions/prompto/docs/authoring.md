@@ -69,3 +69,11 @@ into the prompt. `after-required` asks the required fields first, so the
 prefill prompt can reference them (`{{goal}}` above). Failures (no model,
 abort, bad output) degrade to an unprefilled form with a warning. Config
 knob: `prefillMaxTokens` in `~/.pi/agent/prompto.json`.
+
+## Value memory
+
+Each template's last-submitted values are remembered per project and seed
+the next form (prefill proposals override them). The state is stored
+outside the worktree — under `~/.pi/agent/prompto-state/`, keyed by a hash
+of the project directory — so submitted prompt text can never end up as a
+committable file inside your repository.
