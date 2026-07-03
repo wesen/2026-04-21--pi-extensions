@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 
+import { runPrefill } from "./prefill";
 import type { PromptStore, ScanResult } from "./store";
 import { defaultValues, renderTemplate, TemplateError } from "./template";
-import type { PromptTemplate } from "./types";
+import type { FieldValue, PromptTemplate } from "./types";
 import { openForm } from "./ui/form";
 import { openPicker } from "./ui/picker";
 
@@ -38,7 +39,7 @@ export async function runPrompto(pi: ExtensionAPI, store: PromptStore, args: str
 
 	let prompt: string | undefined;
 	try {
-		prompt = await expandTemplate(ctx, template);
+		prompt = await expandTemplate(ctx, template, store.config.prefillMaxTokens);
 	} catch (error) {
 		ctx.ui.notify(`prompto: ${error instanceof Error ? error.message : String(error)}`, "error");
 		return;
@@ -54,17 +55,44 @@ export async function runPrompto(pi: ExtensionAPI, store: PromptStore, args: str
 }
 
 /** Returns the expanded prompt, or undefined when the user cancelled. */
-async function expandTemplate(ctx: ExtensionCommandContext, template: PromptTemplate): Promise<string | undefined> {
+async function expandTemplate(ctx: ExtensionCommandContext, template: PromptTemplate, prefillMaxTokens: number): Promise<string | undefined> {
 	if (template.kind === "plain") {
 		return readFileSync(template.filePath, "utf-8");
 	}
-	const seed = defaultValues(template.fields);
-	const values = template.fields.length > 0 ? await openForm(ctx, template, seed) : seed;
+	const values = await collectValues(ctx, template, prefillMaxTokens);
 	if (values === undefined) return undefined;
 	if (template.kind === "plugin") {
 		throw new TemplateError("plugin rendering is not wired up yet");
 	}
 	return renderTemplate(template.body, values);
+}
+
+async function collectValues(
+	ctx: ExtensionCommandContext,
+	template: PromptTemplate,
+	prefillMaxTokens: number,
+): Promise<Record<string, FieldValue> | undefined> {
+	const seed = defaultValues(template.fields);
+	if (template.fields.length === 0) return seed;
+	const warn = (message: string) => ctx.ui.notify(`prompto: ${message}`, "warning");
+
+	if (template.prefill?.when === "after-required") {
+		// Pass 1: ask only the required fields, so the prefill prompt can
+		// reference their values (e.g. derive a title from the goal).
+		const requiredFields = template.fields.filter((f) => f.required);
+		if (requiredFields.length > 0) {
+			const firstPass = await openForm(ctx, { ...template, fields: requiredFields, description: template.description }, seed);
+			if (firstPass === undefined) return undefined;
+			Object.assign(seed, firstPass);
+		}
+		Object.assign(seed, await runPrefill(ctx, template, seed, prefillMaxTokens, warn));
+		return openForm(ctx, template, seed);
+	}
+
+	if (template.prefill) {
+		Object.assign(seed, await runPrefill(ctx, template, seed, prefillMaxTokens, warn));
+	}
+	return openForm(ctx, template, seed);
 }
 
 export function reportScan(ctx: ExtensionCommandContext, scan: ScanResult): void {
