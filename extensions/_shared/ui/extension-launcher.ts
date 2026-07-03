@@ -1,4 +1,4 @@
-import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@mariozechner/pi-tui";
+import { fuzzyMatch, Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@mariozechner/pi-tui";
 import type { PiExtensionRegistration } from "../registry";
 
 export interface ExtensionLauncherState {
@@ -264,7 +264,7 @@ export class ExtensionLauncher implements Component {
 		const byId = new Map(scored.map((item) => [item.extension.id, item.score]));
 		return groupExtensions(scored.map((item) => item.extension))
 			.flatMap((group) => group.extensions
-				.sort((a, b) => (byId.get(b.id) ?? 0) - (byId.get(a.id) ?? 0) || a.name.localeCompare(b.name)));
+				.sort((a, b) => (byId.get(a.id) ?? 0) - (byId.get(b.id) ?? 0) || a.name.localeCompare(b.name)));
 	}
 
 	private renderSearchLine(width: number): string {
@@ -420,20 +420,43 @@ function groupRank(group: string): number {
 }
 
 function scoreExtension(extension: PiExtensionRegistration, query: string): number {
-	if (!query) return 0;
-	const haystack = [extension.id, extension.name, extension.description, ...(extension.commands ?? []), ...(extension.tags ?? [])]
-		.join(" ")
-		.toLowerCase();
-	if (haystack.includes(query)) return 1000 - haystack.indexOf(query);
-	let score = 0;
-	let lastIndex = -1;
-	for (const char of query) {
-		const index = haystack.indexOf(char, lastIndex + 1);
-		if (index === -1) return -1;
-		score += Math.max(1, 50 - (index - lastIndex));
-		lastIndex = index;
+	const tokens = query.trim().split(/[\s/]+/).filter(Boolean);
+	if (tokens.length === 0) return 0;
+
+	const chunks = extensionSearchChunks(extension);
+	let totalScore = 0;
+	for (const token of tokens) {
+		const best = chunks
+			.map((chunk) => fuzzyMatch(token, chunk))
+			.filter((match) => match.matches)
+			.sort((a, b) => a.score - b.score)[0];
+		if (!best) return -1;
+		totalScore += best.score;
 	}
-	return score;
+	return totalScore;
+}
+
+function extensionSearchChunks(extension: PiExtensionRegistration): string[] {
+	return [
+		extension.id,
+		extension.name,
+		extension.description,
+		...(extension.commands ?? []),
+		...(extension.tags ?? []),
+		...(extension.actions ?? []).flatMap((action) => [action.id, action.title, action.description, ...(action.tags ?? [])]),
+		...(extension.docs ?? []).flatMap((doc) => [doc.id, doc.title, doc.description, ...(doc.tags ?? [])]),
+		...(extension.palette ?? []).flatMap(paletteSearchChunks),
+	].filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+function paletteSearchChunks(item: NonNullable<PiExtensionRegistration["palette"]>[number]): string[] {
+	return [
+		item.id,
+		item.title,
+		item.description,
+		...(item.tags ?? []),
+		...(item.children ?? []).flatMap(paletteSearchChunks),
+	].filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
 function borderTop(width: number, title: string, theme: ExtensionLauncherOptions["theme"]): string {
