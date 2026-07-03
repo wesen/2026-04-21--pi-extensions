@@ -97,3 +97,12 @@ Published deep-dive project report to the go-go-parc Obsidian vault (PROJ - Prom
 
 Added research logbook (reference/02): per-resource usefulness/staleness log for all 23 consulted resources, with actionable staleness summary (session-summary input handler wrong vs 0.78 API; reMarkable design-doc copy superseded; two-clone conflict missing from README)
 
+
+## 2026-07-03
+
+Added prompto-template-authoring project skill (.claude/skills/) covering template/plugin authoring, validation workflow, and failure table
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-03/pi-extension-prompto/2026-04-21--pi-extensions/.claude/skills/prompto-template-authoring/SKILL.md — New authoring skill
+

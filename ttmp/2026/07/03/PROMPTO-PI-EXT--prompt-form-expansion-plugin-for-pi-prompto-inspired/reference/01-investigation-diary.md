@@ -980,3 +980,55 @@ repo docs to fix.
 - Upload: `remarquee upload bundle <logbook> <design-doc> <diary> --name
   "PROMPTO-PI-EXT Research Logbook and Design v2" --remote-dir
   /ai/2026/07/03/PROMPTO-PI-EXT --toc-depth 2 --non-interactive`.
+
+## Step 14: Authoring skill created
+
+Wrote the `prompto-template-authoring` skill so future sessions can author
+templates and plugins without rereading the design doc: the three prompt
+kinds, layer/naming rules, the full frontmatter schema, the rendering
+dialect and its deliberate limits, prefill rules, the JSONL protocol with a
+minimal python plugin, a validation workflow (reload → form → out-of-pi
+plugin testing → tmux checks with the split-Enter rule), and a
+symptom→cause failure table distilled from this ticket's e2e runs.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a skill on creating new prompto extension templates / scripts."
+
+**Assistant interpretation:** Author a reusable agent skill for prompto
+template/plugin authoring.
+
+**Inferred user intent:** Make template authoring a repeatable, documented
+operation rather than tribal knowledge from this session.
+
+### What I did
+- Created `.claude/skills/prompto-template-authoring/SKILL.md` in this repo
+  (committed) and updated the ticket changelog.
+
+### Why
+- `~/.claude/skills/` is mounted read-only in this environment (both Write
+  tool and shell mkdir failed with EROFS), so the skill lives as a
+  project skill in the repo — which is also the better home: it versions
+  with the extension it documents.
+
+### What worked / What didn't work
+- Repo project-skill placement. / Writing to the global skills directory
+  (read-only filesystem, not just tool sandboxing).
+
+### What I learned
+- Global skill installs need to happen outside this sandbox; the user can
+  copy the file to `~/.claude/skills/` if they want it available globally.
+
+### What was tricky to build / What warrants a second pair of eyes
+- N/A. / The failure table asserts exact warning phrasings; keep in sync if
+  `run.ts`/`store.ts` notify texts change.
+
+### What should be done in the future
+- Optionally copy the skill to `~/.claude/skills/` outside the sandbox.
+
+### Code review instructions
+- Read `.claude/skills/prompto-template-authoring/SKILL.md`; cross-check the
+  schema table against `extensions/prompto/docs/authoring.md`.
+
+### Technical details
+- Skill frontmatter follows the house format (name + trigger-rich description).
