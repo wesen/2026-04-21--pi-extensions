@@ -35,6 +35,12 @@ topics:
       description: Dashboard widgets and configurable dashboard layouts
     - slug: settings
       description: Configuration schemas and settings UIs
+    - slug: prompts
+      description: Prompt content, prompt templates, and prompt engineering artifacts
+    - slug: templates
+      description: Template formats, template rendering, and parameterized content
+    - slug: forms
+      description: Interactive form UIs (modal TUI forms, field schemas, validation)
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
