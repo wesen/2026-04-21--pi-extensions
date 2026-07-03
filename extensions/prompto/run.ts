@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 
+import { renderViaPlugin } from "./plugin";
 import { runPrefill } from "./prefill";
 import type { PromptStore, ScanResult } from "./store";
-import { defaultValues, renderTemplate, TemplateError } from "./template";
+import { defaultValues, renderTemplate } from "./template";
 import type { FieldValue, PromptTemplate } from "./types";
 import { openForm } from "./ui/form";
 import { openPicker } from "./ui/picker";
@@ -62,7 +63,12 @@ async function expandTemplate(ctx: ExtensionCommandContext, template: PromptTemp
 	const values = await collectValues(ctx, template, prefillMaxTokens);
 	if (values === undefined) return undefined;
 	if (template.kind === "plugin") {
-		throw new TemplateError("plugin rendering is not wired up yet");
+		return renderViaPlugin({
+			template,
+			values,
+			cwd: ctx.cwd,
+			onLog: (message) => ctx.ui.setWorkingMessage?.(`prompto: ${message}`),
+		});
 	}
 	return renderTemplate(template.body, values);
 }

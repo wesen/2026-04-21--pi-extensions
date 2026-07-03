@@ -19,8 +19,14 @@ export interface ScanResult {
 	pluginsRun: string[];
 }
 
-/** Discovers templates from a plugin executable (wired in by index.ts; Phase 4). */
-export type PluginDescriber = (filePath: string, group: string, source: TemplateSource, config: PromptoConfig) => Promise<PromptTemplate[]>;
+/** Discovers templates from a plugin executable (wired in by index.ts). */
+export type PluginDescriber = (options: {
+	filePath: string;
+	group: string;
+	source: TemplateSource;
+	submitDefault: "editor" | "auto";
+	cwd: string;
+}) => Promise<{ templates: PromptTemplate[]; issues: string[] }>;
 
 export class PromptStore {
 	private templates = new Map<string, PromptTemplate>();
@@ -62,9 +68,9 @@ export class PromptStore {
 							continue;
 						}
 						pluginsRun.push(filePath);
-						for (const template of await this.describePlugin(filePath, group, layer.source, config)) {
-							addTemplate(byName, template, shadowed);
-						}
+						const described = await this.describePlugin({ filePath, group, source: layer.source, submitDefault: config.submitDefault, cwd });
+						for (const template of described.templates) addTemplate(byName, template, shadowed);
+						for (const message of described.issues) issues.push({ filePath, message });
 					} else {
 						const content = readFileSync(filePath, "utf-8");
 						const template = parseTemplate({

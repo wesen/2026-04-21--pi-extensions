@@ -1,11 +1,26 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 import { registerPiExtension } from "../_shared/registry";
+import { describePlugin } from "./plugin";
 import { runPrompto } from "./run";
 import { PromptStore } from "./store";
 
+const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url));
+
+function loadDoc(relativePath: string): string {
+	try {
+		return readFileSync(join(EXTENSION_DIR, relativePath), "utf-8");
+	} catch (error) {
+		return `Could not load ${relativePath}: ${error instanceof Error ? error.message : String(error)}`;
+	}
+}
+
 export default function prompto(pi: ExtensionAPI): void {
-	const store = new PromptStore();
+	const store = new PromptStore(describePlugin);
 
 	registerPiExtension({
 		id: "prompto",
@@ -14,6 +29,10 @@ export default function prompto(pi: ExtensionAPI): void {
 		commands: ["prompto"],
 		tags: ["prompts", "templates", "forms"],
 		run: (ctx) => runPrompto(pi, store, "", ctx),
+		docs: [
+			{ id: "authoring", title: "Authoring prompto templates", load: () => loadDoc("docs/authoring.md") },
+			{ id: "plugin-protocol", title: "JSONL plugin protocol", load: () => loadDoc("docs/plugin-protocol.md") },
+		],
 	});
 
 	pi.registerCommand("prompto", {

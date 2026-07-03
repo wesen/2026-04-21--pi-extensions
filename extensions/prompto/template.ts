@@ -53,7 +53,7 @@ export function parseTemplate(options: {
 	return template;
 }
 
-function parseFields(value: FmValue | undefined, filePath: string): TemplateField[] {
+export function parseFields(value: FmValue | undefined, filePath: string): TemplateField[] {
 	if (value === undefined || value === null) return [];
 	if (!Array.isArray(value)) throw new TemplateError(`${filePath}: fields must be a list`);
 	const fields: TemplateField[] = [];
@@ -117,7 +117,7 @@ function normalizeDefault(value: FmValue, field: TemplateField, filePath: string
 	}
 }
 
-function parsePrefill(value: FmValue | undefined, fields: TemplateField[], filePath: string): PrefillSpec | undefined {
+export function parsePrefill(value: FmValue | undefined, fields: TemplateField[], filePath: string): PrefillSpec | undefined {
 	if (value === undefined || value === null) return undefined;
 	if (typeof value !== "object" || Array.isArray(value)) throw new TemplateError(`${filePath}: prefill must be a map`);
 	const raw = value as FmMap;
