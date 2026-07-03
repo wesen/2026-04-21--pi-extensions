@@ -30,15 +30,15 @@
 
 ## Phase 2: Shared fuzzy search behavior
 
-- [ ] Replace `scoreExtension()` with chunk/token matching using `fuzzyMatch()`
-- [ ] Include extension id/name/description/commands/tags in search chunks
-- [ ] Include action id/title/description/tags in search chunks
-- [ ] Include doc id/title/description/tags in search chunks
-- [ ] Include palette item id/title/description/tags recursively in search chunks
-- [ ] Require every query token to match at least one meaningful chunk
-- [ ] Sort fuzzy results by score, then extension name
+- [x] Replace `scoreExtension()` with chunk/token matching using `fuzzyMatch()`
+- [x] Include extension id/name/description/commands/tags in search chunks
+- [x] Include action id/title/description/tags in search chunks
+- [x] Include doc id/title/description/tags in search chunks
+- [x] Include palette item id/title/description/tags recursively in search chunks
+- [x] Require every query token to match at least one meaningful chunk
+- [x] Sort fuzzy results by score, then extension name
 - [ ] Verify `/` search for `prompto`, `prompt template`, and nonsense terms
-- [ ] Commit Phase 2 implementation
+- [x] Commit Phase 2 implementation
 - [ ] Update diary/changelog for Phase 2
 
 ## Phase 3: Scrollable launcher details pane and dynamic overlay height

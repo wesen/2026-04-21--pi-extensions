@@ -287,3 +287,76 @@ Validation command:
 timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
 # EXIT:0
 ```
+
+## Step 4: Implement chunked fuzzy launcher search
+
+This step replaced the launcher's custom character-stream scorer with chunked fuzzy matching. Search now splits the user query into tokens and requires each token to match meaningful extension metadata such as extension names, commands, tags, action titles, doc titles, and palette item titles.
+
+The result is stricter and more predictable filtering. A query like `prompto` or `prompt template` should keep the prompto extension visible because those tokens match real metadata. A nonsense query should remove unrelated extensions rather than staying visible because characters happened to appear across a long concatenated haystack.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue the EXTENSION-UX implementation with focused commits and diary updates.
+
+**Inferred user intent:** Implement the documented phases while keeping each change reviewable and traceable.
+
+**Commit (code):** 6f542aefa1282f79a819aba87851c4bcb3fe36d2 — "Launcher: use chunked fuzzy extension search"
+
+### What I did
+
+- Imported `fuzzyMatch` from `@mariozechner/pi-tui` in `extensions/_shared/ui/extension-launcher.ts`.
+- Replaced `scoreExtension()` with tokenized fuzzy matching.
+- Added `extensionSearchChunks()` for extension id/name/description/commands/tags/actions/docs/palette metadata.
+- Added recursive `paletteSearchChunks()` for nested palette items.
+- Changed visible extension sorting so lower fuzzy scores rank first.
+- Ran `timeout 20 pi --list-models`; it exited `0` with only existing provider/model warnings.
+- Committed the Phase 2 code as `6f542ae`.
+
+### Why
+
+- The user's search complaint was that `/` filtering should narrow to fuzzy matches, not keep unrelated entries visible.
+- Matching separate metadata chunks avoids accidental cross-field character matches and aligns the launcher with the stricter prompto picker search behavior.
+
+### What worked
+
+- The change was localized to the launcher search functions and sort direction.
+- Extension load validation passed after the import and helper type changes.
+
+### What didn't work
+
+- I could not manually verify live `/px` filtering in the terminal UI from this tool context. The task list keeps manual search validation open.
+
+### What I learned
+
+- The existing search scored a single joined haystack and sorted higher scores first; switching to `fuzzyMatch()` required flipping sort direction because lower scores are better.
+- Palette metadata should be included recursively so command-palette actions remain discoverable from the main launcher search.
+
+### What was tricky to build
+
+- The main tricky part was preserving grouping while changing score semantics. The launcher still groups extensions by category, but each group now sorts by lower fuzzy score first. This keeps the existing visual organization while improving within-group result quality.
+
+### What warrants a second pair of eyes
+
+- Review whether group ordering should be bypassed during active search. Currently group rank still affects cross-group order; this preserves launcher organization but may not always put the globally best fuzzy match at the top.
+
+### What should be done in the future
+
+- Manually test searches for `prompto`, `prompt template`, `doc`, and nonsense queries.
+- Continue with Phase 3 details/doc scrolling and dynamic height.
+
+### Code review instructions
+
+- Review `scoreExtension()`, `extensionSearchChunks()`, and `paletteSearchChunks()` in `extensions/_shared/ui/extension-launcher.ts`.
+- Confirm every query token must match at least one metadata chunk.
+- Validate project load with `timeout 20 pi --list-models`.
+
+### Technical details
+
+Validation command:
+
+```bash
+timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
+# EXIT:0
+```

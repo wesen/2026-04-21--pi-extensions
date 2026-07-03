@@ -43,3 +43,12 @@ Phase 1: implemented launcher state snapshots, restored selection after docs/act
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — State snapshot and wraparound implementation
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/launcher/index.ts — Threads launcher state through nested overlay returns
 
+
+## 2026-07-03
+
+Phase 2: replaced launcher search scoring with tokenized chunk-based fuzzy matching over extension/action/doc/palette metadata (commit 6f542ae).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/extension-launcher.ts — Chunked fuzzy search implementation
+
