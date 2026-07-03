@@ -26,7 +26,7 @@
 - [x] Reset right-pane scroll when selected extension or query changes
 - [ ] Validate `/px` docs-back behavior and list wraparound manually
 - [x] Commit Phase 1 implementation
-- [ ] Update diary/changelog for Phase 1
+- [x] Update diary/changelog for Phase 1
 
 ## Phase 2: Shared fuzzy search behavior
 
@@ -39,7 +39,7 @@
 - [x] Sort fuzzy results by score, then extension name
 - [ ] Verify `/` search for `prompto`, `prompt template`, and nonsense terms
 - [x] Commit Phase 2 implementation
-- [ ] Update diary/changelog for Phase 2
+- [x] Update diary/changelog for Phase 2
 
 ## Phase 3: Scrollable launcher details pane and dynamic overlay height
 
@@ -55,7 +55,7 @@
 - [x] Update help/footer text to advertise list vs details scroll keys
 - [ ] Manually validate long extension details and prompto docs scrolling
 - [x] Commit Phase 3 implementation
-- [ ] Update diary/changelog for Phase 3
+- [x] Update diary/changelog for Phase 3
 
 ## Phase 4: Prompto shortcut and paste insertion workflow
 
@@ -65,14 +65,14 @@
 - [x] Add a prompto shortcut with `pi.registerShortcut()` in `extensions/prompto/index.ts`
 - [x] Wire shortcut to prompto picker using paste insertion
 - [x] Add a visible action/palette item for paste insertion if useful
-- [ ] Update prompto docs/help text for replacement vs paste behavior
+- [x] Update prompto docs/help text for replacement vs paste behavior
 - [ ] Validate shortcut insertion with existing editor text
 - [x] Commit Phase 4 implementation
-- [ ] Update diary/changelog for Phase 4
+- [x] Update diary/changelog for Phase 4
 
 ## Final validation and delivery
 
-- [ ] Run `timeout 20 pi --list-models`
-- [ ] Run `docmgr doctor --ticket EXTENSION-UX --stale-after 30`
-- [ ] Upload the updated ticket bundle to reMarkable after implementation
+- [x] Run `timeout 20 pi --list-models`
+- [x] Run `docmgr doctor --ticket EXTENSION-UX --stale-after 30`
+- [x] Upload the updated ticket bundle to reMarkable after implementation
 - [ ] Commit final docmgr updates

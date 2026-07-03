@@ -523,3 +523,89 @@ Validation command:
 timeout 20 pi --list-models >/tmp/pi-list-models.out 2>/tmp/pi-list-models.err
 # EXIT:0
 ```
+
+## Step 7: Document prompto paste workflow and rerun final validation
+
+This step closed the documentation gap for the new prompto paste workflow and reran final non-interactive validation. The prompto authoring documentation now distinguishes the regular `/prompto` replacement path from the `Ctrl+Alt+P` paste-at-cursor path.
+
+I also uploaded the updated EXTENSION-UX document bundle to reMarkable after the implementation diary and task list changed. The first upload attempt timed out at 120 seconds; rerunning the same upload with a longer timeout succeeded.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue implementation, keep documentation current, and maintain validation/delivery artifacts.
+
+**Inferred user intent:** Make the completed implementation understandable and ensure the ticket bundle reflects the current code changes.
+
+**Commit (code/docs):** 2cbf930b2acee0134b55f6c856ec9d788ea67d59 — "Prompto: document paste template workflow"
+
+### What I did
+
+- Updated `extensions/prompto/docs/authoring.md` with a `Using templates` section.
+- Documented `/prompto`, `/prompto <template-name>`, `/prompto reload`, `Ctrl+Alt+P`, and the paste action/palette item.
+- Ran `timeout 20 pi --list-models`; it exited `0` with only existing provider/model warnings.
+- Ran `docmgr doctor --ticket EXTENSION-UX --stale-after 30`; it passed.
+- Re-uploaded the EXTENSION-UX bundle to `/ai/2026/07/03/EXTENSION-UX`.
+
+### Why
+
+- Phase 4 added a new user-facing prompto workflow, so the prompto docs needed to explain replacement vs paste behavior.
+- The reMarkable bundle uploaded earlier did not contain the latest implementation diary and task updates.
+
+### What worked
+
+- The prompto documentation update was small and focused.
+- Final `pi --list-models` and `docmgr doctor` validation passed.
+- The reMarkable upload succeeded on retry with a longer timeout.
+
+### What didn't work
+
+- The first reMarkable upload command timed out after 120 seconds:
+
+```bash
+remarquee upload bundle ... --force --non-interactive 2>&1
+# Command timed out after 120 seconds
+```
+
+- Rerunning with a 240 second timeout succeeded:
+
+```bash
+OK: uploaded EXTENSION-UX Shared Extension UX Guide.pdf -> /ai/2026/07/03/EXTENSION-UX
+```
+
+### What I learned
+
+- The reMarkable bundle can take longer than 120 seconds once the diary grows; future uploads for this ticket should allow a longer timeout.
+- Prompto documentation is under `extensions/prompto/docs/authoring.md`, which is also exposed through the prompto extension docs contribution.
+
+### What was tricky to build
+
+- The only tricky part in this step was distinguishing upload failure from a slow upload. Because the command timed out without a structured failure, I retried the same command with a longer timeout and treated the later `OK: uploaded ...` as the successful result.
+
+### What warrants a second pair of eyes
+
+- Manual TUI validation is still needed for launcher state restoration, modifier-arrow details scrolling, and `Ctrl+Alt+P` shortcut behavior.
+
+### What should be done in the future
+
+- Perform the remaining manual smoke tests in an interactive Pi session.
+- If all manual checks pass, close the remaining validation tasks and upload one final bundle.
+
+### Code review instructions
+
+- Review `extensions/prompto/docs/authoring.md` for accurate user-facing shortcut wording.
+- Review the full commit sequence from `df23e9e` through `2cbf930` for the EXTENSION-UX implementation.
+- Run manual checks in Pi: `/reload`, `/px`, `/prompto`, and `Ctrl+Alt+P`.
+
+### Technical details
+
+Final validation commands:
+
+```bash
+timeout 20 pi --list-models
+# EXIT:0
+
+docmgr doctor --ticket EXTENSION-UX --stale-after 30
+# All checks passed
+```

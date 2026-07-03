@@ -73,3 +73,13 @@ Phase 4: added prompto output modes, paste action/palette item, and Ctrl+Alt+P p
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/prompto/index.ts — Prompto paste action
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/prompto/run.ts — Prompto output modes and paste behavior
 
+
+## 2026-07-03
+
+Documented prompto paste workflow, reran final validation, and re-uploaded the EXTENSION-UX bundle to /ai/2026/07/03/EXTENSION-UX (commit 2cbf930).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/prompto/docs/authoring.md — Prompto paste workflow documentation
+- /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/07/03/EXTENSION-UX--improve-shared-extension-launcher-ux/reference/01-diary.md — Updated implementation diary
+
