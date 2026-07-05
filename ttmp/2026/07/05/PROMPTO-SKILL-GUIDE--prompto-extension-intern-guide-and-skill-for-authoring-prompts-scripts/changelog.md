@@ -18,3 +18,8 @@ Uploaded bundle 'Prompto Intern Guide' to reMarkable at /ai/2026/07/05/PROMPTO-S
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/07/05/PROMPTO-SKILL-GUIDE--prompto-extension-intern-guide-and-skill-for-authoring-prompts-scripts/design/01-prompto-intern-guide.md — Main intern guide (the deliverable)
 
+
+## 2026-07-05
+
+Ticket closed
+

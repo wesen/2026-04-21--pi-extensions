@@ -1,7 +1,7 @@
 ---
 Title: Prompto Extension Intern Guide and Skill for Authoring Prompts/Scripts
 Ticket: PROMPTO-SKILL-GUIDE
-Status: active
+Status: complete
 Topics:
     - prompto
     - pi-extension
@@ -25,10 +25,11 @@ RelatedFiles:
       Note: parseTemplate/parseFields/parsePrefill/renderTemplate + the tiny dialect
 ExternalSources: []
 Summary: Analyze the prompto pi extension and produce an intern-ready analysis/design/implementation guide plus authoring playbooks, to serve as the foundation for a prompto-authoring skill. Bundle uploaded to reMarkable.
-LastUpdated: 2026-07-05T17:00:00-04:00
+LastUpdated: 2026-07-05T17:18:22.817368986-04:00
 WhatFor: Onboard a new intern to prompto end-to-end and provide the canonical reference for a future prompto-authoring skill.
 WhenToUse: Read the design doc before writing, reviewing, or refactoring any prompto template, plugin, or part of the extension itself.
 ---
+
 
 
 
