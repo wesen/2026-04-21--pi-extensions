@@ -41,6 +41,12 @@ topics:
       description: Template formats, template rendering, and parameterized content
     - slug: forms
       description: Interactive form UIs (modal TUI forms, field schemas, validation)
+    - slug: prompto
+      description: 'The prompto pi extension: prompt template expansion with modal forms'
+    - slug: pi-extension
+      description: A pi coding-agent extension built with the shared framework
+    - slug: skill-authoring
+      description: Authoring or documenting a reusable agent skill
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
