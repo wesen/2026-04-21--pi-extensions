@@ -45,7 +45,7 @@ function log(label: string, data: unknown): void {
 
 // ── Prompt helpers ───────────────────────────────────────────────────────
 const USER_PROMPT_REMINDER =
-  "\n\n[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory.";
+  "\n\n[REMINDER] Output a <summary>...</summary> block only in the final handoff when the requested job is complete or genuinely blocked; do not stop to summarize intermediate work.";
 
 // ── State ────────────────────────────────────────────────────────────────
 interface SummaryState {
@@ -178,7 +178,7 @@ export default function (pi: ExtensionAPI) {
   registerPiExtension({
     id: "session-summary",
     name: "Session Summary",
-    description: "Requires compact <summary> blocks, displays the latest summary widget, and exposes summary diagnostics.",
+    description: "Requests final-handoff <summary> blocks, displays the latest summary widget, and exposes summary diagnostics.",
     commands: ["summary", "summary-toggle", "summary-logs", "summary-debug"],
     tags: ["summary", "prompt", "widget"],
     docs: [
@@ -269,8 +269,8 @@ export default function (pi: ExtensionAPI) {
 
       log("TURN_END_MISSING", { missingCount: state.missingCount, summaryCount: state.summaryCount, message: "No <summary>...</summary> found" });
 
-      const title = `⚠️ Turn ${event.turnIndex + 1}: No Summary`;
-      const body = "The model did not produce a <summary>...</summary> block.";
+      const title = `ℹ️ Turn ${event.turnIndex + 1}: No Final Summary`;
+      const body = "No final handoff summary was produced on this turn; this is expected while work continues.";
 
       ctx.ui.setWidget(
         WIDGET_KEY,
