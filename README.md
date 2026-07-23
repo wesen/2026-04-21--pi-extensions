@@ -24,6 +24,7 @@ extensions/
   selective-compaction/       # User-selected range compaction
   session-search/             # Search session history and fork from matches
   session-summary/            # Mandatory <summary> block enforcement/widget
+  session-context/            # Session statistics and prompt-number metadata injection
   session-tagger/             # Tag moments in session history
 
 docs/
@@ -71,6 +72,7 @@ Start here before adding or refactoring an extension:
 | `response-viewer` | Browses assistant responses and opens them with md-view. | [`extensions/response-viewer/index.ts`](extensions/response-viewer/index.ts), [`README`](extensions/response-viewer/README.md) |
 | `session-search` | Searches session history and navigates/forks from matches. | [`extensions/session-search/index.ts`](extensions/session-search/index.ts), [`README`](extensions/session-search/README.md) |
 | `session-summary` | Enforces final `<summary>...</summary>` blocks and displays compact summaries. | [`extensions/session-summary/index.ts`](extensions/session-summary/index.ts) |
+| `session-context` | Injects session id, prompt numbers, models, duration, and compaction statistics into prompts. | [`extensions/session-context/index.ts`](extensions/session-context/index.ts), [`README`](extensions/session-context/README.md) |
 | `session-tagger` | Tags important session moments for later analysis/forking. | [`extensions/session-tagger/index.ts`](extensions/session-tagger/index.ts) |
 | `compaction-meter` | Shows context/compaction status in Pi. | [`extensions/compaction-meter/index.ts`](extensions/compaction-meter/index.ts), [`README`](extensions/compaction-meter/README.md) |
 | `compaction-title` | Runs compaction/title generation and stores session titles. | [`extensions/compaction-title/index.ts`](extensions/compaction-title/index.ts), [`README`](extensions/compaction-title/README.md) |

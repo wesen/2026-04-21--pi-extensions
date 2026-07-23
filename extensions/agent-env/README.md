@@ -66,6 +66,21 @@ The preamble includes idempotence markers:
 
 If the marker is already present, the extension does not inject a second preamble.
 
+## Capability event
+
+When loaded, Agent Env emits `agent-env:capability` on Pi's shared extension event bus at session start and whenever injection is toggled. The event describes the capability as scoped to Bash child processes so prompt-aware extensions can explain the boundary to the model without importing Agent Env's private state.
+
+```typescript
+{
+  installed: true,
+  enabled: true,
+  extensionVersion: "1",
+  scope: "bash-child-process",
+  variablePrefix: "PI_AGENT_",
+  fields: ["PI_AGENT_SESSION_ID", "PI_AGENT_TURN_NUMBER", "PI_AGENT_MODEL_ID", "PI_AGENT_START_TIME"]
+}
+```
+
 ## Commands
 
 | Command | Description |

@@ -37,7 +37,7 @@ The widget recognizes the four headings above and renders them as compact labele
 
 ## Runtime behavior
 
-On `before_agent_start`, the extension appends the mandatory session-summary rule from `prompt.ts` to Pi's system prompt. On user `input`, it appends a shorter reminder unless reminders were toggled off with `/summary-toggle`.
+On `before_agent_start`, the extension appends the mandatory session-summary rule from `prompt.ts` to Pi's system prompt. On interactive or RPC `input`, it appends a shorter reminder using Pi's current `{ action: "transform", text, images }` API unless reminders were toggled off with `/summary-toggle`. Extension-generated input is passed through unchanged.
 
 On `turn_end`, the extension inspects assistant text and thinking blocks, finds all `<summary>...</summary>` matches, and uses the last non-empty match. If found, it stores the summary in memory and renders an above-editor widget. If not found, it renders a warning widget so the missing handoff is visible immediately.
 

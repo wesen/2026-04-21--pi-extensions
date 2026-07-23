@@ -9,11 +9,13 @@ import {
 	buildExportPreamble,
 	injectPreamble,
 	runInternalSelfTests,
+	EXTENSION_VERSION,
 	type AgentEnvBuildDetails,
 } from "./env";
 import { registerPiExtension } from "../_shared/registry";
 
 const STATUS_KEY = "agent-env";
+const CAPABILITY_EVENT = "agent-env:capability";
 const QUOTE_TEST_VALUE = "$(printf injected)";
 
 interface AgentEnvState {
@@ -114,6 +116,18 @@ async function runShellSelfTest(ctx: ExtensionContext, state: AgentEnvState): Pr
 
 export default function agentEnvExtension(pi: ExtensionAPI): void {
 	const state = createState();
+
+	function emitCapability(): void {
+		pi.events.emit(CAPABILITY_EVENT, {
+			installed: true,
+			enabled: state.enabled,
+			extensionVersion: EXTENSION_VERSION,
+			scope: "bash-child-process",
+			variablePrefix: "PI_AGENT_",
+			fields: ["PI_AGENT_SESSION_ID", "PI_AGENT_TURN_NUMBER", "PI_AGENT_MODEL_ID", "PI_AGENT_START_TIME"],
+		});
+	}
+
 	registerPiExtension({
 		id: "agent-env",
 		name: "Agent Env",
@@ -129,6 +143,7 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 				description: "Enable or disable PI_AGENT_* environment injection.",
 				run: async (ctx) => {
 					state.enabled = !state.enabled;
+					emitCapability();
 					setStatus(ctx, state);
 					ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info");
 				},
@@ -144,7 +159,7 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 		run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info"),
 		actions: [
 			{ id: "preview", title: "Preview environment", description: "Show PI_AGENT_* variables that will be injected.", default: true, run: async (ctx) => ctx.ui.notify(formatEnvPreview(ctx, state), "info") },
-			{ id: "toggle", title: "Toggle injection", description: "Enable or disable agent-env injection.", run: async (ctx) => { state.enabled = !state.enabled; setStatus(ctx, state); ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info"); } },
+			{ id: "toggle", title: "Toggle injection", description: "Enable or disable agent-env injection.", run: async (ctx) => { state.enabled = !state.enabled; emitCapability(); setStatus(ctx, state); ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info"); } },
 			{ id: "self-test", title: "Run self-test", description: "Run shell quoting and preamble self-tests.", run: async (ctx) => {
 				const internal = runInternalSelfTests();
 				const shell = await runShellSelfTest(ctx, state);
@@ -159,7 +174,7 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 			kind: "schema",
 			schema: { version: 1, title: "Agent Env Settings", description: "Configure PI_AGENT_* environment injection.", sections: [{ id: "main", title: "Main", fields: [{ id: "enabled", label: "Enabled", type: "boolean", description: "Inject PI_AGENT_* variables into bash commands." }] }] },
 			load: () => ({ enabled: state.enabled }),
-			onApply: (values, ctx) => { state.enabled = values.enabled === true; setStatus(ctx, state); ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info"); },
+			onApply: (values, ctx) => { state.enabled = values.enabled === true; emitCapability(); setStatus(ctx, state); ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info"); },
 		},
 		widgets: [
 			{ id: "status", title: "Agent Env Status", description: "Shows whether environment injection is enabled.", defaultZone: "statusBar", defaultVariant: "short", priority: 60, render: () => `agent-env:${state.enabled ? "on" : "off"} n=${state.injectionCount}` },
@@ -168,6 +183,7 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		refreshSessionState(state);
+		emitCapability();
 		setStatus(ctx, state);
 	});
 
@@ -252,6 +268,7 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 			if (mode === "on") state.enabled = true;
 			else if (mode === "off") state.enabled = false;
 			else state.enabled = !state.enabled;
+			emitCapability();
 			setStatus(ctx, state);
 			ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info");
 		},
@@ -264,6 +281,7 @@ export default function agentEnvExtension(pi: ExtensionAPI): void {
 			if (mode === "on") state.enabled = true;
 			else if (mode === "off") state.enabled = false;
 			else state.enabled = !state.enabled;
+			emitCapability();
 			setStatus(ctx, state);
 			ctx.ui.notify(`agent-env ${state.enabled ? "enabled" : "disabled"}`, "info");
 		},

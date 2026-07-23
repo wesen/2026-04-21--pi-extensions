@@ -12,6 +12,7 @@
     "../extensions/response-viewer/index.ts",
     "../extensions/markdown-recent-viewer/index.ts",
     "../extensions/session-tagger/index.ts",
-    "../extensions/prompto/index.ts"
+    "../extensions/prompto/index.ts",
+    "../extensions/session-context/index.ts"
   ]
 }
