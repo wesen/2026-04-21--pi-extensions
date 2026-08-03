@@ -1,0 +1,2 @@
+	"name": "@earendil-works/pi-coding-agent",
+	"version": "0.82.1",
