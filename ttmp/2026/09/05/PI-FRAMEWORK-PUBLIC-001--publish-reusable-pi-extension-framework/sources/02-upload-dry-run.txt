@@ -1,0 +1,7 @@
+DRY: layout=default
+DRY: bundle name=PI-FRAMEWORK-PUBLIC-001 Public Framework Guide
+DRY: remote-dir=/ai/2026/09/05/PI-FRAMEWORK-PUBLIC-001
+DRY: include /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/09/05/PI-FRAMEWORK-PUBLIC-001--publish-reusable-pi-extension-framework/design-doc/01-public-framework-architecture-and-intern-implementation-guide.md (title="01-public-framework-architecture-and-intern-implementation-guide")
+DRY: include /home/manuel/code/wesen/2026-04-21--pi-extensions/ttmp/2026/09/05/PI-FRAMEWORK-PUBLIC-001--publish-reusable-pi-extension-framework/reference/01-investigation-diary.md (title="01-investigation-diary")
+DRY: pandoc <bundle> -> <tmp>/PI-FRAMEWORK-PUBLIC-001 Public Framework Guide.pdf
+DRY: upload PI-FRAMEWORK-PUBLIC-001 Public Framework Guide.pdf -> /ai/2026/09/05/PI-FRAMEWORK-PUBLIC-001

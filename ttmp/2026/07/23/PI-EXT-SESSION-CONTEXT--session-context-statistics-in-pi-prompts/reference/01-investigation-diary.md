@@ -43,10 +43,24 @@ RelatedFiles:
         Existing prompt hook inspected for reuse and API drift
         Existing prompt injection comparison
         Step 6 compatibility repair
+    - Path: repo://.pi/settings.json
+      Note: Removed duplicate project load entry
+    - Path: repo://extensions/session-context/README.md
+      Note: Cadence and global installation instructions
+    - Path: repo://extensions/session-context/cadence.ts
+      Note: Independent prompt cadence
+    - Path: repo://extensions/session-context/config.ts
+      Note: Persistent global interval
+    - Path: repo://extensions/session-context/format.ts
+      Note: Optional identity fields and snapshot caveat
     - Path: repo://extensions/session-context/index.ts
-      Note: Implementation and smoke-test evidence
+      Note: |-
+        Implementation and smoke-test evidence
+        Scheduled injection and module-relative docs
     - Path: repo://extensions/session-context/snapshot.ts
       Note: Self-test and metric implementation
+    - Path: repo://extensions/session-context/test-cadence.mjs
+      Note: Cadence config and lifecycle regression tests
     - Path: repo://extensions/session-summary/README.md
       Note: Updated behavior documentation
 ExternalSources: []
@@ -56,6 +70,7 @@ LastUpdated: 2026-07-23T00:00:00Z
 WhatFor: Use this diary to resume the design or implement the ticket without repeating the API investigation.
 WhenToUse: Read before implementing or reviewing PI-EXT-SESSION-CONTEXT.
 ---
+
 
 
 
@@ -562,3 +577,73 @@ return {
   images: event.images,
 };
 ```
+
+## Step 7: Add configurable cadence and enable globally
+
+The user approved reducing repeated metadata and enabling the extension globally. I added independent input/system cadence with a default interval of five prompts, retained an unchanged system snapshot between refreshes, and suppressed unchanged identity fields in periodic input blocks. The interval is saved globally; existing privacy/injection toggles remain session-local.
+
+I installed the extension through a global symlink and removed its project-specific load entry to avoid duplication. Registered docs now load relative to the extension module so help also works outside this repository.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok. and enable it globally."
+
+**Assistant interpretation:** Implement the previously discussed configurable metadata interval and enable the extension across projects.
+
+**Inferred user intent:** Reduce redundant metadata and prompt churn without losing session orientation after model/context changes.
+
+### What I did
+
+- Added `cadence.ts`, `config.ts`, and `test-cadence.mjs` under `extensions/session-context/`.
+- Updated `index.ts`, `format.ts`, README, and `.pi/settings.json`.
+- Created `~/.pi/agent/extensions/session-context` pointing to this repository's extension directory.
+- Saved `repeatEveryPrompts: 5` in `~/.pi/agent/session-context.json`.
+- Preserved `/sc` as an immediate current snapshot independent of cadence.
+
+### Why
+
+- Session identity does not need to be appended repeatedly to conversation history.
+- Removing the system block on skipped prompts would change the system prompt anyway; caching its exact text preserves stability between scheduled updates.
+- Module-relative docs and removing duplicate project loading make global enablement usable.
+
+### What worked
+
+- `PI_PACKAGE_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent" node extensions/session-context/test-cadence.mjs` passed.
+- Tests cover prompt boundaries, interval validation/persistence, source filtering, stable system text, model changes, compaction/tree resets, settings application, module-relative docs, and existing snapshot self-tests.
+- `timeout 20 pi --list-models` exited 0 both inside the workspace and from `/tmp`, with no error/failed messages in the captured output.
+- `git diff --check` passed.
+
+### What didn't work
+
+- An initial targeted edit matched both human and input session-ID lines: `Found 2 occurrences of edits[1] in extensions/session-context/format.ts.` No change was applied by that failed edit; the retry used unique surrounding text.
+- The initial global symlink probe returned `ls: cannot access '/home/manuel/.pi/agent/extensions/session-context': No such file or directory`; it was not previously globally installed.
+
+### What I learned
+
+The input and system channels have different trigger populations. Input cadence counts eligible interactive/RPC submissions; system cadence counts `before_agent_start`, including agent starts without eligible input transformations. Both are explicitly documented instead of claiming their counters always align.
+
+### What was tricky to build
+
+Counters must not advance on `turn_start`, since one user request can involve many tool-loop turns. Independent channel cadence avoids an input refresh consuming the system refresh. Session/model/compaction identity and explicit reset hooks ensure fresh context after navigation, settings changes, or reload.
+
+### What warrants a second pair of eyes
+
+- System snapshots remain intentionally historical between refreshes and are labelled with `generatedAt`.
+- Other settings still reset on reload; only the new interval persists.
+- Validation used mocked lifecycle hooks plus real load checks, not a live model conversation or interactive settings test.
+
+### What should be done in the future
+
+Reload the running Pi session to activate the new code. Other already-running Pi sessions pick up global interval changes on their next reload. No npm package changes were made.
+
+### Code review instructions
+
+Read `cadence.ts` first, then the `input` and `before_agent_start` hooks in `index.ts`. Run the test command above and check the global symlink/config. Test `/px` settings manually if changing shared numeric-editor behavior.
+
+### Technical details
+
+- Default schedule: first prompt, then prompts 6, 11, and so on.
+- Identity refresh: session/model change, compaction, tree navigation, reload, and explicit cadence reset.
+- Settings picker: 1–20; configuration file: integer 1–100.
+- Missing/invalid config loads the default; saving malformed existing JSON fails rather than overwriting it.
+- Changes remain uncommitted; unrelated framework-publication ticket files were preserved.

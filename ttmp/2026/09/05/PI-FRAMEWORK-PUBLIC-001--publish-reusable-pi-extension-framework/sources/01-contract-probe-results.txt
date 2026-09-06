@@ -1,0 +1,9 @@
+PASS: two physical module copies share the current global registry
+PASS: duplicate IDs silently replace the previous registration
+PASS: unrestricted dot-separated widget IDs can collide
+PASS: current key assignment omits the 37th unkeyable item
+PASS: duplicate explicit palette keys throw case-insensitively
+(node:3264330) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/_shared/ui/palette-keys.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/manuel/code/wesen/2026-04-21--pi-extensions/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

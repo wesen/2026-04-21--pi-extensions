@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { registerPiExtension } from "../_shared/registry";
 import {
@@ -9,6 +10,8 @@ import {
 } from "./snapshot";
 import { formatHumanSnapshot, formatInputBlock, formatStatus, formatSystemBlock } from "./format";
 import { appendInputMetadata, appendSystemMetadata, isAlreadyAnnotated, isSlashCommandOrTemplate } from "./prompt";
+import { MetadataCadence } from "./cadence";
+import { readInterval, writeInterval } from "./config";
 
 const STATUS_KEY = "session-context";
 const WIDGET_KEY = "session-context";
@@ -19,6 +22,7 @@ interface SessionContextState extends SessionContextSettings {
 	includeSystemPrompt: boolean;
 	includeInputPrompt: boolean;
 	includeAgentEnvCapability: boolean;
+	repeatEveryPrompts: number;
 	currentPiTurnIndex?: number;
 	lastSnapshot?: SessionContextSnapshot;
 	agentEnvCapability?: AgentEnvCapability;
@@ -33,6 +37,7 @@ function createState(): SessionContextState {
 		includeSessionFile: false,
 		includeCost: false,
 		includeAgentEnvCapability: true,
+		repeatEveryPrompts: readInterval(),
 		maxSystemChars: 4000,
 		maxInputChars: 800,
 	};
@@ -96,6 +101,17 @@ function formatSelfTestResults(results: ReturnType<typeof runSnapshotSelfTests>)
 
 export default function sessionContextExtension(pi: ExtensionAPI): void {
 	const state = createState();
+	const inputCadence = new MetadataCadence();
+	const systemCadence = new MetadataCadence();
+	let systemBlock: string | undefined;
+	function resetCadence(): void {
+		inputCadence.reset();
+		systemCadence.reset();
+		systemBlock = undefined;
+	}
+	function identityKey(snapshot: SessionContextSnapshot): string {
+		return JSON.stringify([snapshot.session.id, snapshot.activeModel?.provider, snapshot.activeModel?.id, snapshot.activity.compactions]);
+	}
 
 	registerPiExtension({
 		id: "session-context",
@@ -124,6 +140,7 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 				description: "Enable or disable system and input prompt metadata blocks.",
 				run: async (ctx) => {
 					const status = applyToggle("toggle", state);
+					resetCadence();
 					state.lastSnapshot = undefined;
 					setStatus(ctx, state);
 					ctx.ui.notify(`session-context ${status}`, "info");
@@ -131,7 +148,7 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 			},
 		],
 		docs: [
-			{ id: "overview", title: "Session Context overview", path: "extensions/session-context/README.md" },
+			{ id: "overview", title: "Session Context overview", load: () => readFileSync(new URL("./README.md", import.meta.url), "utf8") },
 		],
 		settings: {
 			kind: "schema",
@@ -144,6 +161,7 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 						id: "injection",
 						title: "Prompt injection",
 						fields: [
+							{ id: "repeatEveryPrompts", label: "Repeat every N prompts (global)", type: "number", min: 1, max: 20, step: 1, description: "Refresh metadata every N user prompts; identity changes refresh immediately. Saved globally." },
 							{ id: "enabled", label: "Enabled", type: "boolean", description: "Enable session-context metadata." },
 							{ id: "includeSystemPrompt", label: "System prompt block", type: "boolean", description: "Add the full snapshot to the system prompt." },
 							{ id: "includeInputPrompt", label: "Input prompt block", type: "boolean", description: "Add compact prompt numbers at submission." },
@@ -165,6 +183,16 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 			},
 			load: () => ({ ...state }),
 			onApply: (values, ctx) => {
+				if (typeof values.repeatEveryPrompts === "number") {
+					try {
+						writeInterval(values.repeatEveryPrompts);
+						state.repeatEveryPrompts = values.repeatEveryPrompts;
+					} catch (error) {
+						ctx.ui.notify(`Could not save session-context interval: ${String(error)}`, "error");
+						return;
+					}
+				}
+				resetCadence();
 				for (const key of ["enabled", "includeSystemPrompt", "includeInputPrompt", "includeAgentEnvCapability", "includeCwd", "includeSessionFile", "includeCost"] as const) {
 					if (typeof values[key] === "boolean") state[key] = values[key];
 				}
@@ -196,6 +224,7 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		resetCadence();
 		state.currentPiTurnIndex = undefined;
 		state.lastSnapshot = undefined;
 		refresh(ctx, state);
@@ -218,9 +247,11 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 		if (isSlashCommandOrTemplate(event.text) || isAlreadyAnnotated(event.text)) return { action: "continue" };
 
 		const snapshot = refresh(ctx, state);
+		const decision = inputCadence.next(identityKey(snapshot), state.repeatEveryPrompts);
+		if (!decision.emit) return { action: "continue" };
 		return {
 			action: "transform",
-			text: appendInputMetadata(event.text, formatInputBlock(snapshot, state.maxInputChars)),
+			text: appendInputMetadata(event.text, formatInputBlock(snapshot, state.maxInputChars, decision.identityChanged)),
 			images: event.images,
 		};
 	});
@@ -228,8 +259,11 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!state.enabled || !state.includeSystemPrompt) return;
 		const snapshot = refresh(ctx, state);
+		if (systemCadence.next(identityKey(snapshot), state.repeatEveryPrompts).emit || !systemBlock) {
+			systemBlock = formatSystemBlock(snapshot, state.maxSystemChars);
+		}
 		return {
-			systemPrompt: appendSystemMetadata(event.systemPrompt, formatSystemBlock(snapshot, state.maxSystemChars)),
+			systemPrompt: appendSystemMetadata(event.systemPrompt, systemBlock),
 		};
 	});
 
@@ -239,11 +273,13 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_compact", async (_event, ctx) => {
+		resetCadence();
 		state.lastSnapshot = undefined;
 		setStatus(ctx, state);
 	});
 
 	pi.on("session_tree", async (_event, ctx) => {
+		resetCadence();
 		state.lastSnapshot = undefined;
 		setStatus(ctx, state);
 	});
@@ -274,6 +310,7 @@ export default function sessionContextExtension(pi: ExtensionAPI): void {
 		description: "Toggle session-context prompt injection on/off",
 		handler: async (args, ctx) => {
 			const status = applyToggle(args, state);
+			resetCadence();
 			state.lastSnapshot = undefined;
 			setStatus(ctx, state);
 			ctx.ui.notify(`session-context ${status}`, "info");

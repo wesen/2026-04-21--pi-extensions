@@ -54,3 +54,7 @@ Migrated session-summary input reminders to Pi's current input API: interactive/
 
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-summary/README.md — Documented current input behavior
 - /home/manuel/code/wesen/2026-04-21--pi-extensions/extensions/session-summary/index.ts — Compatibility repair for current Pi input events
+
+## 2026-09-05
+
+Step 7: added default five-prompt cadence with global interval persistence, stable system snapshots, identity refresh after changes/compaction, regression tests, and global installation. Removed duplicate project load entry; real Pi load checks pass inside and outside workspace. Reload required for current session.
